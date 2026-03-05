@@ -27,19 +27,14 @@ if __name__ == "__main__":
 
     #Anchoring relavent components
     caa = catia()                                                                                               #Catia application instance
-    part_document: PartDocument = caa.active_document                                                           #Current open document
-    part = part_document.part                                                                                   #Current part
-    hybrid_bodies = part.hybrid_bodies                                                                          #Set off all top level geometric sets
+    product_document: product_document = caa.active_document                                                           #Current open document
 
     selectionSet = caa.active_document.selection                                                                #Create container for selection
     selectionSet.search("(((FreeStyle.'Axis System' + 'Part Design'.'Axis System') + 'Generative Shape Design'.'Axis System') + 'Functional Molded Part'.'Axis System'),all")
     
     vis_properties = selectionSet.vis_properties
     vis_properties.set_show(1)
-    
     selectionSet.clear()
-
-    part.update()
     
     selectionSet.search("(((FreeStyle.Plane + 'Part Design'.Plane) + 'Generative Shape Design'.Plane) + 'Functional Molded Part'.Plane),all")
     
@@ -47,5 +42,3 @@ if __name__ == "__main__":
     vis_properties.set_show(1)
     
     selectionSet.clear()
-
-    part.update()
