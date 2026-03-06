@@ -13,6 +13,11 @@
                     "pycatia",
                     "wxPython",
                     ]
+    requirements:   Python >= 9.10
+                    pycatia
+                    wxPython
+                    Catia V5 running wtih an open part.
+                    This script needs an open part document.
     -----------------------------------------------------------------------------------------------------------------------
     
     Change:
@@ -38,7 +43,7 @@ if __name__ == "__main__":
     if status != "Normal":                                                                                      #Check if selection was succesful
         exit()
 
-    newName = ''
+    newName = ''                                                                                                #Initilise varible
     app = wx.App(None)                                                                                          #bootstrap the wxPython system 
     style = wx.OK | wx.CANCEL | wx.CENTRE | wx.STAY_ON_TOP
     dialog = wx.TextEntryDialog(None, "Enter a new name for the Objects", "Rename Objects", "New Name", style)  #Create dialog
@@ -49,5 +54,5 @@ if __name__ == "__main__":
         exit()                                 
     dialog.Destroy()                                                                                            #Close dialog
         
-    for index in range(selectionSet.count):
-        selectionSet.item(index + 1).value.name = newName
+    for index in range(selectionSet.count):                                                                     #Loop through selection
+        selectionSet.item(index + 1).value.name = newName                                                       #Change name of each object

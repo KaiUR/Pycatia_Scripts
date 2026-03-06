@@ -11,6 +11,10 @@
     dependencies = [
                     "pycatia",
                     ]
+    requirements:   Python >= 9.10
+                    pycatia
+                    Catia V5 running wtih an open part cantaining surfaces.
+                    This script needs an open part document.
     -----------------------------------------------------------------------------------------------------------------------
     
     Change:
@@ -56,7 +60,7 @@ if __name__ == "__main__":
 
     object_filter = ("BiDimInfinite",)                                                                          #Set user selection filter(Surfaces)                              
     selectionSet = caa.active_document.selection                                                                #Create container for selection
-    status = selectionSet.select_element3(object_filter,"Select surfaces to join" , False , 2 , False)         #Runs an interactive selection command, exhaustive version. 
+    status = selectionSet.select_element3(object_filter,"Select surfaces to join" , False , 2 , False)          #Runs an interactive selection command, exhaustive version. 
     if status != "Normal":                                                                                      #Check if selection was succesful
         exit()
 
@@ -64,7 +68,8 @@ if __name__ == "__main__":
         exit()
           
     #New join command
-    join_hybrid_shapes = hybrid_shape_factory.add_new_join(selectionSet.item(1).reference, selectionSet.item(2).reference)#Add first two elements to join command
+    join_hybrid_shapes = hybrid_shape_factory.add_new_join(
+        selectionSet.item(1).reference, selectionSet.item(2).reference)                                         #Add first two elements to join command
     
     if selectionSet.count > 2:                                                                                  #If there are more than two elements
         index = 3
@@ -92,7 +97,8 @@ if __name__ == "__main__":
     hb.append_hybrid_shape(join_hybrid_shapes)                                                                  #Add join to geometric set
     part.update()                                                                                               #Update part
     
-    join_datum_surface = hybrid_shape_factory.add_new_surface_datum(hb.hybrid_shapes.item(hb.hybrid_shapes.count))#Create datum from join
+    join_datum_surface = hybrid_shape_factory.add_new_surface_datum(
+            hb.hybrid_shapes.item(hb.hybrid_shapes.count))                                                      #Create datum from join
     hb.append_hybrid_shape(join_datum_surface)                                                                  #Add datum to geometric set
     
     selectionSet.clear()                                                                                        #Clear selection

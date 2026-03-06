@@ -7,13 +7,17 @@
     Purpose:        Create two step files, with ISM and OSM surfaces.
     Author:         Kai-Uwe Rathjen
     Date:           03.03.26
-    Description:    This script will ask the user to select a face on the ISM and a face on the OSM. The script will then take an
+    Description:    This script will ask the user to select a face on the ISM (Inside of Metal) and a face on the OSM (Outside of Metal). The script will then take an
                     multiple extract in tangency and create two step files from these surfaces. This macro will assume that the
                     surfaces for ISM and OSM are in tangent continuity, if not this macro cannot be used, but in most cases this macro will work.
                     Like name Step files will be overwritten.
     dependencies = [
                     "pycatia",
                     ]
+    requirements:   Python >= 9.10
+                    pycatia
+                    Catia V5 running with an open part that contains either surfaces or solids.
+                    This script needs an open part document.
     -----------------------------------------------------------------------------------------------------------------------
     
     Change:
@@ -59,7 +63,7 @@ if __name__ == "__main__":
     #Create new geometric set and extract for ISM and OSM
     hb = hybrid_bodies.add()                                                                                    #Add new geometric set
     hb.name = "ISM_OSM_Surfaces"                                                                                #Set name for new geometric set
-    part.in_work_object = hb                                                                                      #Make new geometric set inwork object
+    part.in_work_object = hb                                                                                    #Make new geometric set inwork object
 
     ISM_Extract = hybrid_shape_factory.add_new_extract(refISM)                                                  #Create new extract
     OSM_Extract = hybrid_shape_factory.add_new_extract(refOSM)                                                  #Create new extract

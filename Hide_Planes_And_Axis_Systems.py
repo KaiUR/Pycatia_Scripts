@@ -11,6 +11,10 @@
     dependencies = [
                     "pycatia",
                     ]
+    requirements:   Python >= 9.10
+                    pycatia
+                    Catia V5 running.
+                    This script needs an open part document or product document.
     -----------------------------------------------------------------------------------------------------------------------
     
     Change:
@@ -26,19 +30,21 @@ import wx
 if __name__ == "__main__":
 
     #Anchoring relavent components
-    caa = catia()                                                                                               #Catia application instance
-    product_document: product_document = caa.active_document                                                           #Current open document
+    caa = catia()                                                                                                       #Catia application instance
+    product_document: product_document = caa.active_document                                                            #Current open document
 
-    selectionSet = caa.active_document.selection                                                                #Create container for selection
-    selectionSet.search("(((FreeStyle.'Axis System' + 'Part Design'.'Axis System') + 'Generative Shape Design'.'Axis System') + 'Functional Molded Part'.'Axis System'),all")
+    selectionSet = caa.active_document.selection                                                                        #Create container for selection
+    selectionSet.search("""(((FreeStyle.'Axis System' + 'Part Design'.'Axis System') + 
+            'Generative Shape Design'.'Axis System') + 'Functional Molded Part'.'Axis System'),all""")                  #Search for all axis systems and select
     
-    vis_properties = selectionSet.vis_properties
-    vis_properties.set_show(1)
-    selectionSet.clear()
+    vis_properties = selectionSet.vis_properties                                                                        #Get visable properties of selected items
+    vis_properties.set_show(1)                                                                                          #Set to no show
+    selectionSet.clear()                                                                                                #Clear Selection
     
-    selectionSet.search("(((FreeStyle.Plane + 'Part Design'.Plane) + 'Generative Shape Design'.Plane) + 'Functional Molded Part'.Plane),all")
+    selectionSet.search("""(((FreeStyle.Plane + 'Part Design'.Plane) + 
+            'Generative Shape Design'.Plane) + 'Functional Molded Part'.Plane),all""")                                  #Search for all planes and select
     
-    vis_properties = selectionSet.vis_properties
-    vis_properties.set_show(1)
+    vis_properties = selectionSet.vis_properties                                                                        #Get Visable properties
+    vis_properties.set_show(1)                                                                                          #Set to no show
     
-    selectionSet.clear()
+    selectionSet.clear()                                                                                                #Clear Selection

@@ -8,11 +8,16 @@
     Author:         Kai-Uwe Rathjen
     Date:           05.03.26
     Description:    This script will ask the user to select curves and an axis. The script will then do an axis to axis move
-                    and export the result as an IGES. Script assumes that the curves are datums.
+                    and export the result as an IGES. Script assumes that the curves are datums. The output IGES file will have 
+                    all curves moved to the Absolute Axis.
     dependencies = [
                     "pycatia",
                     "wxPython",
                     ]
+    requirements:   Python >= 9.10
+                    pycatia
+                    Catia V5 running wtih an open part containing a curve and an axis system.
+                    This script needs an open part document.
     -----------------------------------------------------------------------------------------------------------------------
     
     Change:
@@ -105,7 +110,8 @@ if __name__ == "__main__":
         IGES_hb_con.append_hybrid_shape(axis_to_axis)                                                           #Add axix to axis result to geometric set
         
         IGES_part.update()        
-        curve_Explicit = hybrid_shape_factory_IGES.add_new_curve_datum(IGES_hb_con.hybrid_shapes.item(IGES_hb_con.hybrid_shapes.count))  #Create datum
+        curve_Explicit = hybrid_shape_factory_IGES.add_new_curve_datum(
+                IGES_hb_con.hybrid_shapes.item(IGES_hb_con.hybrid_shapes.count))                                #Create datum
         IGES_hb.append_hybrid_shape(curve_Explicit)
 
     IGES_part.update()
@@ -119,9 +125,10 @@ if __name__ == "__main__":
     export_file_name = ''
     app = wx.App(None)                                                                                          #bootstrap the wxPython system 
     style = wx.OK | wx.CANCEL | wx.CENTRE | wx.STAY_ON_TOP
-    dialog = wx.TextEntryDialog(None, "Enter a name for the IGES to Export", "IGES File Name", "Enter File Name", style)  #Create dialog
+    dialog = wx.TextEntryDialog(
+            None, "Enter a name for the IGES to Export", "IGES File Name", "Enter File Name", style)            #Create dialog
     if dialog.ShowModal() == wx.ID_OK:                                                                          #Show dialog and wait for ok
-        export_file_name = dialog.GetValue()                                                                             #Get path that user selected
+        export_file_name = dialog.GetValue()                                                                    #Get path that user selected
     else:                                                                                                       #Something whent wrong or user canceled
         dialog.Destroy()
         # Enable user prompts and confirmantions

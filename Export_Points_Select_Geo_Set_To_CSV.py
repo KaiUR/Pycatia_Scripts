@@ -14,6 +14,10 @@
     dependencies = [
                     "pycatia",
                     ]
+    requirements:   Python >= 9.10
+                    pycatia
+                    Catia V5 running with an geometric set that contains points. The points should be datums(Isolated)
+                    This script needs an open part document.
     -----------------------------------------------------------------------------------------------------------------------
     
     Change:
@@ -23,7 +27,6 @@
 
 #Imports
 from pycatia import catia
-from pycatia.hybrid_shape_interfaces.hybrid_shape_line_pt_pt import HybridShapeLinePtPt
 from pycatia.hybrid_shape_interfaces.hybrid_shape_point_coord import HybridShapePointCoord
 from pycatia.mec_mod_interfaces.part_document import PartDocument
 '''

@@ -15,6 +15,10 @@
     dependencies = [
                     "pycatia",
                     ]
+    requirements:   Python >= 9.10
+                    pycatia
+                    Catia V5 running with an geometric set that contains points. The points should be datums(Isolated)
+                    This script needs an open part document.
     -----------------------------------------------------------------------------------------------------------------------
     
     Change:
@@ -24,7 +28,6 @@
 
 #Imports
 from pycatia import catia
-from pycatia.hybrid_shape_interfaces.hybrid_shape_line_pt_pt import HybridShapeLinePtPt
 from pycatia.hybrid_shape_interfaces.hybrid_shape_point_coord import HybridShapePointCoord
 from pycatia.mec_mod_interfaces.part_document import PartDocument
 
@@ -184,7 +187,7 @@ if __name__ == "__main__":
     f.write("Point Name,X,Y,Z\n")                                                                                 #Heading
 
     #Walk through all points
-    for i in range(len(hs)):                                                                              #Loop all hybrid shapes
+    for i in range(len(hs)):                                                                                    #Loop all hybrid shapes
         shape_index = i + 1                                                                                     #indexes start at one
         
         current_hs = hs.item(shape_index)                                                                       #Get current shape

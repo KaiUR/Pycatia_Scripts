@@ -19,6 +19,10 @@
                     "pycatia", 
                     "wxPython",
                     ]
+    requirements:   Python >= 9.10
+                    pycatia
+                    Catia V5 running wtih an open part. A CVS or Text file containing the points.
+                    This script needs an open part document.
     -----------------------------------------------------------------------------------------------------------------------
     
     Change:
@@ -83,7 +87,8 @@ if __name__ == "__main__":
             elif len(coords) == 3:                                              #Add zero if Z is left blank
                 coords.append(0)
 
-            point = hybrid_shape_factory.add_new_point_coord(coords[1], coords[2], coords[3])   #Create new point
+            point = hybrid_shape_factory.add_new_point_coord(
+                    coords[1], coords[2], coords[3])                            #Create new point
             point.name = coords[0]                                              #Set name for point
             hb.append_hybrid_shape(point)                                       #Add point to geometric shape
 
