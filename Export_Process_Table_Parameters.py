@@ -7,7 +7,7 @@
     Purpose:        Exports parameters from process table to excel
     Author:         Kai-Uwe Rathjen
     Date:           04.03.26
-    Description:    This script will export all of the parameters in the process table for all prat operations
+    Description:    This script will export all of the parameters in the process table for all part operations
                     and insert them into excel.
                     
                     This script is to get all parameters for all manufacturing programs into one place so we can check our values to ensure
