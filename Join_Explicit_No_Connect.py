@@ -9,7 +9,7 @@
     Date:           04.03.26
     Description:    This script will ask the user to select surfaces or curves and join them without checking for connex.
     dependencies = [
-                    "pycatia",
+                    "pycatia",  
                     ]
     requirements:   Python >= 9.10
                     pycatia
@@ -26,7 +26,6 @@
 from pycatia import catia
 from pycatia.hybrid_shape_interfaces.hybrid_shape_assemble import HybridShapeAssemble
 from pycatia.mec_mod_interfaces.part_document import PartDocument
-import wx
 
 '''
     This function searches for a hybrid body by name and return is.
