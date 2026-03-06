@@ -68,14 +68,14 @@ if __name__ == "__main__":
     ISM_Extract = hybrid_shape_factory.add_new_extract(refISM)                                                  #Create new extract
     OSM_Extract = hybrid_shape_factory.add_new_extract(refOSM)                                                  #Create new extract
 
-    ISM_Extract.PropagationType = 2                                                                             #Set Propagation type to tangent
-    OSM_Extract.PropagationType = 2                                                                             #Set Propagation type to tangent
+    ISM_Extract.propagation_type = 2                                                                            #Set Propagation type to tangent
+    OSM_Extract.propagation_type = 2                                                                            #Set Propagation type to tangent
 
-    ISM_Extract.ComplementaryExtract = False                                                                    #Set Comp extract to false
-    OSM_Extract.ComplementaryExtract = False                                                                    #Set Comp extract to false
+    ISM_Extract.complementary_extract = False                                                                   #Set Comp extract to false
+    OSM_Extract.complementary_xtract = False                                                                    #Set Comp extract to false
 
-    ISM_Extract.IsFederated = False                                                                             #Set federated to false
-    OSM_Extract.IsFederated = False                                                                             #Set federated to false
+    ISM_Extract.is_federated = False                                                                            #Set federated to false
+    OSM_Extract.is_federated = False                                                                            #Set federated to false
 
     hb.append_hybrid_shape(ISM_Extract)                                                                         #Add ectract to geometric set
     hb.append_hybrid_shape(OSM_Extract)                                                                         #Add ectract to geometric set
