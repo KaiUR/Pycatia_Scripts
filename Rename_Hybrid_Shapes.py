@@ -16,8 +16,7 @@
     requirements:   Python >= 9.10
                     pycatia
                     wxPython
-                    Catia V5 running wtih an open part.
-                    This script needs an open part document.
+                    Catia V5 running wtih an open part, product or process.
     -----------------------------------------------------------------------------------------------------------------------
     
     Change:
@@ -33,10 +32,7 @@ import wx
 if __name__ == "__main__":
     #Anchoring relavent components
     caa = catia()                                                                                               #Catia application instance
-    part_document: PartDocument = caa.active_document                                                           #Current open document
-    part = part_document.part                                                                                   #Current part
-    hybrid_bodies = part.hybrid_bodies                                                                          #Set off all top level geometric sets
-
+    
     object_filter = ("AnyObject",)                                                                              #Set user selection filter                               
     selectionSet = caa.active_document.selection                                                                #Create container for selection
     status = selectionSet.select_element3(object_filter,"Select objects to rename" , False , 2 , False)         #Runs an interactive selection command, exhaustive version. 

@@ -14,7 +14,7 @@
     requirements:   Python >= 9.10
                     pycatia
                     Catia V5 running.
-                    This script needs an open part document or product document.
+                    This script needs an open part document ,product document or process document.
     -----------------------------------------------------------------------------------------------------------------------
     
     Change:
@@ -31,7 +31,6 @@ if __name__ == "__main__":
 
     #Anchoring relavent components
     caa = catia()                                                                                                       #Catia application instance
-    product_document: product_document = caa.active_document                                                            #Current open document
 
     selectionSet = caa.active_document.selection                                                                        #Create container for selection
     selectionSet.search("""(((FreeStyle.'Axis System' + 'Part Design'.'Axis System') + 
