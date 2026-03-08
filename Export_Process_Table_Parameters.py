@@ -2,11 +2,11 @@
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Export_Process_Table_Parameters.py
     Version:        1.0
-    Code:           Python3.10.4, Pycatia 0.8.3
+    Code:           Python3.10.4, Pycatia 0.9.5
     Release:        V5R32
     Purpose:        Exports parameters from process table to excel
     Author:         Kai-Uwe Rathjen
-    Date:           04.03.26
+    Date:           08.03.26
     Description:    This script will export all of the parameters in the process table for all part operations
                     and insert them into excel.
                     
@@ -20,7 +20,7 @@
                     "xlsxwriter",
                     ]
     requirements:   Python >= 9.10
-                    pycatia
+                    pycatia >= 0.9.5 (There is a bug in privious vesrions, scritp will not work)
                     xlsxwriter
                     Catia V5 running wtih an open process containing a part operation with a program and operation.
                     This script needs an open part process document.
@@ -59,10 +59,12 @@ if __name__ == "__main__":
     caa = catia()                                                                                           #Catia application instance
     check_document = caa.active_document                                                                    #Current Active Document
     current_document = None
-    if str(check_document).find("ProcessDocument") != -1:                                                   #Active Document is ProcessDocument
+    if type(check_document) is ProcessDocument:                                                             #Active Document is ProcessDocument
         current_document: PPRDocument = check_document.ppr_document                                         #Get PPRDocument
-    else:                                                                                                   #Active document is PPRDocument
+    elif type(check_document) is PPRDocument:                                                               #Active document is PPRDocument
         current_document: PPRDocument = caa.active_document
+    else:
+        exit()
 
     processes = current_document.processes                                                                  #Get process list
     
