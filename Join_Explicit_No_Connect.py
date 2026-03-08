@@ -62,9 +62,11 @@ if __name__ == "__main__":
     status = selectionSet.select_element3(
             object_filter,"Select curves or surfaces to join" , False , 2 , False)                              #Runs an interactive selection command, exhaustive version. 
     if status != "Normal":                                                                                      #Check if selection was succesful
+        print("You must select curves or surfaces")
         exit()
 
     if selectionSet.count < 2:                                                                                  #If nothing to join, exit
+        print("You must select at least two hybrid shapes")
         exit()
           
     #New join command

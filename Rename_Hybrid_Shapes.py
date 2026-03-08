@@ -37,6 +37,7 @@ if __name__ == "__main__":
     selectionSet = caa.active_document.selection                                                                #Create container for selection
     status = selectionSet.select_element3(object_filter,"Select objects to rename" , False , 2 , False)         #Runs an interactive selection command, exhaustive version. 
     if status != "Normal":                                                                                      #Check if selection was succesful
+        print("You must select an object")
         exit()
 
     newName = ''                                                                                                #Initilise varible
@@ -47,6 +48,7 @@ if __name__ == "__main__":
         newName = dialog.GetValue()                                                                             #Get path that user selected
     else:                                                                                                       #Something whent wrong or user canceled
         dialog.Destroy()
+        print("You must enter an new name for the objects")
         exit()                                 
     dialog.Destroy()                                                                                            #Close dialog
         

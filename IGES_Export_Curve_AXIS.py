@@ -47,6 +47,7 @@ if __name__ == "__main__":
     selectionSet = caa.active_document.selection                                                                #Create container for selection
     status = selectionSet.select_element3(object_filter,"Select curves to export" , False , 2 , False)          #Runs an interactive selection command, exhaustive version. 
     if status != "Normal":                                                                                      #Check if selection was succesful
+        print("You must select a curve for export")
         exit()
     
     curves_selected = [None] * selectionSet.count                                                               #Create array to store curves
@@ -58,6 +59,7 @@ if __name__ == "__main__":
     selectionSet = caa.active_document.selection                                                                #Create container for selection
     status = selectionSet.select_element3(object_filter,"Select reference axis system" , False , 2 , False)     #Runs an interactive selection command, exhaustive version. 
     if status != "Normal":                                                                                      #Check if selection was succesful
+        print("You must select a reference axis system")
         exit()
 
     selected_axis_system = selectionSet.item(1).value                                                           #Store selected axis system
@@ -135,6 +137,7 @@ if __name__ == "__main__":
         caa.RefreshDisplay = True
         caa.DisplayFileAlerts = True
         IGES_documnet.close()                                                                                   #Close part
+        print("Error when getting file name for export")
         exit()                                 
     dialog.Destroy()                                                                                            #Close dialog
     

@@ -61,9 +61,11 @@ if __name__ == "__main__":
     selectionSet = caa.active_document.selection                                                                #Create container for selection
     status = selectionSet.select_element3(object_filter,"Select surfaces to join" , False , 2 , False)          #Runs an interactive selection command, exhaustive version. 
     if status != "Normal":                                                                                      #Check if selection was succesful
+        print("You must select surfaces")
         exit()
 
     if selectionSet.count < 2:                                                                                  #If nothing to join, exit
+        print("You must select at least two surface")
         exit()
           
     #New join command

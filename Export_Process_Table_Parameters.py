@@ -64,6 +64,7 @@ if __name__ == "__main__":
     elif type(check_document) is PPRDocument:                                                               #Active document is PPRDocument
         current_document: PPRDocument = caa.active_document
     else:
+        print("A CATProcess document must be the active document.")                                         #Print error message
         exit()
 
     processes = current_document.processes                                                                  #Get process list

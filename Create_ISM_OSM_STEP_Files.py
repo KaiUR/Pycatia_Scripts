@@ -52,12 +52,14 @@ if __name__ == "__main__":
     if status == "Normal":                                                                                      #Check if selection was succesful
         refISM = part_document.selection.item(1).reference
     else:
+        print("You must selec a face or surface")
         exit()
 
     status = selectionSet.select_element3(object_filter,"Select face on OSM" , False , 2 , False)               #Runs an interactive selection command, exhaustive version. 
     if status == "Normal":                                                                                      #Check if selection was succesful
         refOSM = part_document.selection.item(1).reference
     else:
+        print("You must selec a face or surface")
         exit()
 
     #Create new geometric set and extract for ISM and OSM
