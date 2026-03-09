@@ -12,6 +12,8 @@
                     
                     This script is to get all parameters for all manufacturing programs into one place so we can check our values to ensure
                     they are correct.
+                    
+                    *** Only tested with sweep, pencil and contour driven so far***
     dependencies = [
                     "pycatia",
                     "xlsxwriter",
