@@ -140,7 +140,7 @@ if __name__ == "__main__":
     axis_systems = part.axis_systems                                                                            #Set of all axis systems
     spa_workbench = part_document.spa_workbench()                                                               #Initilize spa workbench (For measurments)
                      
-    axis_id = 0                                                                                                 #ABS axix systme as default                                                                              #Set index
+    axis_id = 1                                                                                                 #ABS axix systme as default                                                                              #Set index
     axis_system = part.axis_systems.item(axis_id)                                                               #Set axis
 
     print("\n Select Geometric set containing points\n")
