@@ -12,9 +12,6 @@
                     
                     This script is to get all parameters for all manufacturing programs into one place so we can check our values to ensure
                     they are correct.
-                    
-                    Script is a bit slow as it needs to loop throug a lot of parameters to find the ones wanted. Will try to
-                    improve for futer versions.
     dependencies = [
                     "pycatia",
                     "xlsxwriter",
@@ -146,43 +143,37 @@ if __name__ == "__main__":
                                     tool_changes_parameters = tool_changes.item(
                                             tool_change_index + 1).parameters                               #Get collection of parameters for current activity
                                     
-                                    found_all_parameters = 0                                                #Count if all parameters were found
-                                    for t_parmeter_index in range(tool_changes_parameters.count):           #Cycle through parameters
-                                        
+                                    for t_parmeter_index in [26,27,73,79,84,90,144,192,195,229,230,233,247,252]:#Cycle through parameters, only for indexes that have data that we want
+                                    
                                         if tool_changes_parameters.item(
                                                 t_parmeter_index + 1 ).name.find("Maximum distance") != -1: #Look for Maximum distance parameter (Stepover distance)
                                             worksheet.write(row + operation_counter, 3, 
                                                     tool_changes_parameters.item(t_parmeter_index + 1 
                                                     ).value_as_string(), line_format_1)                     #Write value to sheet
-                                            found_all_parameters = found_all_parameters + 1                 #Found one parameter
                                         
                                         if tool_changes_parameters.item(
                                                 t_parmeter_index + 1 ).name.find("Machining tolerance") != -1:  #Find tolerance parameter
                                             worksheet.write(row + operation_counter, 4, 
                                                     tool_changes_parameters.item(t_parmeter_index + 1 
                                                     ).value_as_string(), line_format_1)                     #Write value to sheet
-                                            found_all_parameters = found_all_parameters + 1                 #Found parameter
                                             
                                         if tool_changes_parameters.item(
                                                 t_parmeter_index + 1 ).name.find("Maximum depth of cut") != -1: #Find depth of cut
                                             worksheet.write(row + operation_counter, 5, 
                                                     tool_changes_parameters.item(t_parmeter_index + 1 
                                                     ).value_as_string(), line_format_1)                     #Write value to sheet
-                                            found_all_parameters = found_all_parameters + 1                 #Found parameter                               
  
                                         if tool_changes_parameters.item(
                                                 t_parmeter_index + 1 ).name.find("Offset on part") != -1:   #Find offset on part value
                                             worksheet.write(row + operation_counter, 6, 
                                                     tool_changes_parameters.item(t_parmeter_index + 1 
                                                     ).value_as_string(), line_format_1)                     #Write value to shet
-                                            found_all_parameters = found_all_parameters + 1                 #Found parameter
  
                                         if tool_changes_parameters.item(
                                                 t_parmeter_index + 1 ).name.find("Offset on check") != -1:  #Find Offset on check pararmeter
                                             worksheet.write(row + operation_counter, 7, 
                                                     tool_changes_parameters.item(t_parmeter_index + 1 
                                                     ).value_as_string(), line_format_1)                     #Write to sheet
-                                            found_all_parameters = found_all_parameters + 1                 #Found parameter
                                             
                                         if tool_changes_parameters.item(
                                                 t_parmeter_index + 1 
@@ -190,16 +181,12 @@ if __name__ == "__main__":
                                             worksheet.write(row + operation_counter, 8, 
                                                     tool_changes_parameters.item(t_parmeter_index + 1 
                                                     ).value_as_string(), line_format_1)                     #Write to sheet
-                                            found_all_parameters = found_all_parameters + 1                 #Found parameter
-                                        
-                                        if found_all_parameters >= 6:                                       #If found all parametersfor an activity
-                                            break                                                           #Go to next activity
  
                                     operation_counter = operation_counter + 1                               #Add row for next operation
                                     
                             row = row + tool_change_counter + operation_counter - 1                         #Update row counter for next manufacturing program
             
-                    worksheet.autofit()                                                                     #Autofit sheet
-                    worksheet.fit_to_pages(1, 0)                                                            #Set print width to one sheet, and hight to unlimited
+                worksheet.autofit()                                                                         #Autofit sheet
+                worksheet.fit_to_pages(1, 0)                                                                #Set print width to one sheet, and hight to unlimited
                       
     workbook.close()                                                                                        #Save and close workbook
