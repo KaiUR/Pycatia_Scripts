@@ -13,6 +13,8 @@
                     
                     Original:
                     https://github.com/evereux/pycatia/blob/master/user_scripts/save_child_parts_to_stp.py
+                    
+                    This script will work on unsaved products, in that case the export will be saved to downlaods folder.
     dependencies = [
                     "pycatia",
                     ]
@@ -37,8 +39,13 @@ if __name__ == "__main__":
     caa = catia()                                                                                                       #Catia application instance
     product_document: ProductDocument = caa.active_document                                                             #Current open document
     
-    product_document_path = str(product_document.path()).removesuffix(product_document.name) + "/STEP_Export"           #path of current product, as string with filename removed, destination foleder added
+    product_document_name = product_document.name.removesuffix('.CATProduct')                                           #Get Name of product
+    product_document_path = str(
+            product_document.path()).removesuffix(product_document.name) + "\STEP_Export_" + product_document_name      #path of current product, as string with filename removed, destination foleder added
     
+    if product_document_path == "\STEP_Export_" + product_document_name:                                                #If product has not been saved path will be empty
+        product_document_path = str(Path.home() / "Downloads") + "\STEP_Export_" + product_document_name                #Export to users download folder
+        
     Path(product_document_path).mkdir(parents=True, exist_ok=True)                                                      #Create Directory if doesnt exist
 
     if not type(product_document) == ProductDocument:                                                                   #Check if product
