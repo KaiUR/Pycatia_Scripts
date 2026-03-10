@@ -53,4 +53,8 @@ if __name__ == "__main__":
     dialog.Destroy()                                                                                            #Close dialog
         
     for index in range(selectionSet.count):                                                                     #Loop through selection
-        selectionSet.item(index + 1).value.name = newName                                                       #Change name of each object
+        
+        if selectionSet.item(index + 1).value.name.find("Selection_") != -1:                                    #If selecting is Boundary ref instead of hybridshape
+            selectionSet.item(index + 1).value.parent.name = newName                                            #Change name of each parent object
+        else:
+            selectionSet.item(index + 1).value.name = newName                                                   #Change name of each object
