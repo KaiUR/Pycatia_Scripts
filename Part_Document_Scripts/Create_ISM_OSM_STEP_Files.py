@@ -48,14 +48,14 @@ if __name__ == "__main__":
     #Get User to select ISM Face
     object_filter = ("Face",)                                                                                   #Set user selection filter                               
     selectionSet = caa.active_document.selection                                                                #Create container for selection
-    status = selectionSet.select_element3(object_filter,"Select face on ISM" , False , 2 , False)               #Runs an interactive selection command, exhaustive version. 
+    status = selectionSet.select_element2(object_filter,"Select face on ISM" , False)                           #Runs an interactive selection command, exhaustive version. 
     if status == "Normal":                                                                                      #Check if selection was succesful
         refISM = part_document.selection.item(1).reference
     else:
         print("You must selec a face or surface")
         exit()
 
-    status = selectionSet.select_element3(object_filter,"Select face on OSM" , False , 2 , False)               #Runs an interactive selection command, exhaustive version. 
+    status = selectionSet.select_element2(object_filter,"Select face on OSM" , False)                           #Runs an interactive selection command, exhaustive version. 
     if status == "Normal":                                                                                      #Check if selection was succesful
         refOSM = part_document.selection.item(1).reference
     else:
