@@ -90,3 +90,11 @@ Product Document Scripts
     Save_Child_Parts_To_STEP.py
 
         Script to save all parts in product to seperate STEP files.
+
+## Requirments
+
+Packages
+
+			pycatia
+			wxPython
+			xlsxwriter
