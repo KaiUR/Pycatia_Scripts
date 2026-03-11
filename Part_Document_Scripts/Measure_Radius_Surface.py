@@ -108,17 +108,43 @@ def normalize_vector(vec):
 def dot_product(vec1, vec2):
     #return dot product
     return vec1[0] * vec2[0] + vec1[1] * vec2[1] + vec1[2] * vec2[2]
-
+    
 '''
-    This function searches for a hybrid body by name and return is.
+    This function will return the cross product of two vectors
     
     Inputs:
-        searchName              The name of the geometric set that is being searched for.
-        currentHybridBodies     The current collection of geometric sets
+        vec1    First vector
+        vec2    Second vector
         
     output:
-        The geometric set that is found, or None if not found
-''' 
+        Cross product of two vectors
+'''
+def cross_product(a, b):
+    # a x b = [ay*bz - az*by, az*bx - ax*bz, ax*by - ay*bx]
+    return [
+        a[1]*b[2] - a[2]*b[1],
+        a[2]*b[0] - a[0]*b[2],
+        a[0]*b[1] - a[1]*b[0]
+    ]
+
+"""
+    Check if three 2D points are collinear using the cross product ,ethod
+
+    Args:
+        p1, p2, p3: Tuples or lists representing the points, e.g., (x1, y1, z1).
+
+    Returns:
+        True if the points are collinear, False otherwise.
+"""
+def are_collinear(point_a, point_b, point_c):
+    
+    vectorAB = point_b[0] - point_a[0], point_b[1] - point_a[1], point_b[2] - point_a[2]
+    vectorAC = point_c[0] - point_a[0], point_c[1] - point_a[1], point_c[2] - point_a[2]
+    
+    cross_poduct_vectors = cross_product(vectorAB, vectorAC)
+    
+    #Check if cross product magnitude squared is near zero
+    return cross_poduct_vectors[0]**2 + cross_poduct_vectors[1]**2 + cross_poduct_vectors[2]**2 < 0.000001
 
 if __name__ == "__main__":
     #Anchoring relavent components
@@ -236,6 +262,13 @@ if __name__ == "__main__":
         point_3 = hybrid_shape_factory.add_new_point_on_curve_from_percent(hb.hybrid_shapes.item(1), 0.8, 0)    #Create point on curve 80%
         hb.append_hybrid_shape(point_3)                                                                         #Add point to set
         part.update()                                                                                           #Part update
+        
+    if are_collinear(coords_1, coords_2, coords_3) == True:                                                     #Checks if points are colinear, 3point circle will fail in this case
+        radius = 0
+        result = catia().message_box(
+                "Radius: " + str(radius) + "mm\nDiameter: " + str(radius * 2) + 
+                "mm\n\nSurface is Planar\nPoints are colinear", buttons=32, title="Result")                     #Print result to message box.
+        exit()
     
     #Create datum from points
     point_1_datum = hybrid_shape_factory.add_new_point_datum(hb.hybrid_shapes.item(2))                          #Create datum from point
