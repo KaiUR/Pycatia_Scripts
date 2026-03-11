@@ -25,7 +25,8 @@ Part Document Scripts
 
     Create_ISM_OSM_STEP_Files.py
 
-        Allows user to select two faces or surfaces, then preforms an extract in tangency and exports the result as two step files ISM and OSM. Used to create Inside of metal and Outside of metal surfaces.
+        Allows user to select two faces or surfaces, then preforms an extract in tangency and exports 
+        the result as two step files ISM and OSM. Used to create Inside of metal and Outside of metal surfaces.
 
     Export_Points_Select_Axis_and_Geo_Set_To_CSV.py
 
