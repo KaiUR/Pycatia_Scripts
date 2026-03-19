@@ -39,15 +39,14 @@ from pycatia.mec_mod_interfaces.part_document import PartDocument
         The geometric set that is found, or None if not found
 '''    
 def searchHybridBody(seachName, currentHybridBodies):
-    currentSearch = currentHybridBodies.item(seachName)                                                 #Try to get the set we are looking for, will be none if not found.
+    currentSearch = currentHybridBodies.item(seachName)                                                     #Try to get the set we are looking for, will be none if not found.
 
     if currentSearch != None:                                                                               #If not none, i.e. Set was found
-        return currentHybridBodies.item(seachName)                                                                #Return the set
+        return currentHybridBodies.item(seachName)                                                          #Return the set
     else:                                                                                                   #If not found
         if currentHybridBodies.count > 0:                                                                   #If the current set contains sets                                                 
             for index in range(hybrid_bodies.count):                                                        #Loop all sets in the current set
                 return searchHybridBody(seachName, hybrid_bodies.item(index+1).hybrid_bodies)               #Recursive call of this function to search further down tree.
-    
     return None 
 
 if __name__ == "__main__":
