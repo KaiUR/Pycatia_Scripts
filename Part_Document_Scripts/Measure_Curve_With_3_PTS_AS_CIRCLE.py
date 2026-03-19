@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Measure_Curve_With_3_PTS_AS_CIRCLE.py
-    Version:        1.0
+    Version:        1.1
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Measures curves by adding three points and gives a diamiter.
@@ -18,7 +18,8 @@
                     This script needs an open part document.
     -----------------------------------------------------------------------------------------------------------------------
     
-    Change:
+    Change:         19.03.26
+                    Modified script to work when there is a process or procuct open containing a part.
     
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -28,6 +29,7 @@ from pycatia import catia
 from pycatia.hybrid_shape_interfaces.hybrid_shape_extract import HybridShapeExtract
 from pycatia.hybrid_shape_interfaces.hybrid_shape_point_on_curve import HybridShapePointOnCurve
 from pycatia.mec_mod_interfaces.part_document import PartDocument
+from pycatia.mec_mod_interfaces.part import Part
 import time
 '''
     This function will return a points coordinates relative to an axis system.
@@ -121,13 +123,9 @@ def dot_product(vec1, vec2):
 ''' 
 
 if __name__ == "__main__":
-    #Anchoring relavent components
-    caa = catia()                                                                                               #Catia application instance
-    part_document: PartDocument = caa.active_document                                                           #Current open document
-    part = part_document.part                                                                                   #Current part
-    hybrid_bodies = part.hybrid_bodies                                                                          #Set off all top level geometric sets
-    hybrid_shape_factory = part.hybrid_shape_factory                                                            #GSD workbentch to create hybridshapes
-    spa_workbench = part_document.spa_workbench()                                                               #Initilize spa workbench (For measurments)
+    caa = catia()                                                                                               #Catia 
+    active_doc = caa.active_document                                                                            #Current Document
+    selectionSet = active_doc.selection                                                                         #Secection
 
     object_filter = ("MonoDimInfinite",)                                                                        #Set user selection filter(Curves)                              
     selectionSet = caa.active_document.selection                                                                #Create container for selection
@@ -136,9 +134,27 @@ if __name__ == "__main__":
     if status != "Normal":                                                                                      #Check if selection was succesful
         print("You must select a curve")
         exit()
-        
-    extract_ref = part_document.selection.item(1).reference                                                     #Save reference to selection
+
+    selected_item = selectionSet.item(1)                                                                        #Selected element
+   
+    try:
+        part = active_doc.part                                                                                  #If document is part document
+    except AttributeError:                                                                                      #Else get part from product structure
+        # We are in a Product or Process; find the Part via the selection
+        # We use .com_object to access the LeafProduct property
+        leaf_product = selected_item.com_object.LeafProduct
+        part_document = leaf_product.ReferenceProduct.Parent
+        # Navigation: LeafProduct -> ReferenceProduct -> Parent (PartDocument) -> Part
+        part = Part(part_document.Part)                                                                         #Get new part object
+
+    spa_workbench = active_doc.spa_workbench()
+    
+    # Save the reference before clearing selection
+    extract_ref = selected_item.reference                                                                       #Save selection as reference
     selectionSet.clear()                                                                                        #Clear selection
+    
+    hybrid_bodies = part.hybrid_bodies                                                                          #Set off all top level geometric sets
+    hybrid_shape_factory = part.hybrid_shape_factory                                                            #GSD workbentch to create hybridshapes
     
     #create extract from selection
     hb = hybrid_bodies.add()                                                                                    #Add new geometric set
