@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Join_Explicit_No_Connect_Surface.py
-    Version:        1.0
+    Version:        1.1
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Joins surfaces even when they are not connex.
@@ -17,7 +17,8 @@
                     This script needs an open part document.
     -----------------------------------------------------------------------------------------------------------------------
     
-    Change:
+    Change:         19.03.26
+                    Modified script to work when there is a process or procuct open containing a part.
     
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -38,10 +39,10 @@ from pycatia.mec_mod_interfaces.part_document import PartDocument
         The geometric set that is found, or None if not found
 '''    
 def searchHybridBody(seachName, currentHybridBodies):
-    currentSearch = currentHybridBodies.item(seachName)                                                     #Try to get the set we are looking for, will be none if not found.
-    
+    currentSearch = currentHybridBodies.item(seachName)                                                 #Try to get the set we are looking for, will be none if not found.
+
     if currentSearch != None:                                                                               #If not none, i.e. Set was found
-        return hybrid_bodies.item(seachName)                                                                #Return the set
+        return currentHybridBodies.item(seachName)                                                                #Return the set
     else:                                                                                                   #If not found
         if currentHybridBodies.count > 0:                                                                   #If the current set contains sets                                                 
             for index in range(hybrid_bodies.count):                                                        #Loop all sets in the current set
@@ -51,11 +52,9 @@ def searchHybridBody(seachName, currentHybridBodies):
 
 if __name__ == "__main__":
     #Anchoring relavent components
-    caa = catia()                                                                                               #Catia application instance
-    part_document: PartDocument = caa.active_document                                                           #Current open document
-    part = part_document.part                                                                                   #Current part
-    hybrid_bodies = part.hybrid_bodies                                                                          #Set off all top level geometric sets
-    hybrid_shape_factory = part.hybrid_shape_factory                                                            #GSD workbentch to create hybridshapes
+    caa = catia()                                                                                               #Catia 
+    active_doc = caa.active_document                                                                            #Current Document
+    selectionSet = active_doc.selection                                                                         #Secection
 
     object_filter = ("BiDimInfinite",)                                                                          #Set user selection filter(Surfaces)                              
     selectionSet = caa.active_document.selection                                                                #Create container for selection
@@ -67,7 +66,22 @@ if __name__ == "__main__":
     if selectionSet.count < 2:                                                                                  #If nothing to join, exit
         print("You must select at least two surface")
         exit()
-          
+
+    selected_item = selectionSet.item(1) 
+
+    try:
+        part = active_doc.part                                                                                  #If document is part document
+    except AttributeError:                                                                                      #Else get part from product structure
+        # We are in a Product or Process; find the Part via the selection
+        # We use .com_object to access the LeafProduct property
+        leaf_product = selected_item.com_object.LeafProduct
+        part_document = PartDocument(leaf_product.ReferenceProduct.Parent)
+        # Navigation: LeafProduct -> ReferenceProduct -> Parent (PartDocument) -> Part
+        part = part_document.part                                                                               #Get new part object
+
+    hybrid_bodies = part.hybrid_bodies                                                                          #Set off all top level geometric sets
+    hybrid_shape_factory = part.hybrid_shape_factory                                                            #GSD workbentch to create hybridshapes
+         
     #New join command
     join_hybrid_shapes = hybrid_shape_factory.add_new_join(
         selectionSet.item(1).reference, selectionSet.item(2).reference)                                         #Add first two elements to join command
