@@ -143,9 +143,9 @@ if __name__ == "__main__":
         # We are in a Product or Process; find the Part via the selection
         # We use .com_object to access the LeafProduct property
         leaf_product = selected_item.com_object.LeafProduct
-        part_document = leaf_product.ReferenceProduct.Parent
+        part_document = PartDocument(leaf_product.ReferenceProduct.Parent)
         # Navigation: LeafProduct -> ReferenceProduct -> Parent (PartDocument) -> Part
-        part = Part(part_document.Part)                                                                         #Get new part object
+        part = part_document.part                                                                               #Get new part object
 
     spa_workbench = active_doc.spa_workbench()
     
