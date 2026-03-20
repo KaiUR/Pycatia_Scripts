@@ -112,6 +112,9 @@ class DataInputDialog(wx.Dialog):
 if __name__ == "__main__":
     #Anchoring relavent components
     caa = catia()                                                                                               #Catia application instance
+    if type(caa.active_document) is not PartDocument:                                                           #Check if part document
+        print("Script can only be use with Open PartDocument")                                                  #Print error message
+        exit()                                                                                                  #Exith script
     part_document: PartDocument = caa.active_document                                                           #Current open document
     part = part_document.part                                                                                   #Current part
     hybrid_bodies = part.hybrid_bodies                                                                          #Set off all top level geometric sets 
