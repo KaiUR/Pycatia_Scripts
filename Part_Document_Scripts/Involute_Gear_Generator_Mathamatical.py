@@ -31,6 +31,83 @@ from pycatia import CatConstraintMode
 from pycatia import CatPrismOrientation
 from pycatia import CatLimitMode
 import math
+import wx
+
+class DataInputDialog(wx.Dialog):
+    def __init__(self, parent, title):
+        # Increase size slightly for better spacing
+        super().__init__(parent, title=title, size=(350, 400))
+        
+        # Use the Dialog itself as the parent for the sizer
+        vbox = wx.BoxSizer(wx.VERTICAL)
+        
+        # Use 'self' (the Dialog) as the parent for all widgets
+        grid = wx.FlexGridSizer(7, 2, 10, 10)
+        
+        self.module = wx.TextCtrl(self, value="2.0")
+        self.number_of_teeth = wx.TextCtrl(self, value="20")
+        self.pressure_angle = wx.TextCtrl(self, value="20.0")
+        self.clearance = wx.TextCtrl(self, value="0.25")
+        self.steps = wx.TextCtrl(self, value="10")
+        self.gear_thicness = wx.TextCtrl(self, value="5.0")
+        self.fillet_radius = wx.TextCtrl(self, value="0.38")
+        
+        grid.AddMany([
+            (wx.StaticText(self, label="Module:")), (self.module, 1, wx.EXPAND),
+            (wx.StaticText(self, label="Number of Teeth:")), (self.number_of_teeth, 1, wx.EXPAND),
+            (wx.StaticText(self, label="Preasure Angle:")), (self.pressure_angle, 1, wx.EXPAND),
+            (wx.StaticText(self, label="Clearance:")), (self.clearance, 1, wx.EXPAND),
+            (wx.StaticText(self, label="Steps:")), (self.steps, 1, wx.EXPAND),
+            (wx.StaticText(self, label="Gear Thicness:")), (self.gear_thicness, 1, wx.EXPAND),
+            (wx.StaticText(self, label="Fillet Radius:")), (self.fillet_radius, 1, wx.EXPAND)
+        ])
+        
+        grid.AddGrowableCol(1, 1)
+        
+        # Add grid to main sizer with a border
+        vbox.Add(grid, proportion=1, flag=wx.ALL|wx.EXPAND, border=15)
+        
+        # CreateButtonSizer now matches the Dialog parent automatically
+        btn_sizer = self.CreateButtonSizer(wx.OK | wx.CANCEL)
+        if btn_sizer:
+            vbox.Add(btn_sizer, flag=wx.ALIGN_CENTER | wx.BOTTOM, border=10)
+        
+        self.SetSizer(vbox)
+    
+    def Validate(self):
+        fields = [
+            (self.module, "Module", float),
+            (self.number_of_teeth, "Number of Teeth", int),
+            (self.pressure_angle, "Pressure Angle", float),
+            (self.clearance, "Clearance", float),
+            (self.steps, "Steps", int),
+            (self.gear_thicness, "Gear Thickness", float),
+            (self.fillet_radius, "Fillet Radius", float)
+        ]
+
+        for ctrl, name, target_type in fields:
+            val_string = ctrl.GetValue().strip()
+            
+            try:
+                # Convert the value first
+                val_numeric = target_type(val_string)
+                
+                # CHECK FOR ZERO OR NEGATIVE
+                if val_numeric <= 0:
+                    self.show_error(f"{name} must be greater than zero.", ctrl)
+                    return False
+                    
+            except ValueError:
+                self.show_error(f"{name} must be a valid {target_type.__name__}.", ctrl)
+                return False
+        
+        return True # Everything is positive and numeric
+
+    def show_error(self, message, ctrl):
+        """Helper to show a message box and focus the problematic field."""
+        wx.MessageBox(message, "Input Error", wx.OK | wx.ICON_ERROR)
+        ctrl.SetFocus()
+        ctrl.SelectAll()
 
 if __name__ == "__main__":
     #Anchoring relavent components
@@ -39,21 +116,31 @@ if __name__ == "__main__":
     part = part_document.part                                                                                   #Current part
     hybrid_bodies = part.hybrid_bodies                                                                          #Set off all top level geometric sets 
     bodies = part.bodies                                                                                        #Get collection of bodies
-    partbody = bodies.add()                                                                                     #Add new body
-    sketches_part_body = partbody.sketches                                                                      #Get sketches in part body
     hybrid_shape_factory = part.hybrid_shape_factory                                                            #GSD workbentch to create hybridshapes
     shape_factory = part.shape_factory                                                                          #Part Design workbench
     selectionSet = caa.active_document.selection                                                                #Create container for selection
     
     #Parameters
-    module = 2
-    number_of_teeth = 10 
-    clearance = 1.25
-    pressure_angle = 25
-    steps = 10
-    gear_thicness = 5
     pad_tol = 0.02
-    fillet_radius = 0.38
+    
+    app = wx.App()
+    dlg = DataInputDialog(None, "Involute Gear Parameters")
+    if dlg.ShowModal() == wx.ID_OK:
+        module = float(dlg.module.GetValue())
+        number_of_teeth = int(dlg.number_of_teeth.GetValue())
+        pressure_angle = float(dlg.pressure_angle.GetValue())
+        clearance = float(dlg.clearance.GetValue())
+        clearance = clearance + 1
+        steps = int(dlg.steps.GetValue())
+        gear_thicness = float(dlg.gear_thicness.GetValue())
+        fillet_radius = float(dlg.fillet_radius.GetValue())
+    else:
+        dlg.Destroy()
+        exit()
+    dlg.Destroy()
+    
+    partbody = bodies.add()                                                                                     #Add new body
+    sketches_part_body = partbody.sketches                                                                      #Get sketches in part body
     
     #formulas
     pitch_circle_radius = module * number_of_teeth                                                              #Pitch circle formula
