@@ -152,7 +152,6 @@ if __name__ == "__main__":
     #Anchoring relavent components
     caa = catia()                                                                                               #Catia 
     active_doc = caa.active_document                                                                            #Current Document
-    selectionSet = active_doc.selection                                                                         #Secection
 
     object_filter = ("Face",)                                                                                   #Set user selection filter(Curves)                              
     selectionSet = caa.active_document.selection                                                                #Create container for selection
@@ -166,6 +165,7 @@ if __name__ == "__main__":
    
     if type(active_doc) is PartDocument:
         part = active_doc.part                                                                                  #If document is part document
+        part_document : PartDocument = active_doc
     else:                                                                                                       #Else get part from product structure
         # We are in a Product or Process; find the Part via the selection
         # We use .com_object to access the LeafProduct property

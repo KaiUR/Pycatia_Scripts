@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    IGES_Export_Curve_AXIS.py
-    Version:        1.0
+    Version:        1.1
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Exports curve as IGES in 
@@ -20,7 +20,8 @@
                     This script needs an open part document.
     -----------------------------------------------------------------------------------------------------------------------
     
-    Change:
+    Change:         19.03.26
+                    Modified script to work when there is a process or procuct open containing a part.
     
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -34,14 +35,8 @@ import wx
 if __name__ == "__main__":
     #Anchoring relavent components
     caa = catia()                                                                                               #Catia application instance
-    part_document: PartDocument = caa.active_document                                                           #Current open document
-    part = part_document.part                                                                                   #Current part
-    hybrid_bodies = part.hybrid_bodies                                                                          #Set off all top level geometric sets
-    hybrid_shape_factory = part.hybrid_shape_factory                                                            #GSD workbentch to create hybridshapes
+    active_doc = caa.active_document                                                                            #Current Document
     documents = caa.documents                                                                                   #Collection of documents
-    
-    partDocumentName = part_document.name.removesuffix('.CATPart')                                              #Name of current part
-    partDocumentPath = str(part_document.path()).removesuffix(part_document.name)                               #path of current part, as string with filename removed
 
     object_filter = ("MonoDimInfinite",)                                                                        #Set user selection filter (Curves)                             
     selectionSet = caa.active_document.selection                                                                #Create container for selection
@@ -49,6 +44,25 @@ if __name__ == "__main__":
     if status != "Normal":                                                                                      #Check if selection was succesful
         print("You must select a curve for export")
         exit()
+        
+    selected_item = selectionSet.item(1) 
+
+    if type(active_doc) is PartDocument:
+        part = active_doc.part                                                                                  #If document is part document
+        part_document : PartDocument = active_doc
+    else:                                                                                                       #Else get part from product structure
+        # We are in a Product or Process; find the Part via the selection
+        # We use .com_object to access the LeafProduct property
+        leaf_product = selected_item.com_object.LeafProduct
+        part_document = PartDocument(leaf_product.ReferenceProduct.Parent)
+        # Navigation: LeafProduct -> ReferenceProduct -> Parent (PartDocument) -> Part
+        part = part_document.part                                                                               #Get new part object
+
+    hybrid_bodies = part.hybrid_bodies                                                                          #Set off all top level geometric sets
+    hybrid_shape_factory = part.hybrid_shape_factory                                                            #GSD workbentch to create hybridshapes
+    
+    partDocumentName = part_document.name.removesuffix('.CATPart')                                              #Name of current part
+    partDocumentPath = str(part_document.path()).removesuffix(part_document.name)                               #path of current part, as string with filename removed
     
     curves_selected = [None] * selectionSet.count                                                               #Create array to store curves
     curves_count = selectionSet.count                                                                           #Store number of curves
