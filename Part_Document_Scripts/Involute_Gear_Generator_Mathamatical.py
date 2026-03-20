@@ -52,18 +52,18 @@ if __name__ == "__main__":
     steps = 10
     gear_thicness = 5
     pad_tol = 0.02
+    fillet_radius = 0.38
     
     #formulas
-    pitch_circle_radius = module * number_of_teeth
-    addendum_circle_radius = pitch_circle_radius + module
-    dedendum_circle_radius = pitch_circle_radius - ( clearance * module )
-    base_circle_radius = pitch_circle_radius * math.cos(math.radians(pressure_angle))
+    pitch_circle_radius = module * number_of_teeth                                                              #Pitch circle formula
+    addendum_circle_radius = pitch_circle_radius + module                                                       #Addendum circle formula
+    dedendum_circle_radius = pitch_circle_radius - ( clearance * module )                                       #Dedendum circle formula
+    base_circle_radius = pitch_circle_radius * math.cos(math.radians(pressure_angle))                           #base circle formula
     
     #Body and Sketch Con
     partbody.name = "Involute Gear M:" + str(module) + " T:" + str(number_of_teeth)                             #Rename body
     part.in_work_object = partbody                                                                              #Make new body inwork object
     hb_sketches = partbody.sketches                                                                             #Get Collection of sketches
-    
     plane_XY = part.origin_elements.plane_xy                                                                    #get reference to XY plane
 
     #create sketch for tooth on xy plane
@@ -78,185 +78,206 @@ if __name__ == "__main__":
     origin = sketch_tooth_con.absolute_axis.origin                                                              #Get origin
    
     #create pitch circle
-    pitch_circle = ske2D_tooth_con.create_closed_circle(0, 0, pitch_circle_radius)
-    pitch_circle.construction = True
-    pitch_circle.name = "Pitch Circle"
-    constraints.add_bi_elt_cst(cat_constraint_type.index("catCstTypeConcentricity"), pitch_circle, origin)
-    cnst_rad_pitch = constraints.add_mono_elt_cst(cat_constraint_type.index("catCstTypeRadius"), pitch_circle)
-    cnst_rad_pitch.mode = cat_constraint_mode.index("catCstModeDrivingDimension")
-    cnst_rad_pitch.dimension.value = pitch_circle_radius
+    pitch_circle = ske2D_tooth_con.create_closed_circle(0, 0, pitch_circle_radius)                              #Draw new circle
+    pitch_circle.construction = True                                                                            #Make construction element
+    pitch_circle.name = "Pitch Circle"                                                                          #Rename
+    constraints.add_bi_elt_cst(cat_constraint_type.index("catCstTypeConcentricity"), pitch_circle, origin)      #Make concentric to origin
+    cnst_rad_pitch = constraints.add_mono_elt_cst(cat_constraint_type.index("catCstTypeRadius"), pitch_circle)  #Add radius constraint
+    cnst_rad_pitch.mode = cat_constraint_mode.index("catCstModeDrivingDimension")                               #Set to driving dimension
+    cnst_rad_pitch.dimension.value = pitch_circle_radius                                                        #Set dimension
     
     #create addendum circle
-    addendum_circle = ske2D_tooth_con.create_closed_circle(0, 0, addendum_circle_radius)
-    addendum_circle.construction = True
-    addendum_circle.name = "Addendum/Tip Circle"
-    constraints.add_bi_elt_cst(cat_constraint_type.index("catCstTypeConcentricity"), addendum_circle, origin)
-    cnst_rad_addendum = constraints.add_mono_elt_cst(cat_constraint_type.index("catCstTypeRadius"), addendum_circle)
-    cnst_rad_addendum.mode = cat_constraint_mode.index("catCstModeDrivingDimension")
-    cnst_rad_addendum.dimension.value = addendum_circle_radius
+    addendum_circle = ske2D_tooth_con.create_closed_circle(0, 0, addendum_circle_radius)                        #Draw circle
+    addendum_circle.construction = True                                                                         #Make construction element
+    addendum_circle.name = "Addendum/Tip Circle"                                                                #Rename
+    constraints.add_bi_elt_cst(cat_constraint_type.index("catCstTypeConcentricity"), 
+            addendum_circle, origin)                                                                            #Make concentric to origin
+    cnst_rad_addendum = constraints.add_mono_elt_cst(cat_constraint_type.index("catCstTypeRadius"), 
+            addendum_circle)                                                                                    #Add radius constraint
+    cnst_rad_addendum.mode = cat_constraint_mode.index("catCstModeDrivingDimension")                            #Make driving dimension
+    cnst_rad_addendum.dimension.value = addendum_circle_radius                                                  #Set dimension
     
     #create dedendum circle
-    dedendum_circle = ske2D_tooth_con.create_closed_circle(0, 0, dedendum_circle_radius)
-    dedendum_circle.construction = True
-    dedendum_circle.name = "Dedendum/Root Circle"
-    constraints.add_bi_elt_cst(cat_constraint_type.index("catCstTypeConcentricity"), dedendum_circle, origin)
-    cnst_rad_dedendum = constraints.add_mono_elt_cst(cat_constraint_type.index("catCstTypeRadius"), dedendum_circle)
-    cnst_rad_dedendum.mode = cat_constraint_mode.index("catCstModeDrivingDimension")
-    cnst_rad_dedendum.dimension.value = dedendum_circle_radius
+    dedendum_circle = ske2D_tooth_con.create_closed_circle(0, 0, dedendum_circle_radius)                        #Draw circle
+    dedendum_circle.construction = True                                                                         #Set to construction element
+    dedendum_circle.name = "Dedendum/Root Circle"                                                               #Rename
+    constraints.add_bi_elt_cst(cat_constraint_type.index("catCstTypeConcentricity"), dedendum_circle, origin)   #Make concentric to origin
+    cnst_rad_dedendum = constraints.add_mono_elt_cst(cat_constraint_type.index("catCstTypeRadius"), 
+            dedendum_circle)                                                                                    #Add radius constraint
+    cnst_rad_dedendum.mode = cat_constraint_mode.index("catCstModeDrivingDimension")                            #Make driving dimension
+    cnst_rad_dedendum.dimension.value = dedendum_circle_radius                                                  #Set radius
     
     #Create centre line
-    center_line_origin = (0, 0)
-    center_line_end_point = (0, addendum_circle_radius)
+    center_line_origin = (0, 0)                                                                                 #Start point of line
+    center_line_end_point = (0, addendum_circle_radius)                                                         #End point of line
     
-    center_line = ske2D_tooth_con.create_line(*center_line_origin, *center_line_end_point)
-    center_line.construction = True
-    center_line.name = "Center_line"
+    center_line = ske2D_tooth_con.create_line(*center_line_origin, *center_line_end_point)                      #Draw line
+    center_line.construction = True                                                                             #Set to construction
+    center_line.name = "Center_line"                                                                            #Rename
     
-    center_line_start_point = ske2D_tooth_con.create_point(0, 0)
-    center_line_start_point.name = "center line start point"
-    center_line.start_point = center_line_start_point
-    center_line_end_point = ske2D_tooth_con.create_point(0, addendum_circle_radius)
-    center_line_end_point.name = "center line end point"
-    center_line.end_point = center_line_end_point
+    center_line_start_point = ske2D_tooth_con.create_point(0, 0)                                                #Create point for start point of line
+    center_line_start_point.name = "center line start point"                                                    #Rename
+    center_line.start_point = center_line_start_point                                                           #Set as start point
+    center_line_end_point = ske2D_tooth_con.create_point(0, addendum_circle_radius)                             #Create end point for line
+    center_line_end_point.name = "center line end point"                                                        #Rename
+    center_line.end_point = center_line_end_point                                                               #Set as endpoint
     
-    center_line_par = constraints.add_bi_elt_cst(cat_constraint_type.index("catCstTypeParallelism"), center_line, v_axis)
-
-    center_line_on_1 = constraints.add_bi_elt_cst(cat_constraint_type.index("catCstTypeOn"), center_line_start_point, origin)
-    center_line_on_2 = constraints.add_bi_elt_cst(cat_constraint_type.index("catCstTypeOn"), center_line_end_point, addendum_circle)
+    center_line_par = constraints.add_bi_elt_cst(cat_constraint_type.index("catCstTypeParallelism"), 
+            center_line, v_axis)                                                                                #Make line vertical
+    center_line_on_1 = constraints.add_bi_elt_cst(cat_constraint_type.index("catCstTypeOn"), 
+            center_line_start_point, origin)                                                                    #Make start point coincident to origin
+    center_line_on_2 = constraints.add_bi_elt_cst(cat_constraint_type.index("catCstTypeOn"), 
+            center_line_end_point, addendum_circle)                                                             #Make end point coincident to addendum circle
     
     #create preasure angle line
-    pressure_line = ske2D_tooth_con.create_line(0, 0, 10, 10)
-    pressure_line.construction = True
-    pressure_line.name = "Pressure_Line"
+    pressure_line = ske2D_tooth_con.create_line(0, 0, 10, 10)                                                   #Draw line
+    pressure_line.construction = True                                                                           #Make construction element
+    pressure_line.name = "Pressure_Line"                                                                        #Rename
     
-    pressure_line_start_point = ske2D_tooth_con.create_point(0, 0)
-    pressure_line_start_point.name = "pressure line start point"
-    pressure_line.start_point = pressure_line_start_point
+    pressure_line_start_point = ske2D_tooth_con.create_point(0, 0)                                              #Create start point for line
+    pressure_line_start_point.name = "pressure line start point"                                                #Rename
+    pressure_line.start_point = pressure_line_start_point                                                       #Set as start point of line
     
-    pressure_line_end_point = ske2D_tooth_con.create_point(10, 10)
-    pressure_line_end_point.name = "pressure line end point"
-    pressure_line.end_point = pressure_line_end_point
+    pressure_line_end_point = ske2D_tooth_con.create_point(10, 10)                                              #Create end-point for line
+    pressure_line_end_point.name = "pressure line end point"                                                    #Rename
+    pressure_line.end_point = pressure_line_end_point                                                           #Set as endpoint of line
     
-    pressure_line_on_1 = constraints.add_bi_elt_cst(cat_constraint_type.index("catCstTypeOn"), pressure_line_start_point, origin)
+    pressure_line_on_1 = constraints.add_bi_elt_cst(cat_constraint_type.index("catCstTypeOn"), 
+            pressure_line_start_point, origin)                                                                  #Make start point coincident to origin
     
-    pressure_line_angle_cst = constraints.add_bi_elt_cst(6, pressure_line, center_line)
-    pressure_line_angle_cst.mode = cat_constraint_mode.index("catCstModeDrivingDimension")
-    pressure_line_angle_cst.dimension.value = pressure_angle
+    pressure_line_angle_cst = constraints.add_bi_elt_cst(cat_constraint_type.index("catCstTypeAngle"), 
+            pressure_line, center_line)                                                                         #Add new angle constraint
+    pressure_line_angle_cst.mode = cat_constraint_mode.index("catCstModeDrivingDimension")                      #Make driving dimension
+    pressure_line_angle_cst.dimension.value = pressure_angle                                                    #Set angle
     
-    pressure_line_on_2 = constraints.add_bi_elt_cst(cat_constraint_type.index("catCstTypeOn"), pressure_line_end_point, addendum_circle)
+    pressure_line_on_2 = constraints.add_bi_elt_cst(cat_constraint_type.index("catCstTypeOn"), 
+            pressure_line_end_point, addendum_circle)                                                           #Make endpoint coincident to addendum circle
     
     #Create Base circle
-    base_circle = ske2D_tooth_con.create_closed_circle(0, 0, base_circle_radius)
-    base_circle.construction = True
-    base_circle.name = "Base Circle"
-    constraints.add_bi_elt_cst(cat_constraint_type.index("catCstTypeConcentricity"), base_circle, origin)
-    cnst_rad_base_circle = constraints.add_mono_elt_cst(cat_constraint_type.index("catCstTypeRadius"), base_circle)
-    cnst_rad_base_circle.mode = cat_constraint_mode.index("catCstModeDrivingDimension")
-    cnst_rad_base_circle.dimension.value = base_circle_radius
+    base_circle = ske2D_tooth_con.create_closed_circle(0, 0, base_circle_radius)                                #Draw circle
+    base_circle.construction = True                                                                             #Make construction
+    base_circle.name = "Base Circle"                                                                            #Rename
+    constraints.add_bi_elt_cst(cat_constraint_type.index("catCstTypeConcentricity"), base_circle, origin)       #Make concentric to origin
+    cnst_rad_base_circle = constraints.add_mono_elt_cst(cat_constraint_type.index("catCstTypeRadius"), 
+            base_circle)                                                                                        #Add radius dimension
+    cnst_rad_base_circle.mode = cat_constraint_mode.index("catCstModeDrivingDimension")                         #Make driving dimension
+    cnst_rad_base_circle.dimension.value = base_circle_radius                                                   #set radius
     
     
     #Calculate invalute flank
-    max_t = math.sqrt(((addendum_circle_radius) / base_circle_radius)**2 - 1)
+    max_t = math.sqrt(((addendum_circle_radius) / base_circle_radius)**2 - 1)                                   #Calculate maximum parameter value in radians
     
-    inv_alpha = math.tan(math.radians(pressure_angle)) - math.radians(pressure_angle)
-    half_tooth_thickness_angle = (math.pi / (2 * number_of_teeth)) + inv_alpha
+    inv_alpha = math.tan(math.radians(pressure_angle)) - math.radians(pressure_angle)                           #Involute function involute(alpha)
+    half_tooth_thickness_angle = (math.pi / (2 * number_of_teeth)) + inv_alpha                                  #Half tooth thinkness
     
-    points_list_left = []
-    points_list_right = []
+    points_list_left = []                                                                                       #Colection of left involute points
+    points_list_right = []                                                                                      #Collection of right involute points
 
-    for i in range(steps + 1):
-        t = (max_t / steps) * i
-        x_current = base_circle_radius * (math.sin(t) - t * math.cos(t))
-        y_current = base_circle_radius * (math.cos(t) + t * math.sin(t))
+    for i in range(steps + 1):                                                                                  #Calculate involute point acording to number of steps
+        t = (max_t / steps) * i                                                                                 #Calculate t parameter for this step
+        x_current = base_circle_radius * (math.sin(t) - t * math.cos(t))                                        #Caluclate raw x involute from base circle
+        y_current = base_circle_radius * (math.cos(t) + t * math.sin(t))                                        #Calculate raw y involute from base circle
         
-        angle = half_tooth_thickness_angle
-        x_l = x_current * math.cos(angle) - y_current * math.sin(angle)
-        y_l = x_current * math.sin(angle) + y_current * math.cos(angle)
+        angle = half_tooth_thickness_angle                                                                      #Set angle
+        x_l = x_current * math.cos(angle) - y_current * math.sin(angle)                                         #Rotate x to account for tooth thikness
+        y_l = x_current * math.sin(angle) + y_current * math.cos(angle)                                         #Rotate y to account for tooth thikness
         
-        point_l = ske2D_tooth_con.create_point(x_l, y_l)
-        point_l.name = f"Involute_Point__Left_{i}"
-        constraints.add_mono_elt_cst(cat_constraint_type.index("catCstTypeReference"), point_l)
-        points_list_left.append(point_l)
+        point_l = ske2D_tooth_con.create_point(x_l, y_l)                                                        #Create left flank involute point for this step
+        point_l.name = f"Involute_Point__Left_{i}"                                                              #Rename point
+        constraints.add_mono_elt_cst(cat_constraint_type.index("catCstTypeReference"), point_l)                 #Add fixed constraint
+        points_list_left.append(point_l)                                                                        #Add to list
         
-        point_r = ske2D_tooth_con.create_point(-x_l, y_l)
-        point_r.name = f"Involute_Point__Right_{i}"
-        constraints.add_mono_elt_cst(cat_constraint_type.index("catCstTypeReference"), point_r)
-        points_list_right.append(point_r)
+        point_r = ske2D_tooth_con.create_point(-x_l, y_l)                                                       #Create right flank involute point for this step
+        point_r.name = f"Involute_Point__Right_{i}"                                                             #Rename point
+        constraints.add_mono_elt_cst(cat_constraint_type.index("catCstTypeReference"), point_r)                 #Create fixed constraint
+        points_list_right.append(point_r)                                                                       #Add to list
 
-    involute_flank_left = ske2D_tooth_con.create_spline(points_list_left)
-    involute_flank_left.name = "Involute_Flank_Left"
+    involute_flank_left = ske2D_tooth_con.create_spline(points_list_left)                                       #Create left involute flank spline
+    involute_flank_left.name = "Involute_Flank_Left"                                                            #Rename spline
     
-    involute_flank_right = ske2D_tooth_con.create_spline(points_list_right)
-    involute_flank_right.name = "Involute_Flank_right"
+    involute_flank_right = ske2D_tooth_con.create_spline(points_list_right)                                     #Create right involute flank spline
+    involute_flank_right.name = "Involute_Flank_right"                                                          #Rename spline
     
     #Create top land
-    p_top_left = points_list_left[-1]
-    p_top_right = points_list_right[-1]
+    p_top_left = points_list_left[-1]                                                                           #Get first point of list (Outermost involute point)
+    p_top_right = points_list_right[-1]                                                                         #Get first point of list (Outermost involute point)
     
-    p_top_left_coord = p_top_left.get_coordinates()
-    p_top_right_coord = p_top_right.get_coordinates()
+    p_top_left_coord = p_top_left.get_coordinates()                                                             #Get coordinates of point for top land boundary
+    p_top_right_coord = p_top_right.get_coordinates()                                                           #Get coordinates of point for top land boundary
 
-    angle_l = math.atan2(p_top_left_coord[1], p_top_left_coord[0])
-    angle_r = math.atan2(p_top_right_coord[1], p_top_right_coord[0])
+    angle_l = math.atan2(p_top_left_coord[1], p_top_left_coord[0])                                              #Calculate polar angle in radians for arc span start
+    angle_r = math.atan2(p_top_right_coord[1], p_top_right_coord[0])                                            #Calculate polar angle in radians for arc span end
 
-    top_land = ske2D_tooth_con.create_circle(0, 0, addendum_circle_radius, angle_r, angle_l)
-    top_land.name = "Top_Land"
+    top_land = ske2D_tooth_con.create_circle(0, 0, addendum_circle_radius, angle_r, angle_l)                    #Create top land arc on addendum circle
+    top_land.name = "Top_Land"                                                                                  #Rename arc
     
-    top_land_start_point = ske2D_tooth_con.create_point(p_top_right_coord[0], p_top_right_coord[1])
-    top_land_start_point.name = "top_land start point"
-    top_land.start_point = top_land_start_point
+    top_land_start_point = ske2D_tooth_con.create_point(p_top_right_coord[0], p_top_right_coord[1])             #Create start point for arc
+    top_land_start_point.name = "top_land start point"                                                          #Rename
+    top_land.start_point = top_land_start_point                                                                 #Set as start point
     
-    top_land_end_point = ske2D_tooth_con.create_point(p_top_left_coord[0], p_top_left_coord[1])
-    top_land_end_point.name = "top_land end point"
-    top_land.end_point = top_land_end_point    
+    top_land_end_point = ske2D_tooth_con.create_point(p_top_left_coord[0], p_top_left_coord[1])                 #Create end point for arc
+    top_land_end_point.name = "top_land end point"                                                              #Rename
+    top_land.end_point = top_land_end_point                                                                     #Set as endpoint
 
-    top_land_on_1 = constraints.add_bi_elt_cst(cat_constraint_type.index("catCstTypeOn"), top_land_start_point, p_top_right)
-    top_land_on_2 = constraints.add_bi_elt_cst(cat_constraint_type.index("catCstTypeOn"), top_land_end_point, p_top_left)
+    top_land_on_1 = constraints.add_bi_elt_cst(cat_constraint_type.index("catCstTypeOn"), 
+            top_land_start_point, p_top_right)                                                                  #Make coincedent to right involute spline
+    top_land_on_2 = constraints.add_bi_elt_cst(cat_constraint_type.index("catCstTypeOn"), 
+            top_land_end_point, p_top_left)                                                                     #Make coincedent to left involute spline
     
-    cnst_rad_top_land = constraints.add_mono_elt_cst(cat_constraint_type.index("catCstTypeRadius"), top_land)
-    cnst_rad_top_land.mode = cat_constraint_mode.index("catCstModeDrivingDimension")
-    cnst_rad_top_land.dimension.value = addendum_circle_radius
+    cnst_rad_top_land = constraints.add_mono_elt_cst(cat_constraint_type.index("catCstTypeRadius"), top_land)   #Add radius constraint to arc
+    cnst_rad_top_land.mode = cat_constraint_mode.index("catCstModeDrivingDimension")                            #Make driving dimmension
+    cnst_rad_top_land.dimension.value = addendum_circle_radius                                                  #Set radius
     
     #Create root fillets 
-    if base_circle_radius > dedendum_circle_radius:
+    if base_circle_radius > dedendum_circle_radius:                                                             #Only run if the base circle is larger than the dedendum (requires a transition curve)
+        # Get the first point of the involute (where it touches the base circle)
         p_start_involute = points_list_left[0]
         x_s, y_s = p_start_involute.get_coordinates()
         
-        r_f = 0.38 * module
+        # Calculate standard fillet radius based on gear module
+        r_f = fillet_radius * module
         
+        # Determine the start height of the fillet relative to the dedendum
         r_fillet_start = dedendum_circle_radius + r_f
         angle_s = math.atan2(y_s, x_s)
         
+        # Calculate coordinates for where the radial line meets the fillet
         x_f_start = r_fillet_start * math.cos(angle_s)
         y_f_start = r_fillet_start * math.sin(angle_s)
         
-        #left fillet and line
+        # ---left fillet and line---
+        # Create a line connecting the involute start to the fillet start
         radial_line_left = ske2D_tooth_con.create_line(x_s, y_s, x_f_start, y_f_start)
         radial_line_left.name = "Radial_Line_Left"
         
+        # Define endpoints for the left radial line
         radial_line_left_start_point = ske2D_tooth_con.create_point(x_s, y_s)
         radial_line_left_start_point.name = "radial_line_left start point"
         radial_line_left.start_point = radial_line_left_start_point
-    
+ 
         radial_line_left_end_point = ske2D_tooth_con.create_point(x_f_start, y_f_start)
         radial_line_left_end_point.name = "radial_line_left end point"
         radial_line_left.end_point = radial_line_left_end_point  
 
+        # Constrain the line to be coincident with the involute and tangent to the flank
         radial_line_on_1 = constraints.add_bi_elt_cst(cat_constraint_type.index("catCstTypeOn"), radial_line_left_start_point, points_list_left[0])
         radial_line_tangnt = constraints.add_bi_elt_cst(cat_constraint_type.index("catCstTypeTangency"), radial_line_left, involute_flank_left )
         constraints.add_mono_elt_cst(cat_constraint_type.index("catCstTypeReference"), radial_line_left_end_point)
 
+        # Calculate the center point (cx, cy) of the left fillet arc
         angle_perp = angle_s + (math.pi / 2)
-        
         cx = x_f_start + r_f * math.cos(angle_perp)
         cy = y_f_start + r_f * math.sin(angle_perp)
         
+        # Determine start and end angles for the fillet arc
         a1 = math.atan2(y_f_start - cy, x_f_start - cx)
         a2 = math.atan2(-cy, -cx)
         
+        # Create the left root fillet arc
         fillet_left = ske2D_tooth_con.create_circle(cx, cy, r_f, a2, a1)
         fillet_left.name = "Root_Fillet_Left"
  
+        # Define endpoints for the left fillet arc
         fillet_left_end_point = ske2D_tooth_con.create_point(x_f_start, y_f_start)
         fillet_left_end_point.name = "fillet_left end point"
         fillet_left.end_point = fillet_left_end_point
@@ -265,16 +286,19 @@ if __name__ == "__main__":
         fillet_left_start_point.name = "fillet_left start point"
         fillet_left.start_point = fillet_left_start_point
 
+        # Constrain the fillet to the radial line and set its radius dimension
         fillet_left_on_1 = constraints.add_bi_elt_cst(cat_constraint_type.index("catCstTypeOn"), fillet_left_end_point, radial_line_left_end_point)
         constraints.add_mono_elt_cst(cat_constraint_type.index("catCstTypeReference"), fillet_left_start_point) 
         cnst_rad_fillet_left = constraints.add_mono_elt_cst(cat_constraint_type.index("catCstTypeRadius"), fillet_left)
         cnst_rad_fillet_left.mode = cat_constraint_mode.index("catCstModeDrivingDimension")
         cnst_rad_fillet_left.dimension.value = r_f
         
-        #Right fillet and line        
+        # ---Right fillet and line---
+        # Create a mirrored radial line for the right side of the tooth      
         radial_line_right = ske2D_tooth_con.create_line(-x_s, y_s, -x_f_start, y_f_start)
         radial_line_right.name = "Radial_Line_Right"
         
+        # Define endpoints for the right radial line
         radial_line_right_start_point = ske2D_tooth_con.create_point(-x_s, y_s)
         radial_line_right_start_point.name = "radial_line_right start point"
         radial_line_right.start_point = radial_line_right_start_point
@@ -283,18 +307,21 @@ if __name__ == "__main__":
         radial_line_right_end_point.name = "radial_line_right end point"
         radial_line_right.end_point = radial_line_right_end_point  
 
+        # Constrain the line to be coincident with the involute and tangent to the flank
         radial_line_on_1 = constraints.add_bi_elt_cst(cat_constraint_type.index("catCstTypeOn"), radial_line_right_start_point, points_list_right[0])
         radial_line_tangnt = constraints.add_bi_elt_cst(cat_constraint_type.index("catCstTypeTangency"), radial_line_right, involute_flank_right )
         constraints.add_mono_elt_cst(cat_constraint_type.index("catCstTypeReference"), radial_line_right_end_point)
         
+        # Calculate the mirrored center point and angles for the right fillet
         cx_r, cy_r = -cx, cy
-        
         a1_r = math.atan2(y_f_start - cy_r, -x_f_start - cx_r)
         a2_r = math.atan2(-cy_r, -cx_r)
         
+        # Create the right root fillet arc
         fillet_right = ske2D_tooth_con.create_circle(cx_r, cy_r, r_f, a1_r, a2_r)
         fillet_right.name = "Root_Fillet_Right"
         
+        # Define and constrain the right fillet endpoints
         fillet_right_start_point = ske2D_tooth_con.create_point(-x_f_start, y_f_start)
         fillet_right_start_point.name = "fillet_right start point"
         fillet_right.start_point = fillet_right_start_point
@@ -303,6 +330,7 @@ if __name__ == "__main__":
         fillet_right_end_point.name = "fillet_right end point"
         fillet_right.end_point = fillet_right_end_point
 
+        # Finalize constraints and radius for the right fillet
         fillet_right_on_1 = constraints.add_bi_elt_cst(cat_constraint_type.index("catCstTypeOn"), fillet_right_start_point, radial_line_right_end_point)
         constraints.add_mono_elt_cst(cat_constraint_type.index("catCstTypeReference"), fillet_right_end_point) 
         cnst_rad_fillet_right = constraints.add_mono_elt_cst(cat_constraint_type.index("catCstTypeRadius"), fillet_right)
@@ -362,95 +390,99 @@ if __name__ == "__main__":
         cnst_rad_r.dimension.value = r_f
 
     #Add the root of tooth
-    angle_root_l = (math.atan2(cy, -cx) + 2 * math.pi) % (2 * math.pi)
-    angle_root_r = (math.atan2(cy_r, -cx_r) + 2 * math.pi) % (2 * math.pi)
+    angle_root_l = (math.atan2(cy, -cx) + 2 * math.pi) % (2 * math.pi)                                  #Calculate the normalized angles (0 to 2π) for the left and root point
+    angle_root_r = (math.atan2(cy_r, -cx_r) + 2 * math.pi) % (2 * math.pi)                              #Calculate the normalized angles (0 to 2π) for the right and root point
     
-    root_arc = ske2D_tooth_con.create_circle(0, 0, dedendum_circle_radius, angle_root_l, angle_root_r)
-    root_arc.name = "Tooth_Root_Arc"
+    root_arc = ske2D_tooth_con.create_circle(0, 0, dedendum_circle_radius, angle_root_l, angle_root_r)  #Create the arc representing the bottom of the tooth space on the dedendum circle
+    root_arc.name = "Tooth_Root_Arc"                                                                    #Rename arc
  
-    root_r_coords = fillet_right_end_point.get_coordinates()
+    root_r_coords = fillet_right_end_point.get_coordinates()                                            #Get the junction coordinates from the end of the right fillet
  
-    root_arc_start_point = ske2D_tooth_con.create_point(root_r_coords[0], root_r_coords[1])
-    root_arc_start_point.name = "root_arc start point"
-    root_arc.start_point = root_arc_start_point 
+    root_arc_start_point = ske2D_tooth_con.create_point(root_r_coords[0], root_r_coords[1])             #Starting point for the root arc (right side)     
+    root_arc_start_point.name = "root_arc start point"                                                  #Rename point
+    root_arc.start_point = root_arc_start_point                                                         #Set as start point of arc
     
-    root_l_coords = fillet_left_start_point.get_coordinates()
-    
-    root_arc_end_point = ske2D_tooth_con.create_point(root_l_coords[0], root_l_coords[1])
-    root_arc_end_point.name = "root_arc end point"
-    root_arc.end_point = root_arc_end_point 
+    root_l_coords = fillet_left_start_point.get_coordinates()                                           #Get the junction coordinates from the start of the left fillet
 
-    root_arc_on_1 = constraints.add_bi_elt_cst(cat_constraint_type.index("catCstTypeOn"), root_arc_start_point, fillet_right_end_point)
-    root_arc_on_2 = constraints.add_bi_elt_cst(cat_constraint_type.index("catCstTypeOn"), root_arc_end_point, fillet_left_start_point)
-    constraints.add_bi_elt_cst(cat_constraint_type.index("catCstTypeConcentricity"), root_arc, origin)
+    root_arc_end_point = ske2D_tooth_con.create_point(root_l_coords[0], root_l_coords[1])               #End point for the root arc (left side)
+    root_arc_end_point.name = "root_arc end point"                                                      #Rename point
+    root_arc.end_point = root_arc_end_point                                                             #Set as endpoint of arc
+
+    root_arc_on_1 = constraints.add_bi_elt_cst(cat_constraint_type.index("catCstTypeOn"), 
+            root_arc_start_point, fillet_right_end_point)                                               #Make coincedent to root arc
+    root_arc_on_2 = constraints.add_bi_elt_cst(cat_constraint_type.index("catCstTypeOn"), 
+            root_arc_end_point, fillet_left_start_point)                                                #Make coincedent to root arc
+    constraints.add_bi_elt_cst(cat_constraint_type.index("catCstTypeConcentricity"), root_arc, origin)  #Make concentric to origin
     
     #Close edition
-    sketch_tooth_con.close_edition()
-    part.update()
+    sketch_tooth_con.close_edition()                                                                    #Stop editing sketch
+    part.update()                                                                                       #Update part
     
     #create sketch for gear body on xy plane
-    sketch_body_con = hb_sketches.add(plane_XY)
-    sketch_body_con.name = "sketch_body_con"
-    ske2D_body_con = sketch_body_con.open_edition()
-    constraints_body = sketch_body_con.constraints
-    geo_elements_bdy = sketch_body_con.geometric_elements
-    axis = geo_elements_bdy.item("AbsoluteAxis")
-    h_axis = axis.get_item("HDirection")
-    v_axis = axis.get_item("VDirection") 
+    sketch_body_con = hb_sketches.add(plane_XY)                                                         #Create sketch on xy plane
+    sketch_body_con.name = "sketch_body_con"                                                            #Rename sketch
+    ske2D_body_con = sketch_body_con.open_edition()                                                     #Start editing sketch
+    constraints_body = sketch_body_con.constraints                                                      #Get sketch constraints
+    geo_elements_bdy = sketch_body_con.geometric_elements                                               #Get sketch geometric elements
+    axis = geo_elements_bdy.item("AbsoluteAxis")                                                        #Get sketch axis
+    h_axis = axis.get_item("HDirection")                                                                #Get H direction
+    v_axis = axis.get_item("VDirection")                                                                #Get V direction
     
-    origin = sketch_body_con.absolute_axis.origin
+    origin = sketch_body_con.absolute_axis.origin                                                       #Get origin
    
     #create pitch circle
-    gear_circle = ske2D_body_con.create_closed_circle(0, 0, dedendum_circle_radius + pad_tol)
-    gear_circle.name = "Pitch Circle"
-    constraints_body.add_bi_elt_cst(cat_constraint_type.index("catCstTypeConcentricity"), gear_circle, origin)
-    cnst_gear = constraints_body.add_mono_elt_cst(cat_constraint_type.index("catCstTypeRadius"), gear_circle)
-    cnst_gear.mode = cat_constraint_mode.index("catCstModeDrivingDimension")
-    cnst_gear.dimension.value = dedendum_circle_radius + pad_tol 
+    gear_circle = ske2D_body_con.create_closed_circle(0, 0, dedendum_circle_radius + pad_tol)           #Draw circle
+    gear_circle.name = "Pitch Circle"                                                                   #Rename circle
+    constraints_body.add_bi_elt_cst(cat_constraint_type.index("catCstTypeConcentricity"), 
+            gear_circle, origin)                                                                        #Make concentric to origin
+    cnst_gear = constraints_body.add_mono_elt_cst(cat_constraint_type.index("catCstTypeRadius"), 
+            gear_circle)                                                                                #Add radius constraint
+    cnst_gear.mode = cat_constraint_mode.index("catCstModeDrivingDimension")                            #Make driving dimmension
+    cnst_gear.dimension.value = dedendum_circle_radius + pad_tol                                        #Add radius (pad_tol is to make sure their are no gaps when creating the gear)
     
     #Close edition
-    sketch_body_con.close_edition()
-    part.update()
+    sketch_body_con.close_edition()                                                                     #Stop editing the sketch
+    part.update()                                                                                       #Update the part
     
     #Create pad for gear body
-    pad_body = shape_factory.add_new_pad(sketch_body_con, gear_thicness)
-    pad_body.direction_orientation = cat_prism_orientation.index("catRegularOrientation")
-    pad_body.first_limit.limit_mode = cat_limit_mode.index("catOffsetLimit")
-    pad_body.first_limit.dimension.value = gear_thicness
-    pad_body.name = "Gear Body"
-    pad_body.set_profile_element(part.create_reference_from_object(sketch_body_con))
+    pad_body = shape_factory.add_new_pad(sketch_body_con, gear_thicness)                                #Add new pad for gear body
+    pad_body.direction_orientation = cat_prism_orientation.index("catRegularOrientation")               #Set direction
+    pad_body.first_limit.limit_mode = cat_limit_mode.index("catOffsetLimit")                            #Set limit mode to offset
+    pad_body.first_limit.dimension.value = gear_thicness                                                #Set pad dimmension
+    pad_body.name = "Gear Body"                                                                         #Rename pad
+    pad_body.set_profile_element(part.create_reference_from_object(sketch_body_con))                    #Link sketch to pad
     
-    part.update()
+    part.update()                                                                                       #Update part
     
     #Create pad for geart tooth
-    pad_tooth = shape_factory.add_new_pad(sketch_tooth_con, gear_thicness)
-    pad_tooth.direction_orientation = cat_prism_orientation.index("catRegularOrientation")
-    pad_tooth.first_limit.limit_mode = cat_limit_mode.index("catOffsetLimit")
-    pad_tooth.first_limit.dimension.value = gear_thicness
-    pad_tooth.name = "Gear Tooth"
-    pad_tooth.set_profile_element(part.create_reference_from_object(sketch_tooth_con))
+    pad_tooth = shape_factory.add_new_pad(sketch_tooth_con, gear_thicness)                              #Add new pad for gear tooth
+    pad_tooth.direction_orientation = cat_prism_orientation.index("catRegularOrientation")              #Set direction
+    pad_tooth.first_limit.limit_mode = cat_limit_mode.index("catOffsetLimit")                           #Set limit mode to offset
+    pad_tooth.first_limit.dimension.value = gear_thicness                                               #Set pad dimmension
+    pad_tooth.name = "Gear Tooth"                                                                       #Rename pad
+    pad_tooth.set_profile_element(part.create_reference_from_object(sketch_tooth_con))                  #Link sketch to pad
     
-    part.update()
+    part.update()                                                                                       #Update part
     
     # Create Circular Pattern for remaining gear teeth
-    ref_axis = part.create_reference_from_object(plane_XY) 
-    ref_origin = part.create_reference_from_object(origin)
+    ref_axis = part.create_reference_from_object(plane_XY)                                              #Rotation axis
+    ref_origin = part.create_reference_from_object(origin)                                              #Origin point
     
     circ_pattern = shape_factory.add_new_circ_pattern(
-        pad_tooth,               # 1. Feature to copy
-        1,                       # 2. Radial instances
-        number_of_teeth,         # 3. Angular instances
-        0.0,                     # 4. Radial step
-        360.0/number_of_teeth,   # 5. Angular step
-        1,                       # 6. Radial position
-        1,                       # 7. Angular position
-        ref_origin,              # 8. Rotation center reference
-        ref_axis,                # 9. Rotation axis reference
-        False,                   # 10. Is reversed?
-        0.0,                     # 11. Rotation angle
-        True                     # 12. Is radius aligned?
+        pad_tooth,                                                                                      # 1. Feature to copy
+        1,                                                                                              # 2. Radial instances
+        number_of_teeth,                                                                                # 3. Angular instances
+        0.0,                                                                                            # 4. Radial step
+        360.0/number_of_teeth,                                                                          # 5. Angular step
+        1,                                                                                              # 6. Radial position
+        1,                                                                                              # 7. Angular position
+        ref_origin,                                                                                     # 8. Rotation center reference
+        ref_axis,                                                                                       # 9. Rotation axis reference
+        False,                                                                                          # 10. Is reversed?
+        0.0,                                                                                            # 11. Rotation angle
+        True                                                                                            # 12. Is radius aligned?
     )
     
-    circ_pattern.name = "Teeth"
+    circ_pattern.name = "Teeth"                                                                         #Rename pattern
     
-    part.update()
+    part.update()                                                                                       #Update part
