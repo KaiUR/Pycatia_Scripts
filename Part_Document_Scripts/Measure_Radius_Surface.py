@@ -164,9 +164,9 @@ if __name__ == "__main__":
         
     selected_item = selectionSet.item(1)                                                                        #Selected element
    
-    try:
+    if type(active_doc) is PartDocument:
         part = active_doc.part                                                                                  #If document is part document
-    except AttributeError:                                                                                      #Else get part from product structure
+    else:                                                                                                       #Else get part from product structure
         # We are in a Product or Process; find the Part via the selection
         # We use .com_object to access the LeafProduct property
         leaf_product = selected_item.com_object.LeafProduct
@@ -283,7 +283,8 @@ if __name__ == "__main__":
         radius = 0
         result = catia().message_box(
                 "Radius: " + str(radius) + "mm\nDiameter: " + str(radius * 2) + 
-                "mm\n\nSurface is Planar\nPoints are colinear", buttons=32, title="Result")                     #Print result to message box.
+                "mm\n\nSurface is Planar in selected direction\nPoints are colinear", 
+                buttons=32, title="Result")                                                                     #Print result to message box.
         exit()
     
     #Create datum from points

@@ -137,15 +137,15 @@ if __name__ == "__main__":
 
     selected_item = selectionSet.item(1)                                                                        #Selected element
    
-    try:
+    if type(active_doc) is PartDocument:
         part = active_doc.part                                                                                  #If document is part document
-    except AttributeError:                                                                                      #Else get part from product structure
+    else:                                                                                                       #Else get part from product structure
         # We are in a Product or Process; find the Part via the selection
         # We use .com_object to access the LeafProduct property
         leaf_product = selected_item.com_object.LeafProduct
         part_document = PartDocument(leaf_product.ReferenceProduct.Parent)
         # Navigation: LeafProduct -> ReferenceProduct -> Parent (PartDocument) -> Part
-        part = part_document.part                                                                               #Get new part object
+        part = part_document.part 
 
     spa_workbench = active_doc.spa_workbench()
     
