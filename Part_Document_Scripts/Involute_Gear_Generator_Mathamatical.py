@@ -10,6 +10,7 @@
     Description:    This script will ask the user for parameters to create spur gear profile
     dependencies = [
                     "pycatia",
+                    "wxPython",
                     ]
     requirements:   Python >= 9.10
                     pycatia
