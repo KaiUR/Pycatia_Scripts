@@ -36,24 +36,20 @@ if __name__ == "__main__":
     caa = catia()                                                                                               #Catia application instance
     part_document: PartDocument = caa.active_document                                                           #Current open document
     part = part_document.part                                                                                   #Current part
-    hybrid_bodies = part.hybrid_bodies                                                                          #Set off all top level geometric sets
-    partbody = part.bodies[0]                                                                                   #Get default PartBody by index
+    hybrid_bodies = part.hybrid_bodies                                                                          #Set off all top level geometric sets 
+    bodies = part.bodies                                                                                        #Get collection of bodies
+    partbody = bodies.add()                                                                                     #Add new body
     sketches_part_body = partbody.sketches                                                                      #Get sketches in part body
-    
     hybrid_shape_factory = part.hybrid_shape_factory                                                            #GSD workbentch to create hybridshapes
     shape_factory = part.shape_factory                                                                          #Part Design workbench
-    
     selectionSet = caa.active_document.selection                                                                #Create container for selection
     
     #Parameters
     module = 2
-    number_of_teeth = 10
-    
+    number_of_teeth = 10 
     clearance = 1.25
-    pressure_angle = 20
-    
+    pressure_angle = 25
     steps = 10
-    
     gear_thicness = 5
     pad_tol = 0.02
     
@@ -63,34 +59,23 @@ if __name__ == "__main__":
     dedendum_circle_radius = pitch_circle_radius - ( clearance * module )
     base_circle_radius = pitch_circle_radius * math.cos(math.radians(pressure_angle))
     
+    #Body and Sketch Con
+    partbody.name = "Involute Gear M:" + str(module) + " T:" + str(number_of_teeth)                             #Rename body
+    part.in_work_object = partbody                                                                              #Make new body inwork object
+    hb_sketches = partbody.sketches                                                                             #Get Collection of sketches
+    
+    plane_XY = part.origin_elements.plane_xy                                                                    #get reference to XY plane
 
-    #Hybrid set for construction
-    hb = hybrid_bodies.add()                                                                                    #Add new geometric set
-    hb.name = "Involute_Gear_Construction"                                                                      #Set name for new geometric set
-    part.in_work_object = hb                                                                                    #Make new geometric set inwork object
-    
-    hb_sketches = hb.hybrid_sketches
-    
-    #get reference to XY plane
-    plane_XY = part.origin_elements.plane_xy
-
-    #create sketch on xy plane
-    sketch_tooth_con = hb_sketches.add(plane_XY)
-    sketch_tooth_con.name = "sketch_tooth_con"
-    ske2D_tooth_con = sketch_tooth_con.open_edition()
-    
-    #retrive constraints
-    constraints = sketch_tooth_con.constraints
-    
-    ###create geometry###
-    
-    #Get origin and Axis
-    geo_elements = sketch_tooth_con.geometric_elements
-    axis = geo_elements.item("AbsoluteAxis")
-    h_axis = axis.get_item("HDirection")
-    v_axis = axis.get_item("VDirection") 
-    
-    origin = sketch_tooth_con.absolute_axis.origin
+    #create sketch for tooth on xy plane
+    sketch_tooth_con = hb_sketches.add(plane_XY)                                                                #Add sketch                                    
+    sketch_tooth_con.name = "sketch_tooth_con"                                                                  #Rename Sketch
+    ske2D_tooth_con = sketch_tooth_con.open_edition()                                                           #Start Editing Sketch
+    constraints = sketch_tooth_con.constraints                                                                  #Get collection of constraints for sketch
+    geo_elements = sketch_tooth_con.geometric_elements                                                          #Get collection of geometric elements for sketch
+    axis = geo_elements.item("AbsoluteAxis")                                                                    #Get Sketch Axis
+    h_axis = axis.get_item("HDirection")                                                                        #Get H direction
+    v_axis = axis.get_item("VDirection")                                                                        #Get V direction
+    origin = sketch_tooth_con.absolute_axis.origin                                                              #Get origin
    
     #create pitch circle
     pitch_circle = ske2D_tooth_con.create_closed_circle(0, 0, pitch_circle_radius)
@@ -139,7 +124,7 @@ if __name__ == "__main__":
     center_line_on_1 = constraints.add_bi_elt_cst(cat_constraint_type.index("catCstTypeOn"), center_line_start_point, origin)
     center_line_on_2 = constraints.add_bi_elt_cst(cat_constraint_type.index("catCstTypeOn"), center_line_end_point, addendum_circle)
     
-    #create preasure angle
+    #create preasure angle line
     pressure_line = ske2D_tooth_con.create_line(0, 0, 10, 10)
     pressure_line.construction = True
     pressure_line.name = "Pressure_Line"
@@ -232,9 +217,6 @@ if __name__ == "__main__":
     cnst_rad_top_land.mode = cat_constraint_mode.index("catCstModeDrivingDimension")
     cnst_rad_top_land.dimension.value = addendum_circle_radius
     
-    
-    fillet_right_end_point = None
-    fillet_left_start_point = None
     #Create root fillets 
     if base_circle_radius > dedendum_circle_radius:
         p_start_involute = points_list_left[0]
@@ -328,8 +310,56 @@ if __name__ == "__main__":
         cnst_rad_fillet_right.dimension.value = r_f
         
     else:
-        #not implemented yet
-        exit()
+        # Base circle is inside or on the dedendum circle
+        # No radial line needed; fillet attaches directly to the start of the involute
+        p_start_left = points_list_left[0]
+        x_s, y_s = p_start_left.get_coordinates()
+        
+        r_f = 0.38 * module
+        angle_s = math.atan2(y_s, x_s)
+        
+        # Center of the left fillet
+        # We place it so it's tangent to the start point and reaches the dedendum circle
+        angle_perp = angle_s + (math.pi / 2)
+        cx = x_s + r_f * math.cos(angle_perp)
+        cy = y_s + r_f * math.sin(angle_perp)
+        
+        # Angles for the arc (from dedendum circle to involute start)
+        a1 = math.atan2(y_s - cy, x_s - cx)
+        a2 = math.atan2(-cy, -cx)
+        
+        # Create Left Fillet
+        fillet_left = ske2D_tooth_con.create_circle(cx, cy, r_f, a2, a1)
+        fillet_left.name = "Root_Fillet_Left"
+        
+        fillet_left_end_point = ske2D_tooth_con.create_point(x_s, y_s)
+        fillet_left.end_point = fillet_left_end_point
+        constraints.add_bi_elt_cst(cat_constraint_type.index("catCstTypeOn"), fillet_left_end_point, p_start_left)
+        
+        fillet_left_start_point = ske2D_tooth_con.create_point(r_f * math.cos(a2), r_f * math.sin(a2))
+        fillet_left.start_point = fillet_left_start_point
+        
+        # Add Radius Constraint
+        cnst_rad_l = constraints.add_mono_elt_cst(cat_constraint_type.index("catCstTypeRadius"), fillet_left)
+        cnst_rad_l.dimension.value = r_f
+
+        # Create Right Fillet (Mirror of left)
+        cx_r, cy_r = -cx, cy
+        a1_r = math.atan2(y_s - cy_r, -x_s - cx_r)
+        a2_r = math.atan2(-cy_r, -cx_r)
+        
+        fillet_right = ske2D_tooth_con.create_circle(cx_r, cy_r, r_f, a1_r, a2_r)
+        fillet_right.name = "Root_Fillet_Right"
+        
+        fillet_right_start_point = ske2D_tooth_con.create_point(-x_s, y_s)
+        fillet_right.start_point = fillet_right_start_point
+        constraints.add_bi_elt_cst(cat_constraint_type.index("catCstTypeOn"), fillet_right_start_point, points_list_right[0])
+        
+        fillet_right_end_point = ske2D_tooth_con.create_point(r_f * math.cos(a2_r), r_f * math.sin(a2_r))
+        fillet_right.end_point = fillet_right_end_point
+        
+        cnst_rad_r = constraints.add_mono_elt_cst(cat_constraint_type.index("catCstTypeRadius"), fillet_right)
+        cnst_rad_r.dimension.value = r_f
 
     #Add the root of tooth
     angle_root_l = (math.atan2(cy, -cx) + 2 * math.pi) % (2 * math.pi)
@@ -356,18 +386,13 @@ if __name__ == "__main__":
     
     #Close edition
     sketch_tooth_con.close_edition()
+    part.update()
     
-    #create sketch on xy plane
+    #create sketch for gear body on xy plane
     sketch_body_con = hb_sketches.add(plane_XY)
     sketch_body_con.name = "sketch_body_con"
     ske2D_body_con = sketch_body_con.open_edition()
-    
-    #retrive constraints
     constraints_body = sketch_body_con.constraints
-    
-    ###create geometry###
-    
-    #Get origin and Axis
     geo_elements_bdy = sketch_body_con.geometric_elements
     axis = geo_elements_bdy.item("AbsoluteAxis")
     h_axis = axis.get_item("HDirection")
@@ -385,43 +410,29 @@ if __name__ == "__main__":
     
     #Close edition
     sketch_body_con.close_edition()
-    
-    ##### Create Pads
-    
-    # Update the document
     part.update()
     
-    part.in_work_object = partbody
-    
-    '''
-    selectionSet.clear()
-    selectionSet.add(sketch_tooth_con)
-    selectionSet.add(sketch_body_con)
-    selectionSet.copy()
-    
-    selectionSet.add(partbody)
-    selectionSet.paste()
-    selectionSet.clear()
-    
-    part.update()
-    '''
-    
-    
+    #Create pad for gear body
     pad_body = shape_factory.add_new_pad(sketch_body_con, gear_thicness)
     pad_body.direction_orientation = cat_prism_orientation.index("catRegularOrientation")
     pad_body.first_limit.limit_mode = cat_limit_mode.index("catOffsetLimit")
     pad_body.first_limit.dimension.value = gear_thicness
     pad_body.name = "Gear Body"
+    pad_body.set_profile_element(part.create_reference_from_object(sketch_body_con))
     
     part.update()
     
+    #Create pad for geart tooth
     pad_tooth = shape_factory.add_new_pad(sketch_tooth_con, gear_thicness)
     pad_tooth.direction_orientation = cat_prism_orientation.index("catRegularOrientation")
     pad_tooth.first_limit.limit_mode = cat_limit_mode.index("catOffsetLimit")
     pad_tooth.first_limit.dimension.value = gear_thicness
     pad_tooth.name = "Gear Tooth"
+    pad_tooth.set_profile_element(part.create_reference_from_object(sketch_tooth_con))
     
-    # Create Circular Pattern
+    part.update()
+    
+    # Create Circular Pattern for remaining gear teeth
     ref_axis = part.create_reference_from_object(plane_XY) 
     ref_origin = part.create_reference_from_object(origin)
     
