@@ -620,13 +620,13 @@ if __name__ == "__main__":
     
     origin_k = sketch_key_con.absolute_axis.origin                                                      #Get origin
     
-    kw_width = (shaft_radius * 2) / key_w
-    kw_depth = (shaft_radius * 2) / key_d
+    kw_width = (shaft_radius * 2) / key_w                                                               #Calculate key width, shaft diameter divided by ratio
+    kw_depth = (shaft_radius * 2) / key_d                                                               #Calculate key depth, shaft diameter divided by ratio
     
-    y_start_inside = 0 
-    y_end = shaft_radius + kw_depth
-    x_left = -(kw_width / 2)
-    x_right = kw_width / 2
+    y_start_inside = 0                                                                                  #Start at origin
+    y_end = shaft_radius + kw_depth                                                                     #Depth, key depth + shaft radius
+    x_left = -(kw_width / 2)                                                                            #Left Start point
+    x_right = kw_width / 2                                                                              #Right end point
 
     # Create the lines with the new 'inward' start point
     line1 = ske2D_key_con.create_line(x_left, y_start_inside, x_right, y_start_inside)                  # Bottom
@@ -634,59 +634,59 @@ if __name__ == "__main__":
     line3 = ske2D_key_con.create_line(x_right, y_end, x_left, y_end)                                    # Top
     line4 = ske2D_key_con.create_line(x_left, y_end, x_left, y_start_inside)                            # Left
     
-    line1.name = "Line_1"
-    line2.name = "Line_2"
-    line3.name = "Line_3"
-    line4.name = "Line_4"
+    line1.name = "Line_1"                                                                               #Rename line
+    line2.name = "Line_2"                                                                               #Rename line
+    line3.name = "Line_3"                                                                               #Rename line
+    line4.name = "Line_4"                                                                               #Rename line
     
-    line1_sp = ske2D_key_con.create_point(x_left, y_start_inside)   
-    line1_sp.name = "line1_sp"
-    line1.start_point = line1_sp
-    constraints_key.add_mono_elt_cst(CatConstraintType.catCstTypeReference, line1_sp) 
+    line1_sp = ske2D_key_con.create_point(x_left, y_start_inside)                                       #Create start point for line
+    line1_sp.name = "line1_sp"                                                                          #Rename point
+    line1.start_point = line1_sp                                                                        #Set point to line
+    constraints_key.add_mono_elt_cst(CatConstraintType.catCstTypeReference, line1_sp)                   #Add fixed constraint
     
-    line1_ep = ske2D_key_con.create_point(x_right, y_start_inside)   
-    line1_ep.name = "line1_ep"
-    line1.end_point = line1_ep
-    constraints_key.add_mono_elt_cst(CatConstraintType.catCstTypeReference, line1_ep) 
+    line1_ep = ske2D_key_con.create_point(x_right, y_start_inside)                                      #Create end point for line
+    line1_ep.name = "line1_ep"                                                                          #Rename point
+    line1.end_point = line1_ep                                                                          #Set point to line
+    constraints_key.add_mono_elt_cst(CatConstraintType.catCstTypeReference, line1_ep)                   #Add fixed constraint
     
-    line2_sp = ske2D_key_con.create_point(x_right, y_start_inside)   
-    line2_sp.name = "line2_sp"
-    line2.start_point = line2_sp
-    constraints_key.add_mono_elt_cst(CatConstraintType.catCstTypeReference, line2_sp) 
+    line2_sp = ske2D_key_con.create_point(x_right, y_start_inside)                                      #Create start point for line
+    line2_sp.name = "line2_sp"                                                                          #Rename point
+    line2.start_point = line2_sp                                                                        #Set point to line
+    constraints_key.add_mono_elt_cst(CatConstraintType.catCstTypeReference, line2_sp)                   #Add fixed constraint
     
-    line2_ep = ske2D_key_con.create_point(x_right, y_end)
-    line2_ep.name = "line2_ep"
-    line2.end_point = line2_ep
-    constraints_key.add_mono_elt_cst(CatConstraintType.catCstTypeReference, line2_ep) 
+    line2_ep = ske2D_key_con.create_point(x_right, y_end)                                               #Create end point for line
+    line2_ep.name = "line2_ep"                                                                          #Rename point
+    line2.end_point = line2_ep                                                                          #Set point to line
+    constraints_key.add_mono_elt_cst(CatConstraintType.catCstTypeReference, line2_ep)                   #Add fixed constraint
     
-    line3_sp = ske2D_key_con.create_point(x_right, y_end)   
-    line3_sp.name = "line3_sp"
-    line3.start_point = line3_sp
-    constraints_key.add_mono_elt_cst(CatConstraintType.catCstTypeReference, line3_sp) 
+    line3_sp = ske2D_key_con.create_point(x_right, y_end)                                               #Create start point for line
+    line3_sp.name = "line3_sp"                                                                          #Rename point
+    line3.start_point = line3_sp                                                                        #Set point to line
+    constraints_key.add_mono_elt_cst(CatConstraintType.catCstTypeReference, line3_sp)                   #Add fixed constraint
     
-    line3_ep = ske2D_key_con.create_point(x_left, y_end)
-    line3_ep.name = "line3_ep"
-    line3.end_point = line3_ep
-    constraints_key.add_mono_elt_cst(CatConstraintType.catCstTypeReference, line3_ep) 
+    line3_ep = ske2D_key_con.create_point(x_left, y_end)                                                #Create end point for line
+    line3_ep.name = "line3_ep"                                                                          #Rename point
+    line3.end_point = line3_ep                                                                          #Set point to line
+    constraints_key.add_mono_elt_cst(CatConstraintType.catCstTypeReference, line3_ep)                   #Add fixed constraint
     
-    line4_sp = ske2D_key_con.create_point(x_left, y_end)   
-    line4_sp.name = "line4_sp"
-    line4.start_point = line4_sp
-    constraints_key.add_mono_elt_cst(CatConstraintType.catCstTypeReference, line4_sp) 
+    line4_sp = ske2D_key_con.create_point(x_left, y_end)                                                #Create start point for line 
+    line4_sp.name = "line4_sp"                                                                          #Rename point
+    line4.start_point = line4_sp                                                                        #Set point to line
+    constraints_key.add_mono_elt_cst(CatConstraintType.catCstTypeReference, line4_sp)                   #Add fixed constraint
     
-    line4_ep = ske2D_key_con.create_point(x_left, y_start_inside)
-    line4_ep.name = "line4_ep"
-    line4.end_point = line4_ep
-    constraints_key.add_mono_elt_cst(CatConstraintType.catCstTypeReference, line4_ep) 
+    line4_ep = ske2D_key_con.create_point(x_left, y_start_inside)                                       #Create end point for line
+    line4_ep.name = "line4_ep"                                                                          #Rename point
+    line4.end_point = line4_ep                                                                          #Set point to line
+    constraints_key.add_mono_elt_cst(CatConstraintType.catCstTypeReference, line4_ep)                   #Add fixed constraint
 
-    sketch_key_con.close_edition()
+    sketch_key_con.close_edition()                                                                      #Close sketch
     
     #Create key pocket
-    keyway_pocket = shape_factory.add_new_pocket(sketch_key_con, gear_thicness)
+    keyway_pocket = shape_factory.add_new_pocket(sketch_key_con, gear_thicness)                         #Add new pocket feature
 
-    keyway_pocket.first_limit.limit_mode = CatLimitMode.catOffsetLimit
-    keyway_pocket.direction_orientation = CatPrismOrientation.catRegularOrientation
-    keyway_pocket.name = "Key Pocket"
-    keyway_pocket.set_profile_element(part.create_reference_from_object(sketch_key_con))
+    keyway_pocket.first_limit.limit_mode = CatLimitMode.catOffsetLimit                                  #Set limit mode to offset
+    keyway_pocket.direction_orientation = CatPrismOrientation.catRegularOrientation                     #Set orientation
+    keyway_pocket.name = "Key Pocket"                                                                   #Rename pocket
+    keyway_pocket.set_profile_element(part.create_reference_from_object(sketch_key_con))                #Add scketch to feature as reference
 
-    part.update()
+    part.update()                                                                                       #Update part
