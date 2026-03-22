@@ -37,32 +37,29 @@ from pycatia.in_interfaces.setting_controllers import SettingControllers
 
 class DataInputDialog(wx.Dialog):
     def __init__(self, parent, title):
-        # Increase size slightly for better spacing
-        super().__init__(parent, title=title, size=(350, 500))
+        super().__init__(parent, title=title, size=(350, 500))                                          #Set size of dialog
         
-        # Use the Dialog itself as the parent for the sizer
-        vbox = wx.BoxSizer(wx.VERTICAL)
+        vbox = wx.BoxSizer(wx.VERTICAL)                                                                 #Use the Dialog itself as the parent for the sizer
         
-        # Use 'self' (the Dialog) as the parent for all widgets
-        grid = wx.FlexGridSizer(12, 2, 10, 10)
+        grid = wx.FlexGridSizer(12, 2, 10, 10)                                                          #Set grid for fields
         
-        self.module = wx.TextCtrl(self, value="2.0")
-        self.number_of_teeth = wx.TextCtrl(self, value="20")
-        self.pressure_angle = wx.TextCtrl(self, value="20.0")
-        self.clearance = wx.TextCtrl(self, value="0.25")
-        self.steps = wx.TextCtrl(self, value="10")
-        self.gear_thicness = wx.TextCtrl(self, value="5.0")
-        self.fillet_radius = wx.TextCtrl(self, value="0.38")
-        self.shaft_radius = wx.TextCtrl(self, value="5.0")
-        self.key_w = wx.TextCtrl(self, value="4.0")
-        self.key_d = wx.TextCtrl(self, value="8.0")
-        self.has_shaft = wx.CheckBox(self, label="Include Shaft Hole")
-        self.has_shaft.SetValue(True)
-        self.has_keyway = wx.CheckBox(self, label="Include Keyway")
-        self.has_keyway.SetValue(True)
+        self.module = wx.TextCtrl(self, value="2.0")                                                    #Initilize field with default value
+        self.number_of_teeth = wx.TextCtrl(self, value="20")                                            #Initilize field with default value
+        self.pressure_angle = wx.TextCtrl(self, value="20.0")                                           #Initilize field with default value
+        self.clearance = wx.TextCtrl(self, value="0.25")                                                #Initilize field with default value
+        self.steps = wx.TextCtrl(self, value="10")                                                      #Initilize field with default value
+        self.gear_thicness = wx.TextCtrl(self, value="5.0")                                             #Initilize field with default value
+        self.fillet_radius = wx.TextCtrl(self, value="0.38")                                            #Initilize field with default value
+        self.shaft_radius = wx.TextCtrl(self, value="5.0")                                              #Initilize field with default value
+        self.key_w = wx.TextCtrl(self, value="4.0")                                                     #Initilize field with default value
+        self.key_d = wx.TextCtrl(self, value="8.0")                                                     #Initilize field with default value
+        self.has_shaft = wx.CheckBox(self, label="Include Shaft Hole")                                  #Initilize field lable
+        self.has_shaft.SetValue(True)                                                                   #Initilize field with default value
+        self.has_keyway = wx.CheckBox(self, label="Include Keyway")                                     #Initilize field lable
+        self.has_keyway.SetValue(True)                                                                  #Initilize field with default value
 
-        self.has_shaft.Bind(wx.EVT_CHECKBOX, self.on_toggle_shaft)
-        self.has_keyway.Bind(wx.EVT_CHECKBOX, self.on_toggle_keyway)
+        self.has_shaft.Bind(wx.EVT_CHECKBOX, self.on_toggle_shaft)                                      #bind event function
+        self.has_keyway.Bind(wx.EVT_CHECKBOX, self.on_toggle_keyway)                                    #bind event function
         
         grid.AddMany([
             (wx.StaticText(self, label="Module:")), (self.module, 1, wx.EXPAND),
@@ -77,15 +74,13 @@ class DataInputDialog(wx.Dialog):
             (wx.StaticText(self, label="Keyway Setting:")), (self.has_keyway, 0),
             (wx.StaticText(self, label="Key Width Ratio:")), (self.key_w, 1, wx.EXPAND),
             (wx.StaticText(self, label="Key Depth Ratio:")), (self.key_d, 1, wx.EXPAND)
-        ])
+        ])                                                                                              #Create layout for dialog
         
-        grid.AddGrowableCol(1, 1)
+        grid.AddGrowableCol(1, 1)                                                                       #Set cloum
         
-        # Add grid to main sizer with a border
-        vbox.Add(grid, proportion=1, flag=wx.ALL|wx.EXPAND, border=15)
+        vbox.Add(grid, proportion=1, flag=wx.ALL|wx.EXPAND, border=15)                                  #Add grid border
         
-        # CreateButtonSizer now matches the Dialog parent automatically
-        btn_sizer = self.CreateButtonSizer(wx.OK | wx.CANCEL)
+        btn_sizer = self.CreateButtonSizer(wx.OK | wx.CANCEL)                                           #Create ok and cancel button
         if btn_sizer:
             vbox.Add(btn_sizer, flag=wx.ALIGN_CENTER | wx.BOTTOM, border=10)
         
@@ -168,7 +163,7 @@ if __name__ == "__main__":
     selectionSet = caa.active_document.selection                                                                #Create container for selection
     
     #Parameters
-    pad_tol = 0.02
+    pad_tol = 0.02                                                                                              #Tol added to ensure that the pads are all joined
     
     settings_controller = caa.application.setting_controllers()                                                 #Get catia settings
     part_infa = settings_controller.item("CATMmuPartInfrastructureSettingCtrl")                                 #Get part infastructure setting
@@ -181,25 +176,25 @@ if __name__ == "__main__":
         return_hybrid = True                                                                                    #Set flag to turn on hybrid design again at end of script
     
     app = wx.App()
-    dlg = DataInputDialog(None, "Involute Gear Parameters")
-    if dlg.ShowModal() == wx.ID_OK:
-        module = float(dlg.module.GetValue())
-        number_of_teeth = int(dlg.number_of_teeth.GetValue())
-        pressure_angle = float(dlg.pressure_angle.GetValue())
-        clearance = float(dlg.clearance.GetValue())
-        clearance = clearance + 1
-        steps = int(dlg.steps.GetValue())
-        gear_thicness = float(dlg.gear_thicness.GetValue())
-        fillet_radius = float(dlg.fillet_radius.GetValue())
-        shaft_radius = float(dlg.shaft_radius.GetValue())
-        key_d = float(dlg.key_d.GetValue())
-        key_w = float(dlg.key_w.GetValue())
-        has_shaft = dlg.has_shaft.GetValue()
-        has_key = dlg.has_keyway.GetValue()
-    else:
-        dlg.Destroy()
-        exit()
-    dlg.Destroy()
+    dlg = DataInputDialog(None, "Involute Gear Parameters")                                                     #New dialog to get user parameters
+    if dlg.ShowModal() == wx.ID_OK:                                                                             #If user input is valid and user pressed ok
+        module = float(dlg.module.GetValue())                                                                   #Get value form dialog
+        number_of_teeth = int(dlg.number_of_teeth.GetValue())                                                   #Get value form dialog
+        pressure_angle = float(dlg.pressure_angle.GetValue())                                                   #Get value form dialog
+        clearance = float(dlg.clearance.GetValue())                                                             #Get value form dialog
+        clearance = clearance + 1                                                                               #+1 to make maths work later
+        steps = int(dlg.steps.GetValue())                                                                       #Get value form dialog
+        gear_thicness = float(dlg.gear_thicness.GetValue())                                                     #Get value form dialog
+        fillet_radius = float(dlg.fillet_radius.GetValue())                                                     #Get value form dialog
+        shaft_radius = float(dlg.shaft_radius.GetValue())                                                       #Get value form dialog
+        key_d = float(dlg.key_d.GetValue())                                                                     #Get value form dialog
+        key_w = float(dlg.key_w.GetValue())                                                                     #Get value form dialog
+        has_shaft = dlg.has_shaft.GetValue()                                                                    #Get value form dialog
+        has_key = dlg.has_keyway.GetValue()                                                                     #Get value form dialog
+    else:                                                                                                       #User canceled or something whent wrong
+        dlg.Destroy()                                                                                           #Close dialog
+        exit()                                                                                                  #exit script
+    dlg.Destroy()                                                                                               #Close dialog
     
     partbody = bodies.add()                                                                                     #Add new body
     sketches_part_body = partbody.sketches                                                                      #Get sketches in part body
