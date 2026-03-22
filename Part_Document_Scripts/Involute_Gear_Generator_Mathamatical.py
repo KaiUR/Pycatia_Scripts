@@ -33,6 +33,7 @@ from pycatia import CatPrismOrientation
 from pycatia import CatLimitMode
 import math
 import wx
+from pycatia.in_interfaces.setting_controllers import SettingControllers
 
 class DataInputDialog(wx.Dialog):
     def __init__(self, parent, title):
@@ -168,6 +169,16 @@ if __name__ == "__main__":
     
     #Parameters
     pad_tol = 0.02
+    
+    settings_controller = caa.application.setting_controllers()                                                 #Get catia settings
+    part_infa = settings_controller.item("CATMmuPartInfrastructureSettingCtrl")                                 #Get part infastructure setting
+
+    is_hybrid = part_infa.com_object.HybridDesignMode                                                           #Get hybrid design mode as boolean
+    return_hybrid = False                                                                                       #Set return setting flag to false
+
+    if is_hybrid:                                                                                               #If hybrid design is enabled
+        part_infa.com_object.HybridDesignMode = False                                                           #Turn off hybrid design
+        return_hybrid = True                                                                                    #Set flag to turn on hybrid design again at end of script
     
     app = wx.App()
     dlg = DataInputDialog(None, "Involute Gear Parameters")
@@ -725,3 +736,6 @@ if __name__ == "__main__":
             keyway_pocket.set_profile_element(part.create_reference_from_object(sketch_key_con))                #Add scketch to feature as reference
 
             part.update()                                                                                       #Update part
+    
+    if return_hybrid:                                                                                           #If hybrid desgin was turned off
+        part_infa.com_object.HybridDesignMode = True                                                            #Turn hybrid desgin back on
