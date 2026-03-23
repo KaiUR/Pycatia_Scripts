@@ -46,7 +46,7 @@ class DataInputDialog(wx.Dialog):
         grid = wx.FlexGridSizer(13, 3, 10, 10)                                                          #Set grid for fields
         
         self.module = wx.TextCtrl(self, value="2.0")                                                    #Initilize field with default value
-        self.number_of_teeth = wx.TextCtrl(self, value="20")                                            #Initilize field with default value
+        self.number_of_teeth = wx.TextCtrl(self, value="24")                                            #Initilize field with default value
         self.pressure_angle = wx.TextCtrl(self, value="20.0")                                           #Initilize field with default value
         self.clearance = wx.TextCtrl(self, value="0.25")                                                #Initilize field with default value
         self.steps = wx.TextCtrl(self, value="10")                                                      #Initilize field with default value
@@ -201,7 +201,36 @@ class DataInputDialog(wx.Dialog):
                 self.show_error(f"{name} must be a valid {target_type.__name__}.", ctrl)
                 return False
         
-        return True # Everything is positive and numeric
+        z = int(self.number_of_teeth.GetValue())        
+        if z < 17:
+            msg = f"Number of teeth ({z}) is below 17.\nThis may cause 'undercutting' at the tooth root.\n\nProceed anyway?"
+            if wx.MessageBox(msg, "Design Warning", wx.YES_NO | wx.ICON_WARNING) == wx.NO:
+                self.number_of_teeth.SetFocus()
+                return False
+                
+        pa = float(self.pressure_angle.GetValue())
+        if pa >= 45:
+            self.show_error("Pressure angle must be less than 45 degrees to maintain gear geometry.", self.pressure_angle)
+            return False
+            
+        if self.has_shaft.IsChecked() and self.has_keyway.IsChecked():
+            m = float(self.module.GetValue())
+            r_shaft = float(self.shaft_radius.GetValue())
+            
+            # Calculate Dedendum (Root) Radius
+            # r_p = m * z / 2; r_d = r_p - 1.25 * m (approx)
+            r_dedendum = (m * z / 2) - (1.25 * m)
+            
+            # Keyway depth calculation (Simplified for validation)
+            k_mode = self.key_mode.GetSelection()
+            k_depth_input = float(self.key_d.GetValue())
+            k_depth_mm = (r_shaft * 2 / k_depth_input) if k_mode == 0 else k_depth_input
+            
+            if (r_shaft + k_depth_mm) >= r_dedendum:
+                self.show_error("The Keyway depth is too deep and will cut into the gear teeth!", self.key_d)
+                return False
+        
+        return True # All checks passed
 
     def show_error(self, message, ctrl):
         """Helper to show a message box and focus the problematic field."""
@@ -243,7 +272,6 @@ if __name__ == "__main__":
         number_of_teeth = int(dlg.number_of_teeth.GetValue())                                                   #Get value form dialog
         pressure_angle = float(dlg.pressure_angle.GetValue())                                                   #Get value form dialog
         clearance = float(dlg.clearance.GetValue())                                                             #Get value form dialog
-        clearance = clearance + 1                                                                               #+1 to make maths work later
         steps = int(dlg.steps.GetValue())                                                                       #Get value form dialog
         gear_thicness = float(dlg.gear_thicness.GetValue())                                                     #Get value form dialog
         fillet_radius = float(dlg.fillet_radius.GetValue())                                                     #Get value form dialog
@@ -264,7 +292,7 @@ if __name__ == "__main__":
     #formulas
     pitch_circle_radius = module * number_of_teeth                                                              #Pitch circle formula
     addendum_circle_radius = pitch_circle_radius + module                                                       #Addendum circle formula
-    dedendum_circle_radius = pitch_circle_radius - ( clearance * module )                                       #Dedendum circle formula
+    dedendum_circle_radius = pitch_circle_radius - ( (1 + clearance) * module )                                 #Dedendum circle formula
     base_circle_radius = pitch_circle_radius * math.cos(math.radians(pressure_angle))                           #base circle formula
     
     #Body and Sketch Con
@@ -550,7 +578,7 @@ if __name__ == "__main__":
         p_start_left = points_list_left[0]
         x_s, y_s = p_start_left.get_coordinates()
         
-        r_f = 0.38 * module
+        r_f = fillet_radius * module
         angle_s = math.atan2(y_s, x_s)
         
         # Center of the left fillet
@@ -639,7 +667,7 @@ if __name__ == "__main__":
    
     #create pitch circle
     gear_circle = ske2D_body_con.create_closed_circle(0, 0, dedendum_circle_radius + pad_tol)           #Draw circle
-    gear_circle.name = "Pitch Circle"                                                                   #Rename circle
+    gear_circle.name = "Body Circle"                                                                    #Rename circle
     constraints_body.add_bi_elt_cst(CatConstraintType.catCstTypeConcentricity, 
             gear_circle, origin)                                                                        #Make concentric to origin
     cnst_gear = constraints_body.add_mono_elt_cst(CatConstraintType.catCstTypeRadius, 
