@@ -7,7 +7,8 @@
     Purpose:        Create Involute Gear
     Author:         Kai-Uwe Rathjen
     Date:           03.03.26
-    Description:    This script will ask the user for parameters to create spur gear profile
+    Description:    This script will ask the user for parameters to create spur gear profile. The script will create a gear,
+                    shaft and key for the shaft.
     dependencies = [
                     "pycatia",
                     "wxPython",
@@ -34,14 +35,15 @@ from pycatia import CatLimitMode
 import math
 import wx
 from pycatia.in_interfaces.setting_controllers import SettingControllers
+import wx.lib.dialogs as dialogs
 
 class DataInputDialog(wx.Dialog):
     def __init__(self, parent, title):
-        super().__init__(parent, title=title, size=(350, 500))                                          #Set size of dialog
+        super().__init__(parent, title=title, size=(350, 560))                                          #Set size of dialog
         
         vbox = wx.BoxSizer(wx.VERTICAL)                                                                 #Use the Dialog itself as the parent for the sizer
         
-        grid = wx.FlexGridSizer(12, 2, 10, 10)                                                          #Set grid for fields
+        grid = wx.FlexGridSizer(13, 3, 10, 10)                                                          #Set grid for fields
         
         self.module = wx.TextCtrl(self, value="2.0")                                                    #Initilize field with default value
         self.number_of_teeth = wx.TextCtrl(self, value="20")                                            #Initilize field with default value
@@ -53,6 +55,10 @@ class DataInputDialog(wx.Dialog):
         self.shaft_radius = wx.TextCtrl(self, value="5.0")                                              #Initilize field with default value
         self.key_w = wx.TextCtrl(self, value="4.0")                                                     #Initilize field with default value
         self.key_d = wx.TextCtrl(self, value="8.0")                                                     #Initilize field with default value
+        self.key_mode = wx.RadioBox(self, label="Key Measurement Mode", 
+                            choices=['Ratio', 'Fixed (mm)'], 
+                            majorDimension=1, style=wx.RA_SPECIFY_COLS)                                 #Selection for if slot is done by a ratio
+        self.key_mode.SetSelection(0)                                                                   #Default to Ratio
         self.has_shaft = wx.CheckBox(self, label="Include Shaft Hole")                                  #Initilize field lable
         self.has_shaft.SetValue(True)                                                                   #Initilize field with default value
         self.has_keyway = wx.CheckBox(self, label="Include Keyway")                                     #Initilize field lable
@@ -61,30 +67,85 @@ class DataInputDialog(wx.Dialog):
         self.has_shaft.Bind(wx.EVT_CHECKBOX, self.on_toggle_shaft)                                      #bind event function
         self.has_keyway.Bind(wx.EVT_CHECKBOX, self.on_toggle_keyway)                                    #bind event function
         
+        self.unit_label_w = wx.StaticText(self, label="ratio")                                          #Define unit lable for shaft width, default ratio
+        self.unit_label_d = wx.StaticText(self, label="ratio")                                          #Define unit lable for shaft width, default ratio
+        
+        self.key_mode.Bind(wx.EVT_RADIOBOX, self.on_unit_change)                                        #Bide method to change unit if mode changes
+        
+        self.module.SetToolTip("Gear Module: Defines the size of the teeth. (Standard is 2.0)")
+        self.number_of_teeth.SetToolTip("Total number of teeth on the gear.")
+        self.pressure_angle.SetToolTip("Angle of the tooth profile. Standard industrial gears use 20.0°.")
+        self.clearance.SetToolTip("Gap between the tooth tip and the root of the mating gear.")
+        self.steps.SetToolTip("Resolution of the involute curve. Higher values create smoother teeth.")
+        self.gear_thicness.SetToolTip("The extrusion depth (Width) of the gear face in mm.")
+        self.fillet_radius.SetToolTip("Radius for the base of the teeth to reduce stress concentration.")
+        self.has_shaft.SetToolTip("Toggle to include a center hole for a mounting shaft.")
+        self.shaft_radius.SetToolTip("Radius of the center hole in mm.")
+        self.has_keyway.SetToolTip("Toggle to cut a rectangular key slot into the shaft hole.")
+        self.key_mode.SetToolTip("Ratio: Size is (Shaft Diameter / Input).\nFixed: Size is exactly the input in mm.")
+        self.key_w.SetToolTip("The horizontal width of the key slot.")
+        self.key_d.SetToolTip("The vertical depth of the key slot.")
+        
         grid.AddMany([
-            (wx.StaticText(self, label="Module:")), (self.module, 1, wx.EXPAND),
-            (wx.StaticText(self, label="Number of Teeth:")), (self.number_of_teeth, 1, wx.EXPAND),
-            (wx.StaticText(self, label="Preasure Angle:")), (self.pressure_angle, 1, wx.EXPAND),
-            (wx.StaticText(self, label="Clearance:")), (self.clearance, 1, wx.EXPAND),
-            (wx.StaticText(self, label="Steps:")), (self.steps, 1, wx.EXPAND),
-            (wx.StaticText(self, label="Gear Thicness:")), (self.gear_thicness, 1, wx.EXPAND),
-            (wx.StaticText(self, label="Fillet Radius:")), (self.fillet_radius, 1, wx.EXPAND),
-            (wx.StaticText(self, label="Shaft Setting:")), (self.has_shaft, 0),
-            (wx.StaticText(self, label="Shaft Radius:")), (self.shaft_radius, 1, wx.EXPAND),
-            (wx.StaticText(self, label="Keyway Setting:")), (self.has_keyway, 0),
-            (wx.StaticText(self, label="Key Width Ratio:")), (self.key_w, 1, wx.EXPAND),
-            (wx.StaticText(self, label="Key Depth Ratio:")), (self.key_d, 1, wx.EXPAND)
+            (wx.StaticText(self, label="Module:")), (self.module, 1, wx.EXPAND), (wx.StaticText(self, label="")),
+            (wx.StaticText(self, label="Number of Teeth:")), (self.number_of_teeth, 1, wx.EXPAND), (wx.StaticText(self, label="qty")),
+            (wx.StaticText(self, label="Preasure Angle:")), (self.pressure_angle, 1, wx.EXPAND), (wx.StaticText(self, label="deg")),
+            (wx.StaticText(self, label="Clearance:")), (self.clearance, 1, wx.EXPAND), (wx.StaticText(self, label="mm")),
+            (wx.StaticText(self, label="Steps:")), (self.steps, 1, wx.EXPAND), (wx.StaticText(self, label="")),
+            (wx.StaticText(self, label="Gear Thicness:")), (self.gear_thicness, 1, wx.EXPAND), (wx.StaticText(self, label="mm")),
+            (wx.StaticText(self, label="Fillet Radius:")), (self.fillet_radius, 1, wx.EXPAND), (wx.StaticText(self, label="mm")),
+            (wx.StaticText(self, label="Shaft Setting:")), (self.has_shaft, 0), (wx.StaticText(self, label="")),
+            (wx.StaticText(self, label="Shaft Radius:")), (self.shaft_radius, 1, wx.EXPAND), (wx.StaticText(self, label="mm")),
+            (wx.StaticText(self, label="Keyway Setting:")), (self.has_keyway, 0), (wx.StaticText(self, label="")),
+            (wx.StaticText(self, label="Keyway Mode:")), (self.key_mode, 0), (wx.StaticText(self, label="")),
+            (wx.StaticText(self, label="Key Width/Ratio:")), (self.key_w, 1, wx.EXPAND), self.unit_label_w,
+            (wx.StaticText(self, label="Key Depth/Ratio:")), (self.key_d, 1, wx.EXPAND), self.unit_label_d
         ])                                                                                              #Create layout for dialog
         
         grid.AddGrowableCol(1, 1)                                                                       #Set cloum
         
         vbox.Add(grid, proportion=1, flag=wx.ALL|wx.EXPAND, border=15)                                  #Add grid border
         
-        btn_sizer = self.CreateButtonSizer(wx.OK | wx.CANCEL)                                           #Create ok and cancel button
+        btn_sizer = self.CreateButtonSizer(wx.OK | wx.CANCEL | wx.HELP)                                 #Create ok and cancel button
         if btn_sizer:
             vbox.Add(btn_sizer, flag=wx.ALIGN_CENTER | wx.BOTTOM, border=10)
         
         self.SetSizer(vbox)
+        
+        self.Bind(wx.EVT_BUTTON, self.on_help, id=wx.ID_HELP)                                           #Bind help button to help dialog
+        
+    def on_help(self, event):                                                                           #Help Dialog
+        
+        help_text = (
+            "Involute Gear Generator Guide:\n\n"
+            "This script generates an involute gear using the parameters entered. "
+            "The script accounts for the Base circle being larger than the dedendum circle and "
+            "vice versa. It will automatically manage CATIA's hybrid design settings.\n\n"
+            
+            "• Module: Defines the size of the teeth. (Standard is 2.0)\n"
+            "• Number of Teeth: Total number of teeth on the gear.\n"
+            "• Pressure Angle: Angle of the tooth profile (Standard is 20.0°).\n"
+            "• Clearance: Gap between the tooth tip and the root of the mating gear.\n"
+            "• Step: Resolution of the involute curve. Higher values create smoother teeth.\n"
+            "• Gear Thickness: The extrusion depth (Width) of the gear face in mm.\n"
+            "• Fillet Radius: Radius for the base of the teeth to reduce stress concentration.\n"
+            "• Shaft Setting: Toggle to include a center hole for a mounting shaft.\n"
+            "• Shaft Radius: Radius of the center hole in mm.\n"
+            "• Keyway Mode: 'Ratio' calculates size based on shaft diameter; 'Fixed' uses mm.\n"
+            "• Key Width/Ratio: The horizontal width of the key slot.\n"
+            "• Key Depth/Ratio: The vertical depth of the key slot.\n"
+        )                                                                                               #Help Text
+        dlg = dialogs.ScrolledMessageDialog(self, help_text, "Help")                                    #Create scolling dialog
+        mono_font = wx.Font(10, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)      #Define font
+        dlg.text.SetFont(mono_font)                                                                     #Set font
+        
+        dlg.ShowModal()                                                                                 #Show dialog
+        dlg.Destroy()                                                                                   #Close dialog
+        
+    def on_unit_change(self, event):                                                                    #Change unit if key mode changes
+        unit = "mm" if self.key_mode.GetSelection() == 1 else "ratio"
+        self.unit_label_w.SetLabel(unit)
+        self.unit_label_d.SetLabel(unit)
         
     def on_toggle_shaft(self, event):
         """Enable/Disable shaft input based on checkbox."""
@@ -191,6 +252,7 @@ if __name__ == "__main__":
         key_w = float(dlg.key_w.GetValue())                                                                     #Get value form dialog
         has_shaft = dlg.has_shaft.GetValue()                                                                    #Get value form dialog
         has_key = dlg.has_keyway.GetValue()                                                                     #Get value form dialog
+        key_mode_index = dlg.key_mode.GetSelection()                                                            # 0 = Ratio, 1 = Fixed (mm)
     else:                                                                                                       #User canceled or something whent wrong
         dlg.Destroy()                                                                                           #Close dialog
         exit()                                                                                                  #exit script
@@ -662,8 +724,12 @@ if __name__ == "__main__":
             
             origin_k = sketch_key_con.absolute_axis.origin                                                      #Get origin
             
-            kw_width = (shaft_radius * 2) / key_w                                                               #Calculate key width, shaft diameter divided by ratio
-            kw_depth = (shaft_radius * 2) / key_d                                                               #Calculate key depth, shaft diameter divided by ratio
+            if key_mode_index == 0:
+                kw_width = (shaft_radius * 2) / key_w                                                           #Calculate key width, shaft diameter divided by ratio
+                kw_depth = (shaft_radius * 2) / key_d                                                           #Calculate key depth, shaft diameter divided by ratio
+            else:
+                kw_width = key_w                                                                                # Use the measurement directly from the user input
+                kw_depth = key_d                                                                                # Use the measurement directly from the user input
             
             y_start_inside = 0                                                                                  #Start at origin
             y_end = shaft_radius + kw_depth                                                                     #Depth, key depth + shaft radius
