@@ -614,7 +614,7 @@ if __name__ == "__main__":
         fillet_left.end_point = fillet_left_end_point
         constraints.add_bi_elt_cst(CatConstraintType.catCstTypeOn, fillet_left_end_point, p_start_left)
         
-        fillet_left_start_point = ske2D_tooth_con.create_point(r_f * math.cos(a2), r_f * math.sin(a2))
+        fillet_left_start_point = ske2D_tooth_con.create_point(dedendum_circle_radius * math.cos(a2), dedendum_circle_radius * math.sin(a2))
         fillet_left_start_point.name = "fillet_left_start_point"
         fillet_left.start_point = fillet_left_start_point
         
@@ -635,7 +635,7 @@ if __name__ == "__main__":
         fillet_right.start_point = fillet_right_start_point
         constraints.add_bi_elt_cst(CatConstraintType.catCstTypeOn, fillet_right_start_point, points_list_right[0])
         
-        fillet_right_end_point = ske2D_tooth_con.create_point(r_f * math.cos(a2_r), r_f * math.sin(a2_r))
+        fillet_right_end_point = ske2D_tooth_con.create_point(dedendum_circle_radius * math.cos(a2_r), dedendum_circle_radius * math.sin(a2_r))
         fillet_right_end_point.name = "fillet_right_end_point"
         fillet_right.end_point = fillet_right_end_point
         
@@ -653,12 +653,14 @@ if __name__ == "__main__":
  
     root_arc_start_point = ske2D_tooth_con.create_point(root_r_coords[0], root_r_coords[1])             #Starting point for the root arc (right side)     
     root_arc_start_point.name = "root_arc start point"                                                  #Rename point
+    #constraints.add_mono_elt_cst(CatConstraintType.catCstTypeReference, root_arc_start_point)
     root_arc.start_point = root_arc_start_point                                                         #Set as start point of arc
     
     root_l_coords = fillet_left_start_point.get_coordinates()                                           #Get the junction coordinates from the start of the left fillet
 
     root_arc_end_point = ske2D_tooth_con.create_point(root_l_coords[0], root_l_coords[1])               #End point for the root arc (left side)
     root_arc_end_point.name = "root_arc end point"                                                      #Rename point
+    #constraints.add_mono_elt_cst(CatConstraintType.catCstTypeReference, root_arc_end_point)
     root_arc.end_point = root_arc_end_point                                                             #Set as endpoint of arc
 
     root_arc_on_1 = constraints.add_bi_elt_cst(CatConstraintType.catCstTypeOn,
@@ -666,6 +668,11 @@ if __name__ == "__main__":
     root_arc_on_2 = constraints.add_bi_elt_cst(CatConstraintType.catCstTypeOn,
             root_arc_end_point, fillet_left_start_point)                                                #Make coincedent to root arc
     constraints.add_bi_elt_cst(CatConstraintType.catCstTypeConcentricity, root_arc, origin)             #Make concentric to origin
+
+    if base_circle_radius <= dedendum_circle_radius:                                                    #Add different constartis when there is no extention
+        constraints.add_bi_elt_cst(CatConstraintType.catCstTypeTangency, root_arc, fillet_left)         #Tangency
+        constraints.add_bi_elt_cst(CatConstraintType.catCstTypeTangency, root_arc, fillet_right)        #Tangency
+        constraints.add_bi_elt_cst(CatConstraintType.catCstTypeOn, root_arc, dedendum_circle)           #Coincident
     
     #Close edition
     sketch_tooth_con.close_edition()                                                                    #Stop editing sketch
@@ -683,7 +690,7 @@ if __name__ == "__main__":
     
     origin = sketch_body_con.absolute_axis.origin                                                       #Get origin
    
-    #create pitch circle
+    #create Body circle
     gear_circle = ske2D_body_con.create_closed_circle(0, 0, base_circle_radius + pad_tol)               #Draw circle
     gear_circle.name = "Body Circle"                                                                    #Rename circle
     constraints_body.add_bi_elt_cst(CatConstraintType.catCstTypeConcentricity, 
@@ -691,7 +698,8 @@ if __name__ == "__main__":
     cnst_gear = constraints_body.add_mono_elt_cst(CatConstraintType.catCstTypeRadius, 
             gear_circle)                                                                                #Add radius constraint
     cnst_gear.mode = CatConstraintMode.catCstModeDrivingDimension                                       #Make driving dimmension
-    cnst_gear.dimension.value = base_circle_radius + pad_tol                                            #Add radius (pad_tol is to make sure their are no gaps when creating the gear)
+
+    cnst_gear.dimension.value = dedendum_circle_radius + pad_tol                                        #Add radius (pad_tol is to make sure their are no gaps when creating the gear)
     
     #Close edition
     sketch_body_con.close_edition()                                                                     #Stop editing the sketch
@@ -749,6 +757,16 @@ if __name__ == "__main__":
         shaft_hole.reverse()                                                                                #Reverse the direction 0,0,-1
         shaft_hole.name = "Shaft_Hole"                                                                      #Rename hole feature
         shaft_hole.sketch.name = "Shaft Hole Con"                                                           #Rename sketch made by hole feature
+        sketch_hole = shaft_hole.sketch                                                                     #Get the sketch
+        
+        ske2D_hole_con = sketch_hole.open_edition()                                                         #Edit the sketch
+        constraints_hole = sketch_hole.constraints                                                          #Get sketch constraints
+        geo_elements_hole = sketch_hole.geometric_elements                                                  #Get the geometric elements
+        point = geo_elements_hole.item("Point.1")                                                           #Get the point
+        point.name = "Hole Center Point"                                                                    #Rename the point
+        constraints_hole.add_mono_elt_cst(CatConstraintType.catCstTypeReference, point)                     #Fix the point
+        
+        sketch_hole.close_edition()                                                                         #Close the sketch
         
         selectionSet.clear()                                                                                #Clear selection
         selectionSet.add(shaft_hole.sketch)                                                                 #Add hole feature sketch to selection
