@@ -36,33 +36,50 @@ import math
 import wx
 from pycatia.in_interfaces.setting_controllers import SettingControllers
 import wx.lib.dialogs as dialogs
+import os
+import json
 
 class DataInputDialog(wx.Dialog):
     def __init__(self, parent, title):
+        self.hardcoded_defaults = {
+            "module": "2.0", "teeth": "24", "pa": "20.0", "clearance": "0.25",
+            "steps": "10", "thickness": "16.0", "fillet": "0.38", "shaft_r": "5.0",
+            "key_w": "4.0", "key_d": "8.0", "key_mode": 0,
+            "has_shaft": True, "has_key": True
+        }
+        defaults = self.hardcoded_defaults.copy()
+        
+        # Load from AppData if file exists
+        if os.path.exists(SETTINGS_FILE):
+            try:
+                with open(SETTINGS_FILE, 'r') as f:
+                    defaults.update(json.load(f))
+            except: pass # Fallback to hardcoded defaults on error
+
         super().__init__(parent, title=title, size=(350, 560))                                          #Set size of dialog
         
         vbox = wx.BoxSizer(wx.VERTICAL)                                                                 #Use the Dialog itself as the parent for the sizer
         
         grid = wx.FlexGridSizer(13, 3, 10, 10)                                                          #Set grid for fields
         
-        self.module = wx.TextCtrl(self, value="2.0")                                                    #Initilize field with default value
-        self.number_of_teeth = wx.TextCtrl(self, value="24")                                            #Initilize field with default value
-        self.pressure_angle = wx.TextCtrl(self, value="20.0")                                           #Initilize field with default value
-        self.clearance = wx.TextCtrl(self, value="0.25")                                                #Initilize field with default value
-        self.steps = wx.TextCtrl(self, value="10")                                                      #Initilize field with default value
-        self.gear_thicness = wx.TextCtrl(self, value="16.0")                                            #Initilize field with default value
-        self.fillet_radius = wx.TextCtrl(self, value="0.38")                                            #Initilize field with default value
-        self.shaft_radius = wx.TextCtrl(self, value="5.0")                                              #Initilize field with default value
-        self.key_w = wx.TextCtrl(self, value="4.0")                                                     #Initilize field with default value
-        self.key_d = wx.TextCtrl(self, value="8.0")                                                     #Initilize field with default value
+        self.module = wx.TextCtrl(self, value=str(defaults["module"]))                                  #Initilize field with default value
+        self.number_of_teeth = wx.TextCtrl(self, value=str(defaults["teeth"]))                          #Initilize field with default value
+        self.pressure_angle = wx.TextCtrl(self, value=str(defaults["pa"]))                              #Initilize field with default value
+        self.clearance = wx.TextCtrl(self, value=str(defaults["clearance"]))                            #Initilize field with default value
+        self.steps = wx.TextCtrl(self, value=str(defaults["steps"]))                                    #Initilize field with default value
+        self.gear_thicness = wx.TextCtrl(self, value=str(defaults["thickness"]))                        #Initilize field with default value
+        self.fillet_radius = wx.TextCtrl(self, value=str(defaults["fillet"]))                           #Initilize field with default value
+        self.shaft_radius = wx.TextCtrl(self, value=str(defaults["shaft_r"]))                           #Initilize field with default value
+        self.key_w = wx.TextCtrl(self, value=str(defaults["key_w"]))                                    #Initilize field with default value
+        self.key_d = wx.TextCtrl(self, value=str(defaults["key_d"]))                                    #Initilize field with default value
         self.key_mode = wx.RadioBox(self, label="Key Measurement Mode", 
                             choices=['Ratio', 'Fixed (mm)'], 
                             majorDimension=1, style=wx.RA_SPECIFY_COLS)                                 #Selection for if slot is done by a ratio
-        self.key_mode.SetSelection(0)                                                                   #Default to Ratio
+        self.key_mode.SetSelection(defaults["key_mode"])                                                #Default to Ratio
         self.has_shaft = wx.CheckBox(self, label="Include Shaft Hole")                                  #Initilize field lable
-        self.has_shaft.SetValue(True)                                                                   #Initilize field with default value
+        self.has_shaft.SetValue(defaults["has_shaft"])                                                  #Initilize field with default value
         self.has_keyway = wx.CheckBox(self, label="Include Keyway")                                     #Initilize field lable
-        self.has_keyway.SetValue(True)                                                                  #Initilize field with default value
+        self.has_keyway.SetValue(defaults["has_key"])                                                   #Initilize field with default value
 
         self.has_shaft.Bind(wx.EVT_CHECKBOX, self.on_toggle_shaft)                                      #bind event function
         self.has_keyway.Bind(wx.EVT_CHECKBOX, self.on_toggle_keyway)                                    #bind event function
@@ -106,13 +123,86 @@ class DataInputDialog(wx.Dialog):
         
         vbox.Add(grid, proportion=1, flag=wx.ALL|wx.EXPAND, border=15)                                  #Add grid border
         
-        btn_sizer = self.CreateButtonSizer(wx.OK | wx.CANCEL | wx.HELP)                                 #Create ok and cancel button
-        if btn_sizer:
-            vbox.Add(btn_sizer, flag=wx.ALIGN_CENTER | wx.BOTTOM, border=10)
+        #btn_sizer = self.CreateButtonSizer(wx.OK | wx.CANCEL | wx.HELP)                                 #Create ok and cancel button
+        std_btn_sizer = self.CreateButtonSizer(wx.OK | wx.CANCEL | wx.HELP)
+
+        reset_btn = wx.Button(self, label="Reset Defaults")
+
+        if std_btn_sizer:
+            btn_row_sizer = wx.BoxSizer(wx.HORIZONTAL)
+            btn_row_sizer.Add(reset_btn, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
+            btn_row_sizer.Add(std_btn_sizer, 0, wx.ALL, 5)
+
+            vbox.Add(btn_row_sizer, flag=wx.ALIGN_CENTER | wx.BOTTOM, border=10)
         
         self.SetSizer(vbox)
+        self.Center() 
         
         self.Bind(wx.EVT_BUTTON, self.on_help, id=wx.ID_HELP)                                           #Bind help button to help dialog
+        reset_btn.Bind(wx.EVT_BUTTON, self.on_reset)
+        
+        self.numeric_fields = [
+            (self.module, float), 
+            (self.number_of_teeth, int),
+            (self.pressure_angle, float),
+            (self.clearance, float),
+            (self.gear_thicness, float)
+        ]
+
+        for ctrl, _ in self.numeric_fields:
+            ctrl.Bind(wx.EVT_TEXT, self.on_validate_live)
+            
+    def on_reset(self, event):
+        """Restores UI fields to the hardcoded default values."""
+        d = self.hardcoded_defaults
+        
+        self.module.SetValue(d["module"])
+        self.number_of_teeth.SetValue(d["teeth"])
+        self.pressure_angle.SetValue(d["pa"])
+        self.clearance.SetValue(d["clearance"])
+        self.steps.SetValue(d["steps"])
+        self.gear_thicness.SetValue(d["thickness"])
+        self.fillet_radius.SetValue(d["fillet"])
+        self.shaft_radius.SetValue(d["shaft_r"])
+        self.key_w.SetValue(d["key_w"])
+        self.key_d.SetValue(d["key_d"])
+        self.key_mode.SetSelection(d["key_mode"])
+        self.has_shaft.SetValue(d["has_shaft"])
+        self.has_keyway.SetValue(d["has_key"])
+
+        # Update UI states (enabling/disabling fields)
+        self.on_toggle_shaft(None)
+        self.on_toggle_keyway(None)
+        self.on_unit_change(None)
+        
+        # Reset background colors in case they were red from validation
+        for ctrl, _ in self.numeric_fields:
+            ctrl.SetBackgroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_WINDOW))
+            ctrl.Refresh()
+            
+    def on_validate_live(self, event):
+        """Checks the value every time a key is pressed."""
+        ctrl = event.GetEventObject()
+        val_string = ctrl.GetValue().strip()
+        
+        # Find the expected type for this specific control
+        target_type = next(t for c, t in self.numeric_fields if c == ctrl)
+
+        if self.is_valid(val_string, target_type):
+            ctrl.SetBackgroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_WINDOW))
+        else:
+            # Turn the background soft red if the input is invalid
+            ctrl.SetBackgroundColour(wx.Colour(255, 200, 200))
+        
+        ctrl.Refresh() # Force the UI to update the color
+
+    def is_valid(self, value_str, target_type):
+        """Helper to check if a string can be converted to the target type and is > 0."""
+        try:
+            val = target_type(value_str)
+            return val > 0
+        except ValueError:
+            return False
         
     def on_help(self, event):                                                                           #Help Dialog
         
@@ -291,7 +381,12 @@ class DataInputDialog(wx.Dialog):
         ctrl.SelectAll()
 
 if __name__ == "__main__":
-    #Anchoring relavent components
+    SETTINGS_DIR = os.path.join(os.environ['APPDATA'], 'InvoluteGearTool')
+    SETTINGS_FILE = os.path.join(SETTINGS_DIR, 'user_presets.json')
+
+    if not os.path.exists(SETTINGS_DIR):
+        os.makedirs(SETTINGS_DIR)
+    
     caa = catia()                                                                                               #Catia application instance
     app = wx.App()
     if type(caa.active_document) is not PartDocument:                                                           #Check if part document
@@ -335,6 +430,25 @@ if __name__ == "__main__":
         has_shaft = dlg.has_shaft.GetValue()                                                                    #Get value form dialog
         has_key = dlg.has_keyway.GetValue()                                                                     #Get value form dialog
         key_mode_index = dlg.key_mode.GetSelection()                                                            # 0 = Ratio, 1 = Fixed (mm)
+        
+        current_data = {
+            "module": dlg.module.GetValue(),
+            "teeth": dlg.number_of_teeth.GetValue(),
+            "pa": dlg.pressure_angle.GetValue(),
+            "clearance": dlg.clearance.GetValue(),
+            "steps": dlg.steps.GetValue(),
+            "thickness": dlg.gear_thicness.GetValue(),
+            "fillet": dlg.fillet_radius.GetValue(),
+            "shaft_r": dlg.shaft_radius.GetValue(),
+            "key_w": dlg.key_w.GetValue(),
+            "key_d": dlg.key_d.GetValue(),
+            "key_mode": dlg.key_mode.GetSelection(),
+            "has_shaft": dlg.has_shaft.GetValue(),
+            "has_key": dlg.has_keyway.GetValue()
+        }
+    
+        with open(SETTINGS_FILE, 'w') as f:
+            json.dump(current_data, f, indent=4)
     else:                                                                                                       #User canceled or something whent wrong
         dlg.Destroy()                                                                                           #Close dialog
         exit()                                                                                                  #exit script
