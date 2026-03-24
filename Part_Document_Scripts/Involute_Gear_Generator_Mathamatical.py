@@ -6,9 +6,10 @@
     Release:        V5R32
     Purpose:        Create Involute Gear
     Author:         Kai-Uwe Rathjen
-    Date:           03.03.26
+    Date:           24.03.26
     Description:    This script will ask the user for parameters to create spur gear profile. The script will create a gear,
-                    shaft and key for the shaft.
+                    shaft and key for the shaft. The settings will be stored for use the next time that the script is used.
+                    I probably overdid it with this script.
     dependencies = [
                     "pycatia",
                     "wxPython",
@@ -17,7 +18,7 @@
                     pycatia
                     Catia V5 running with an open part.
                     This script needs an open part document.
-                    Hybrid desgin should be disabled.
+                    Hybrid desgin should be disabled, the script will tempoary disable it if it is on.
     -----------------------------------------------------------------------------------------------------------------------
     
     Change:
@@ -28,13 +29,13 @@
 #Imports
 from pycatia import catia
 from pycatia.mec_mod_interfaces.part_document import PartDocument
+from pycatia.in_interfaces.setting_controllers import SettingControllers
 from pycatia import CatConstraintType
 from pycatia import CatConstraintMode
 from pycatia import CatPrismOrientation
 from pycatia import CatLimitMode
 import math
 import wx
-from pycatia.in_interfaces.setting_controllers import SettingControllers
 import wx.lib.dialogs as dialogs
 import os
 import json
@@ -209,8 +210,7 @@ class DataInputDialog(wx.Dialog):
         self.on_toggle_keyway(None)
         self.on_unit_change(None)
 
-        # Use a timer to "flash" the color back to normal after 500ms
-        wx.CallLater(500, self._clear_feedback_colors, controls, default_color)
+        wx.CallLater(500, self._clear_feedback_colors, controls, default_color)                     #Use a timer to "flash" the color back to normal after 500ms
 
     def _clear_feedback_colors(self, controls, color):
         """Helper to revert colors after the feedback flash."""
@@ -223,16 +223,14 @@ class DataInputDialog(wx.Dialog):
         ctrl = event.GetEventObject()
         val_string = ctrl.GetValue().strip()
         
-        # Find the expected type for this specific control
-        target_type = next(t for c, t in self.numeric_fields if c == ctrl)
+        target_type = next(t for c, t in self.numeric_fields if c == ctrl)                          #Find the expected type for this specific control
 
         if self.is_valid(val_string, target_type):
             ctrl.SetBackgroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_WINDOW))
         else:
-            # Turn the background soft red if the input is invalid
-            ctrl.SetBackgroundColour(wx.Colour(255, 200, 200))
+            ctrl.SetBackgroundColour(wx.Colour(255, 200, 200))                                      #Turn the background soft red if the input is invalid
         
-        ctrl.Refresh() # Force the UI to update the color
+        ctrl.Refresh()                                                                              #Force the UI to update the color
 
     def is_valid(self, value_str, target_type):
         """Helper to check if a string can be converted to the target type and is > 0."""
@@ -419,11 +417,11 @@ class DataInputDialog(wx.Dialog):
         ctrl.SelectAll()
 
 if __name__ == "__main__":
-    SETTINGS_DIR = os.path.join(os.environ['APPDATA'], 'InvoluteGearTool')
-    SETTINGS_FILE = os.path.join(SETTINGS_DIR, 'user_presets.json')
+    SETTINGS_DIR = os.path.join(os.environ['APPDATA'], 'InvoluteGearTool')                                      #User settings path
+    SETTINGS_FILE = os.path.join(SETTINGS_DIR, 'user_presets.json')                                             #User settings file
 
-    if not os.path.exists(SETTINGS_DIR):
-        os.makedirs(SETTINGS_DIR)
+    if not os.path.exists(SETTINGS_DIR):                                                                        #Check if directory does not exist
+        os.makedirs(SETTINGS_DIR)                                                                               #Create directory
     
     caa = catia()                                                                                               #Catia application instance
     app = wx.App()
@@ -483,9 +481,9 @@ if __name__ == "__main__":
             "key_mode": dlg.key_mode.GetSelection(),
             "has_shaft": dlg.has_shaft.GetValue(),
             "has_key": dlg.has_keyway.GetValue()
-        }
+        }                                                                                                       #Update current data
     
-        with open(SETTINGS_FILE, 'w') as f:
+        with open(SETTINGS_FILE, 'w') as f:                                                                     #Write settings data to jason
             json.dump(current_data, f, indent=4)
     else:                                                                                                       #User canceled or something whent wrong
         dlg.Destroy()                                                                                           #Close dialog
@@ -1089,16 +1087,18 @@ if __name__ == "__main__":
         if return_hybrid:                                                                                           #If hybrid desgin was turned off
             part_infa.com_object.HybridDesignMode = True                                                            #Turn hybrid desgin back on
         
-    except Exception as e:
-        selectionSet.clear() 
-        selectionSet.add(partbody) 
-        selectionSet.delete() 
-        selectionSet.clear() 
+    except Exception as e:                                                                                          #If any excption occurs during geomtry creation
+        selectionSet.clear()                                                                                        #Clear selection
+        selectionSet.add(partbody)                                                                                  #Select body we created
+        selectionSet.delete()                                                                                       #Delete selection
+        selectionSet.clear()                                                                                        #Clear selection
 
         if return_hybrid:                                                                                           #If hybrid desgin was turned off
             part_infa.com_object.HybridDesignMode = True                                                            #Turn hybrid desgin back on
         
-        error_msg = f"An error occurred during gear generation:\n\n{str(e)}"
-        wx.MessageBox(error_msg, "Script Error", wx.OK | wx.ICON_ERROR)
+        error_msg = f"An error occurred during gear generation:\n\n{str(e)}"                                        #Generate error text
+        wx.MessageBox(error_msg, "Script Error", wx.OK | wx.ICON_ERROR)                                             #Display error message to user
         
-        exit()
+        part.update()                                                                                               #Update part
+        
+        exit()                                                                                                      #Exit Script
