@@ -229,6 +229,16 @@ class DataInputDialog(wx.Dialog):
             if (r_shaft + k_depth_mm) >= r_dedendum:
                 self.show_error("The Keyway depth is too deep and will cut into the gear teeth!", self.key_d)
                 return False
+                
+        max_fillet = 0.3 * float(self.module.GetValue())
+        
+        if float(self.fillet_radius.GetValue()) > max_fillet:
+            msg = (f"Warning: Fillet radius ({float(self.fillet_radius.GetValue()):.2f}mm) exceeds standard max ({max_fillet:.2f}mm).\n"
+                    "This may cause interference with mating teeth.\n\n"
+                    "Do you want to procede anyway?")
+            if wx.MessageBox(msg, "Design Warning", wx.YES_NO | wx.ICON_WARNING) == wx.NO:
+                self.fillet_radius.SetFocus()
+                return False
         
         return True # All checks passed
 
