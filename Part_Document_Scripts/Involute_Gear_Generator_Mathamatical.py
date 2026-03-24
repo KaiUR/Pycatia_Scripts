@@ -56,7 +56,7 @@ class DataInputDialog(wx.Dialog):
                     defaults.update(json.load(f))
             except: pass # Fallback to hardcoded defaults on error
 
-        super().__init__(parent, title=title, size=(350, 560))                                          #Set size of dialog
+        super().__init__(parent, title=title, size=(450, 580))                                          #Set size of dialog
         
         vbox = wx.BoxSizer(wx.VERTICAL)                                                                 #Use the Dialog itself as the parent for the sizer
         
@@ -123,14 +123,15 @@ class DataInputDialog(wx.Dialog):
         
         vbox.Add(grid, proportion=1, flag=wx.ALL|wx.EXPAND, border=15)                                  #Add grid border
         
-        #btn_sizer = self.CreateButtonSizer(wx.OK | wx.CANCEL | wx.HELP)                                 #Create ok and cancel button
         std_btn_sizer = self.CreateButtonSizer(wx.OK | wx.CANCEL | wx.HELP)
 
         reset_btn = wx.Button(self, label="Reset Defaults")
+        clear_btn = wx.Button(self, label="Clear Saved")
 
         if std_btn_sizer:
             btn_row_sizer = wx.BoxSizer(wx.HORIZONTAL)
             btn_row_sizer.Add(reset_btn, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
+            btn_row_sizer.Add(clear_btn, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
             btn_row_sizer.Add(std_btn_sizer, 0, wx.ALL, 5)
 
             vbox.Add(btn_row_sizer, flag=wx.ALIGN_CENTER | wx.BOTTOM, border=10)
@@ -140,6 +141,7 @@ class DataInputDialog(wx.Dialog):
         
         self.Bind(wx.EVT_BUTTON, self.on_help, id=wx.ID_HELP)                                           #Bind help button to help dialog
         reset_btn.Bind(wx.EVT_BUTTON, self.on_reset)
+        clear_btn.Bind(wx.EVT_BUTTON, self.on_clear_settings)
         
         self.numeric_fields = [
             (self.module, float), 
@@ -152,10 +154,36 @@ class DataInputDialog(wx.Dialog):
         for ctrl, _ in self.numeric_fields:
             ctrl.Bind(wx.EVT_TEXT, self.on_validate_live)
             
+    def on_clear_settings(self, event):
+        """Deletes the saved JSON settings file and resets the current UI."""
+        if os.path.exists(SETTINGS_FILE):
+            try:
+                os.remove(SETTINGS_FILE)
+                wx.MessageBox("Saved presets have been deleted successfully.", 
+                              "Settings Cleared", wx.OK | wx.ICON_INFORMATION)
+                # Optional: Reset the UI immediately to show hardcoded defaults
+                self.on_reset(None)
+            except Exception as e:
+                wx.MessageBox(f"Error deleting settings: {str(e)}", 
+                              "Error", wx.OK | wx.ICON_ERROR)
+        else:
+            wx.MessageBox("No saved settings file found.", 
+                          "Information", wx.OK | wx.ICON_INFORMATION)
+            
     def on_reset(self, event):
-        """Restores UI fields to the hardcoded default values."""
+        """Restores UI fields and provides a visual 'flash' feedback."""
         d = self.hardcoded_defaults
-        
+        success_color = wx.Colour(200, 255, 200) # Soft Green
+        default_color = wx.SystemSettings.GetColour(wx.SYS_COLOUR_WINDOW)
+
+        # List of all text controls to update
+        controls = [
+            self.module, self.number_of_teeth, self.pressure_angle, 
+            self.clearance, self.steps, self.gear_thicness, 
+            self.fillet_radius, self.shaft_radius, self.key_w, self.key_d
+        ]
+
+        # Apply values and set "Feedback" color
         self.module.SetValue(d["module"])
         self.number_of_teeth.SetValue(d["teeth"])
         self.pressure_angle.SetValue(d["pa"])
@@ -166,18 +194,28 @@ class DataInputDialog(wx.Dialog):
         self.shaft_radius.SetValue(d["shaft_r"])
         self.key_w.SetValue(d["key_w"])
         self.key_d.SetValue(d["key_d"])
+        
+        for ctrl in controls:
+            ctrl.SetBackgroundColour(success_color)
+            ctrl.Refresh()
+
+        # Handle non-text controls
         self.key_mode.SetSelection(d["key_mode"])
         self.has_shaft.SetValue(d["has_shaft"])
         self.has_keyway.SetValue(d["has_key"])
 
-        # Update UI states (enabling/disabling fields)
+        # Sync UI states
         self.on_toggle_shaft(None)
         self.on_toggle_keyway(None)
         self.on_unit_change(None)
-        
-        # Reset background colors in case they were red from validation
-        for ctrl, _ in self.numeric_fields:
-            ctrl.SetBackgroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_WINDOW))
+
+        # Use a timer to "flash" the color back to normal after 500ms
+        wx.CallLater(500, self._clear_feedback_colors, controls, default_color)
+
+    def _clear_feedback_colors(self, controls, color):
+        """Helper to revert colors after the feedback flash."""
+        for ctrl in controls:
+            ctrl.SetBackgroundColour(color)
             ctrl.Refresh()
             
     def on_validate_live(self, event):
