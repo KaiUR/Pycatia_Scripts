@@ -433,12 +433,14 @@ if __name__ == "__main__":
         
         point_l = ske2D_tooth_con.create_point(x_l, y_l)                                                        #Create left flank involute point for this step
         point_l.name = f"Involute_Point__Left_{i}"                                                              #Rename point
-        constraints.add_mono_elt_cst(CatConstraintType.catCstTypeReference, point_l)                            #Add fixed constraint
+        if i != 0:
+            constraints.add_mono_elt_cst(CatConstraintType.catCstTypeReference, point_l)                            #Add fixed constraint
         points_list_left.append(point_l)                                                                        #Add to list
         
         point_r = ske2D_tooth_con.create_point(-x_l, y_l)                                                       #Create right flank involute point for this step
         point_r.name = f"Involute_Point__Right_{i}"                                                             #Rename point
-        constraints.add_mono_elt_cst(CatConstraintType.catCstTypeReference, point_r)                            #Create fixed constraint
+        if i != 0:
+            constraints.add_mono_elt_cst(CatConstraintType.catCstTypeReference, point_r)                            #Create fixed constraint
         points_list_right.append(point_r)                                                                       #Add to list
 
     involute_flank_left = ske2D_tooth_con.create_spline(points_list_left)                                       #Create left involute flank spline
@@ -503,6 +505,7 @@ if __name__ == "__main__":
         radial_line_left_start_point = ske2D_tooth_con.create_point(x_s, y_s)
         radial_line_left_start_point.name = "radial_line_left start point"
         radial_line_left.start_point = radial_line_left_start_point
+        constraints.add_mono_elt_cst(CatConstraintType.catCstTypeReference, radial_line_left_start_point)
  
         radial_line_left_end_point = ske2D_tooth_con.create_point(x_f_start, y_f_start)
         radial_line_left_end_point.name = "radial_line_left end point"
@@ -551,6 +554,7 @@ if __name__ == "__main__":
         radial_line_right_start_point = ske2D_tooth_con.create_point(-x_s, y_s)
         radial_line_right_start_point.name = "radial_line_right start point"
         radial_line_right.start_point = radial_line_right_start_point
+        constraints.add_mono_elt_cst(CatConstraintType.catCstTypeReference, radial_line_right_start_point)
     
         radial_line_right_end_point = ske2D_tooth_con.create_point(-x_f_start, y_f_start)
         radial_line_right_end_point.name = "radial_line_right end point"
@@ -600,7 +604,7 @@ if __name__ == "__main__":
         angle_perp = angle_s + (math.pi / 2)
         cx = x_s + r_f * math.cos(angle_perp)
         cy = y_s + r_f * math.sin(angle_perp)
-        
+
         # Angles for the arc (from dedendum circle to involute start)
         a1 = math.atan2(y_s - cy, x_s - cx)
         a2 = math.atan2(-cy, -cx)
@@ -612,7 +616,9 @@ if __name__ == "__main__":
         fillet_left_end_point = ske2D_tooth_con.create_point(x_s, y_s)
         fillet_left_end_point.name = "fillet_left_end_point"
         fillet_left.end_point = fillet_left_end_point
+        #Put the point on the spline and make tangent
         constraints.add_bi_elt_cst(CatConstraintType.catCstTypeOn, fillet_left_end_point, p_start_left)
+        constraints.add_bi_elt_cst(CatConstraintType.catCstTypeTangency, fillet_left, involute_flank_left)
         
         fillet_left_start_point = ske2D_tooth_con.create_point(dedendum_circle_radius * math.cos(a2), dedendum_circle_radius * math.sin(a2))
         fillet_left_start_point.name = "fillet_left_start_point"
@@ -633,7 +639,9 @@ if __name__ == "__main__":
         fillet_right_start_point = ske2D_tooth_con.create_point(-x_s, y_s)
         fillet_right_start_point.name = "fillet_right_start_point"
         fillet_right.start_point = fillet_right_start_point
+        #Put the point on the spline and make tangent
         constraints.add_bi_elt_cst(CatConstraintType.catCstTypeOn, fillet_right_start_point, points_list_right[0])
+        constraints.add_bi_elt_cst(CatConstraintType.catCstTypeTangency, fillet_right, involute_flank_right)
         
         fillet_right_end_point = ske2D_tooth_con.create_point(dedendum_circle_radius * math.cos(a2_r), dedendum_circle_radius * math.sin(a2_r))
         fillet_right_end_point.name = "fillet_right_end_point"
@@ -641,6 +649,14 @@ if __name__ == "__main__":
         
         cnst_rad_r = constraints.add_mono_elt_cst(CatConstraintType.catCstTypeRadius, fillet_right)
         cnst_rad_r.dimension.value = r_f
+        
+        #Add distance constraints to fully define sketch
+        dist_cst_1 = constraints.add_bi_elt_cst(CatConstraintType.catCstTypeDistance, origin, fillet_left_end_point)
+        dist_cst_1.mode = CatConstraintMode.catCstModeDrivingDimension
+        
+        dist_cst_2 = constraints.add_bi_elt_cst(CatConstraintType.catCstTypeDistance, origin, fillet_right_start_point)
+        dist_cst_2.mode = CatConstraintMode.catCstModeDrivingDimension
+
 
     #Add the root of tooth
     angle_root_l = (math.atan2(cy, -cx) + 2 * math.pi) % (2 * math.pi)                                  #Calculate the normalized angles (0 to 2π) for the left and root point
