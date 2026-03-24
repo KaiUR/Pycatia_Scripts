@@ -87,11 +87,11 @@ class DataInputDialog(wx.Dialog):
         self.key_d.SetToolTip("The vertical depth of the key slot.")
         
         grid.AddMany([
-            (wx.StaticText(self, label="Module:")), (self.module, 1, wx.EXPAND), (wx.StaticText(self, label="")),
+            (wx.StaticText(self, label="Module:")), (self.module, 1, wx.EXPAND), (wx.StaticText(self, label="mm")),
             (wx.StaticText(self, label="Number of Teeth:")), (self.number_of_teeth, 1, wx.EXPAND), (wx.StaticText(self, label="qty")),
             (wx.StaticText(self, label="Preasure Angle:")), (self.pressure_angle, 1, wx.EXPAND), (wx.StaticText(self, label="deg")),
             (wx.StaticText(self, label="Clearance:")), (self.clearance, 1, wx.EXPAND), (wx.StaticText(self, label="mm")),
-            (wx.StaticText(self, label="Steps:")), (self.steps, 1, wx.EXPAND), (wx.StaticText(self, label="")),
+            (wx.StaticText(self, label="Steps:")), (self.steps, 1, wx.EXPAND), (wx.StaticText(self, label="steps")),
             (wx.StaticText(self, label="Gear Thicness:")), (self.gear_thicness, 1, wx.EXPAND), (wx.StaticText(self, label="mm")),
             (wx.StaticText(self, label="Fillet Radius:")), (self.fillet_radius, 1, wx.EXPAND), (wx.StaticText(self, label="mm")),
             (wx.StaticText(self, label="Shaft Setting:")), (self.has_shaft, 0), (wx.StaticText(self, label="")),
@@ -433,14 +433,14 @@ if __name__ == "__main__":
         
         point_l = ske2D_tooth_con.create_point(x_l, y_l)                                                        #Create left flank involute point for this step
         point_l.name = f"Involute_Point__Left_{i}"                                                              #Rename point
-        if i != 0:
-            constraints.add_mono_elt_cst(CatConstraintType.catCstTypeReference, point_l)                            #Add fixed constraint
+        if i != 0:                                                                                              #Dont fix the point so we can add tangency
+            constraints.add_mono_elt_cst(CatConstraintType.catCstTypeReference, point_l)                        #Add fixed constraint
         points_list_left.append(point_l)                                                                        #Add to list
         
         point_r = ske2D_tooth_con.create_point(-x_l, y_l)                                                       #Create right flank involute point for this step
         point_r.name = f"Involute_Point__Right_{i}"                                                             #Rename point
-        if i != 0:
-            constraints.add_mono_elt_cst(CatConstraintType.catCstTypeReference, point_r)                            #Create fixed constraint
+        if i != 0:                                                                                              #Dont fix the point so we can add tangency
+            constraints.add_mono_elt_cst(CatConstraintType.catCstTypeReference, point_r)                        #Create fixed constraint
         points_list_right.append(point_r)                                                                       #Add to list
 
     involute_flank_left = ske2D_tooth_con.create_spline(points_list_left)                                       #Create left involute flank spline
