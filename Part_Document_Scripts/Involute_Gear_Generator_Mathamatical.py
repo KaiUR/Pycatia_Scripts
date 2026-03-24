@@ -411,15 +411,19 @@ if __name__ == "__main__":
     
     #Calculate invalute flank
     max_t = math.sqrt(((addendum_circle_radius) / base_circle_radius)**2 - 1)                                   #Calculate maximum parameter value in radians
-    
+  
     inv_alpha = math.tan(math.radians(pressure_angle)) - math.radians(pressure_angle)                           #Involute function involute(alpha)
     half_tooth_thickness_angle = (math.pi / (2 * number_of_teeth)) + inv_alpha                                  #Half tooth thinkness
+    
+    form_circle_radius = max(dedendum_circle_radius + fillet_radius, base_circle_radius) 
+    min_t = math.sqrt((form_circle_radius / base_circle_radius)**2 - 1)
     
     points_list_left = []                                                                                       #Colection of left involute points
     points_list_right = []                                                                                      #Collection of right involute points
 
     for i in range(steps + 1):                                                                                  #Calculate involute point acording to number of steps
-        t = (max_t / steps) * i                                                                                 #Calculate t parameter for this step
+        t = min_t + ((max_t - min_t) / steps) * i 
+    
         x_current = base_circle_radius * (math.sin(t) - t * math.cos(t))                                        #Caluclate raw x involute from base circle
         y_current = base_circle_radius * (math.cos(t) + t * math.sin(t))                                        #Calculate raw y involute from base circle
         
@@ -606,10 +610,12 @@ if __name__ == "__main__":
         fillet_left.name = "Root_Fillet_Left"
         
         fillet_left_end_point = ske2D_tooth_con.create_point(x_s, y_s)
+        fillet_left_end_point.name = "fillet_left_end_point"
         fillet_left.end_point = fillet_left_end_point
         constraints.add_bi_elt_cst(CatConstraintType.catCstTypeOn, fillet_left_end_point, p_start_left)
         
         fillet_left_start_point = ske2D_tooth_con.create_point(r_f * math.cos(a2), r_f * math.sin(a2))
+        fillet_left_start_point.name = "fillet_left_start_point"
         fillet_left.start_point = fillet_left_start_point
         
         # Add Radius Constraint
@@ -625,10 +631,12 @@ if __name__ == "__main__":
         fillet_right.name = "Root_Fillet_Right"
         
         fillet_right_start_point = ske2D_tooth_con.create_point(-x_s, y_s)
+        fillet_right_start_point.name = "fillet_right_start_point"
         fillet_right.start_point = fillet_right_start_point
         constraints.add_bi_elt_cst(CatConstraintType.catCstTypeOn, fillet_right_start_point, points_list_right[0])
         
         fillet_right_end_point = ske2D_tooth_con.create_point(r_f * math.cos(a2_r), r_f * math.sin(a2_r))
+        fillet_right_end_point.name = "fillet_right_end_point"
         fillet_right.end_point = fillet_right_end_point
         
         cnst_rad_r = constraints.add_mono_elt_cst(CatConstraintType.catCstTypeRadius, fillet_right)
@@ -676,14 +684,14 @@ if __name__ == "__main__":
     origin = sketch_body_con.absolute_axis.origin                                                       #Get origin
    
     #create pitch circle
-    gear_circle = ske2D_body_con.create_closed_circle(0, 0, dedendum_circle_radius + pad_tol)           #Draw circle
+    gear_circle = ske2D_body_con.create_closed_circle(0, 0, base_circle_radius + pad_tol)               #Draw circle
     gear_circle.name = "Body Circle"                                                                    #Rename circle
     constraints_body.add_bi_elt_cst(CatConstraintType.catCstTypeConcentricity, 
             gear_circle, origin)                                                                        #Make concentric to origin
     cnst_gear = constraints_body.add_mono_elt_cst(CatConstraintType.catCstTypeRadius, 
             gear_circle)                                                                                #Add radius constraint
     cnst_gear.mode = CatConstraintMode.catCstModeDrivingDimension                                       #Make driving dimmension
-    cnst_gear.dimension.value = dedendum_circle_radius + pad_tol                                        #Add radius (pad_tol is to make sure their are no gaps when creating the gear)
+    cnst_gear.dimension.value = base_circle_radius + pad_tol                                            #Add radius (pad_tol is to make sure their are no gaps when creating the gear)
     
     #Close edition
     sketch_body_con.close_edition()                                                                     #Stop editing the sketch
