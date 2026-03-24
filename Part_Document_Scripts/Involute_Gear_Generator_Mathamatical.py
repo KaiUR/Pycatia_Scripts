@@ -241,29 +241,61 @@ class DataInputDialog(wx.Dialog):
             return False
         
     def on_help(self, event):                                                                           #Help Dialog
-        
+            
         help_text = (
-            "Involute Gear Generator Guide:\n\n"
-            "This script generates an involute gear using the parameters entered. "
-            "The script accounts for the Base circle being larger than the dedendum circle and "
-            "vice versa. It will automatically manage CATIA's hybrid design settings.\n\n"          
-            "• Module: Defines the size of the teeth. (Standard is 2.0)\n"
-            "• Number of Teeth: Total number of teeth on the gear.\n"
-            "• Pressure Angle: Angle of the tooth profile (Standard is 20.0°).\n"
-            "• Clearance: Gap between the tooth tip and the root of the mating gear.\n"
-            "• Step: Resolution of the involute curve. Higher values create smoother teeth.\n"
-            "• Gear Thickness: The extrusion depth (Width) of the gear face in mm.\n"
-            "• Fillet Radius: Radius for the base of the teeth to reduce stress concentration.\n"
-            "• Shaft Setting: Toggle to include a center hole for a mounting shaft.\n"
-            "• Shaft Radius: Radius of the center hole in mm.\n"
-            "• Keyway Mode: 'Ratio' calculates size based on shaft diameter; 'Fixed' uses mm.\n"
-            "• Key Width/Ratio: The horizontal width of the key slot.\n"
-            "• Key Depth/Ratio: The vertical depth of the key slot.\n"
-        )                                                                                               #Help Text
+            "INVOLUTE GEAR GENERATOR - COMPREHENSIVE USER MANUAL\n"
+            "==========================================================================\n\n"
+            "I. CORE GEAR GEOMETRY PARAMETERS\n"
+            "--------------------------------------------------------------------------\n"
+            " • Module:          The base unit of tooth size (Pitch Diameter / Teeth).\n"
+            "                    Standard industrial gears typically use a Module of 2.0.\n\n"
+            " • Number of Teeth: Defines the gear size and ratio. Fewer than 17 teeth\n"
+            "                    may result in 'undercutting' (weakening of the root).\n\n"
+            " • Pressure Angle:  Angle of force transmission between teeth. 20.0° is\n"
+            "                    standard. 14.5° is quieter; higher angles are stronger.\n\n"
+            " • Clearance:       The radial gap between the tooth tip and the mating root.\n"
+            "                    The standard calculation is usually 0.25 × Module.\n\n"
+            " • Steps:           Mathematical resolution of the involute curve. Higher\n"
+            "                    values (10+) create smoother surfaces in CATIA.\n\n"
+            " • Fillet Radius:   The curvature at the tooth root. Essential for reducing\n"
+            "                    stress concentration and preventing tooth breakage.\n\n\n"
+
+            "II. SHAFT AND KEYWAY GEOMETRY\n"
+            "--------------------------------------------------------------------------\n"
+            " • Shaft Radius:    The radius of the center bore hole (measured in mm).\n\n"
+            " • Keyway Mode:     - Ratio: Sizes the keyway as a fraction of the shaft\n"
+            "                      diameter (e.g., Width = Diameter / 4).\n"
+            "                    - Fixed: Allows for exact millimeter input to match\n"
+            "                      standard hardware or existing key-stock sizes.\n\n\n"
+
+            "III. INTERFACE BUTTON FUNCTIONS\n"
+            "--------------------------------------------------------------------------\n"
+            " [OK]               Validates all inputs. If valid, triggers the automated\n"
+            "                    3D geometry generation process within CATIA.\n\n"
+            " [CANCEL]           Exits the script immediately without saving changes or\n"
+            "                    generating any 3D geometry.\n\n"
+            " [RESET DEFAULTS]   Restores all fields to the original factory settings.\n"
+            "                    Fields will briefly flash green to confirm the reset.\n\n"
+            " [CLEAR SAVED]      Deletes the locally stored 'user_presets.json' file.\n"
+            "                    Ensures the script starts with factory defaults next time.\n\n"
+            " [HELP]             Opens this detailed documentation window.\n\n\n"
+
+            "IV. AUTOMATED DATA PERSISTENCE\n"
+            "--------------------------------------------------------------------------\n"
+            " This script includes an automated memory system. Whenever you click 'OK'\n"
+            " and successfully generate a gear, your parameters are saved to a file in\n"
+            " your Windows AppData folder.\n\n"
+            " When the script is restarted, it automatically reloads your last used\n"
+            " values, facilitating rapid iterative design. To wipe this memory and\n"
+            " return to factory settings, use the 'Clear Saved' button."
+        )                                                                                           #Help Text
         dlg = dialogs.ScrolledMessageDialog(self, help_text, "Help")                                    #Create scolling dialog
         mono_font = wx.Font(10, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)      #Define font
         dlg.text.SetFont(mono_font)                                                                     #Set font
         
+        dlg.SetSize((700, 750)) 
+        
+        dlg.CenterOnParent()
         dlg.ShowModal()                                                                                 #Show dialog
         dlg.Destroy()                                                                                   #Close dialog
         
