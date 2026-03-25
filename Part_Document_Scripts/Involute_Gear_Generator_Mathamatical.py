@@ -45,7 +45,7 @@ class DataInputDialog(wx.Dialog):
         self.hardcoded_defaults = {
             "module": "2.0", "teeth": "24", "pa": "20.0", "clearance": "0.25",
             "steps": "10", "thickness": "16.0", "fillet": "0.38", "shaft_r": "5.0",
-            "key_w": "4.0", "key_d": "8.0", "key_mode": 0,
+            "key_w": "4.0", "key_d": "4.0", "key_mode": 0,
             "has_shaft": True, "has_key": True
         }
         defaults = self.hardcoded_defaults.copy()
@@ -367,6 +367,7 @@ class DataInputDialog(wx.Dialog):
 
         z_min_calc = 2 / (math.sin(math.radians(pa))**2)
         
+        #engineering check for low pa
         if pa < 14.5:
             msg = (f"Pressure angle ({pa}°) is below the standard industrial minimum (14.5°).\n"
                    "This will cause severe undercutting and weaken the teeth.\n\n"
@@ -375,6 +376,7 @@ class DataInputDialog(wx.Dialog):
                 self.pressure_angle.SetFocus()
                 return False
         
+        #engineering check for low teeth count
         if z < z_min_calc:
             msg = (
                 f"Number of teeth ({z}) is below the theoretical limit of {int(z_min_calc)} "
@@ -386,10 +388,12 @@ class DataInputDialog(wx.Dialog):
                 self.number_of_teeth.SetFocus()
                 return False
         
+        #Engineeering check for pa over 45
         if pa >= 45:
             self.show_error("Pressure angle must be less than 45 degrees to maintain gear geometry.", self.pressure_angle)
             return False
             
+        #engineeing check for to deep key
         if self.has_shaft.IsChecked() and self.has_keyway.IsChecked():
             m = float(self.module.GetValue())
             r_shaft = float(self.shaft_radius.GetValue())
@@ -407,8 +411,35 @@ class DataInputDialog(wx.Dialog):
                 self.show_error("The Keyway depth is too deep and will cut into the gear teeth!", self.key_d)
                 return False
                 
+        #engineering check for to shallow key
+        if self.has_shaft.IsChecked() and self.has_keyway.IsChecked():
+            k_mode = self.key_mode.GetSelection()
+            k_width_input = float(self.key_w.GetValue())
+            k_depth_input = float(self.key_d.GetValue())
+            
+            # If using Fixed mode (mm), we compare depth to width directly.
+            # If using Ratio mode, depth is 'too shallow' if the ratio is too high.
+            if k_mode == 1: # Fixed (mm)
+                min_depth = k_width_input * 0.4 # Tolerance for slightly shallow keys
+                if k_depth_input < min_depth:
+                    msg = (f"Keyway depth ({k_depth_input}mm) is very shallow relative to the width ({k_width_input}mm).\n"
+                           f"Standard depth is typically {k_width_input * 0.5:.2f}mm. Proceed?")
+                    if wx.MessageBox(msg, "Design Warning", wx.YES_NO | wx.ICON_WARNING) == wx.NO:
+                        self.key_d.SetFocus()
+                        return False
+            else: # Ratio Mode
+                # In ratio mode, a higher input number means a smaller physical slot.
+                # If standard is Shaft_Dia / 4
+                if k_depth_input > 6.0: 
+                    msg = (f"The Keyway depth ratio ({k_depth_input}) will result in a very shallow slot.\n"
+                           "Standard ratio is usually around 4.0 or 6.0. Proceed anyway?")
+                    if wx.MessageBox(msg, "Design Warning", wx.YES_NO | wx.ICON_WARNING) == wx.NO:
+                        self.key_d.SetFocus()
+                        return False
+                
         max_fillet = 0.3 * float(self.module.GetValue())
         
+        #engineering check for large fillet radius
         if float(self.fillet_radius.GetValue()) > max_fillet:
             msg = (f"Warning: Fillet radius ({float(self.fillet_radius.GetValue()):.2f}mm) exceeds standard max ({max_fillet:.2f}mm).\n"
                     "This may cause interference with mating teeth.\n\n"
@@ -416,7 +447,8 @@ class DataInputDialog(wx.Dialog):
             if wx.MessageBox(msg, "Design Warning", wx.YES_NO | wx.ICON_WARNING) == wx.NO:
                 self.fillet_radius.SetFocus()
                 return False
-                
+        
+        #Engineering check for key width
         if self.has_keyway.IsChecked() and self.key_mode.GetSelection() == 1:
             d_shaft = float(self.shaft_radius.GetValue()) * 2
             suggested_w = d_shaft / 4
@@ -440,6 +472,34 @@ class DataInputDialog(wx.Dialog):
                 self.gear_thicness.SetFocus()
                 return False
         
+        #Engineering check for shaft size        
+        if self.has_shaft.IsChecked():
+            r_shaft = float(self.shaft_radius.GetValue())
+            
+            # Pitch Circle Diameter (D = m * z)
+            d_pitch = m * z
+            d_shaft = r_shaft * 2
+            
+            # Define limits (e.g., shaft should be 0.2 to 0.7 of Pitch Diameter)
+            min_limit = d_pitch * 0.2
+            max_limit = d_pitch * 0.7
+            
+            if d_shaft < min_limit:
+                msg = (f"Shaft diameter ({d_shaft}mm) is below the recommended minimum "
+                       f"({min_limit:.2f}mm) for this gear size.\n\n"
+                       "The shaft may lack the required torque capacity. Proceed anyway?")
+                if wx.MessageBox(msg, "Design Warning", wx.YES_NO | wx.ICON_WARNING) == wx.NO:
+                    self.shaft_radius.SetFocus()
+                    return False
+                    
+            if d_shaft > max_limit:
+                msg = (f"Shaft diameter ({d_shaft}mm) exceeds the recommended maximum "
+                       f"({max_limit:.2f}mm) for this gear size.\n\n"
+                       "This leaves very little material between the shaft and the teeth. Proceed anyway?")
+                if wx.MessageBox(msg, "Design Warning", wx.YES_NO | wx.ICON_WARNING) == wx.NO:
+                    self.shaft_radius.SetFocus()
+                    return False
+                
         return True # All checks passed
 
     def show_error(self, message, ctrl):
