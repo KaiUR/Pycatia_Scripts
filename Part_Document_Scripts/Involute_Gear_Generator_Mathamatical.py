@@ -499,7 +499,58 @@ class DataInputDialog(wx.Dialog):
                 if wx.MessageBox(msg, "Design Warning", wx.YES_NO | wx.ICON_WARNING) == wx.NO:
                     self.shaft_radius.SetFocus()
                     return False
+        
+        #Check for std module
+        standard_modules = [
+            0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75, 3.0, 
+            3.25, 3.5, 3.75, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 8.0, 9.0, 10.0
+        ]
+
+        m_input = float(self.module.GetValue())
+        if m_input not in standard_modules:
+            msg = (f"The entered Module ({m_input}) is not a common industrial standard.\n"
+                   "Using non-standard modules may make it difficult or expensive "
+                   "to source mating gears or cutting tools.\n\n"
+                   "Proceed with this custom value?")
+            if wx.MessageBox(msg, "Design Warning", wx.YES_NO | wx.ICON_WARNING) == wx.NO:
+                self.module.SetFocus()
+                return False
                 
+        #Check for pointed teeth
+        pa_rad = math.radians(float(self.pressure_angle.GetValue()))
+
+        # Calculate the pressure angle at the tip (alpha_a)
+        # cos(alpha_a) = r_base / r_addendum
+        r_p = (m * z) / 2
+        r_b = r_p * math.cos(pa_rad)
+        r_a = r_p + m
+
+        # Ensure r_a > r_b to avoid math domain errors
+        if r_a > r_b:
+            alpha_a = math.acos(r_b / r_a)
+
+            # Involute function: inv(x) = tan(x) - x
+            inv_pa = math.tan(pa_rad) - pa_rad
+            inv_alpha_a = math.tan(alpha_a) - alpha_a
+
+            # Calculate Top Land Thickness (s_a)
+            # s_a = s_p * (r_a / r_p) - 2 * r_a * (inv_alpha_a - inv_pa)
+            # s_p (arc thickness at pitch circle) is typically (pi * m) / 2
+            s_p = (math.pi * m) / 2
+            s_a = r_a * (s_p / r_p - 2 * (inv_alpha_a - inv_pa))
+
+            #Engineering Limit: Top land should be >= 0.3 * Module
+            min_top_land = 0.3 * m
+            if s_a < min_top_land:
+                msg = (f"The resulting gear teeth will be dangerously thin or 'pointed' at the tip.\n"
+                       f"Calculated Top Land: {s_a:.2f}mm (Recommended Minimum: {min_top_land:.2f}mm).\n\n"
+                       "This can cause issues with heat treatment, durability, or manufacturing.\n"
+                       "Decrease the Pressure Angle or increase the Number of Teeth to fix this.\n\n"
+                       "Proceed anyway?")
+                if wx.MessageBox(msg, "Design Warning: Pointed Teeth", wx.YES_NO | wx.ICON_WARNING) == wx.NO:
+                    self.pressure_angle.SetFocus()
+                    return False
+ 
         return True # All checks passed
 
     def show_error(self, message, ctrl):
@@ -582,10 +633,20 @@ if __name__ == "__main__":
         exit()                                                                                                  #exit script
     dlg.Destroy()                                                                                               #Close dialog
     
+    total_steps = 10 
+    progress_dlg = wx.ProgressDialog(
+        "Generating Gear", 
+        "Initializing geometry...", 
+        maximum=total_steps, 
+        parent=None, 
+        style=wx.PD_APP_MODAL | wx.PD_AUTO_HIDE | wx.PD_SMOOTH
+    )
+    
     partbody = bodies.add()                                                                                     #Add new body
     sketches_part_body = partbody.sketches                                                                      #Get sketches in part body
     
     try:
+        progress_dlg.Update(1, "Calculating gear geometry...")
         #formulas
         pitch_circle_radius = module * number_of_teeth                                                              #Pitch circle formula
         addendum_circle_radius = pitch_circle_radius + module                                                       #Addendum circle formula
@@ -608,6 +669,8 @@ if __name__ == "__main__":
         hb_sketches = partbody.sketches                                                                             #Get Collection of sketches
         plane_XY = part.origin_elements.plane_xy                                                                    #get reference to XY plane
 
+        progress_dlg.Update(2, "Drawing involute tooth profile...")
+        
         #create sketch for tooth on xy plane
         sketch_tooth_con = hb_sketches.add(plane_XY)                                                                #Add sketch                                    
         sketch_tooth_con.name = "sketch_tooth_con"                                                                  #Rename Sketch
@@ -992,6 +1055,8 @@ if __name__ == "__main__":
         sketch_tooth_con.close_edition()                                                                    #Stop editing sketch
         part.update()                                                                                       #Update part
         
+        progress_dlg.Update(4, "Creating gear body sketch...")
+        
         #create sketch for gear body on xy plane
         sketch_body_con = hb_sketches.add(plane_XY)                                                         #Create sketch on xy plane
         sketch_body_con.name = "sketch_body_con"                                                            #Rename sketch
@@ -1019,6 +1084,8 @@ if __name__ == "__main__":
         sketch_body_con.close_edition()                                                                     #Stop editing the sketch
         part.update()                                                                                       #Update the part
         
+        progress_dlg.Update(6, "Extruding gear body...")
+        
         #Create pad for gear body
         pad_body = shape_factory.add_new_pad(sketch_body_con, gear_thicness)                                #Add new pad for gear body
         pad_body.direction_orientation = CatPrismOrientation.catRegularOrientation                          #Set direction
@@ -1038,6 +1105,8 @@ if __name__ == "__main__":
         pad_tooth.set_profile_element(part.create_reference_from_object(sketch_tooth_con))                  #Link sketch to pad
         
         part.update()                                                                                       #Update part
+        
+        progress_dlg.Update(8, f"Patterning {number_of_teeth} teeth...")
         
         # Create Circular Pattern for remaining gear teeth
         ref_axis = part.create_reference_from_object(plane_XY)                                              #Rotation axis
@@ -1063,6 +1132,8 @@ if __name__ == "__main__":
         part.update()                                                                                       #Update part
         
         if has_shaft:
+            progress_dlg.Update(9, "Cutting shaft hole...")
+            
             #Create shaft hole
             shaft_hole = shape_factory.add_new_hole_from_point(0, 0, 0, plane_XY, gear_thicness)                #Create a new Hole feature
 
@@ -1176,8 +1247,12 @@ if __name__ == "__main__":
                 
                 part.update()                                                                                       #Update part
 
+        progress_dlg.Update(10, "Finalizing part...")
+
         if return_hybrid:                                                                                           #If hybrid desgin was turned off
             part_infa.com_object.HybridDesignMode = True                                                            #Turn hybrid desgin back on
+            
+        progress_dlg.Destroy()
         
     except Exception as e:                                                                                          #If any excption occurs during geomtry creation
         selectionSet.clear()                                                                                        #Clear selection
@@ -1190,6 +1265,9 @@ if __name__ == "__main__":
         
         error_msg = f"An error occurred during gear generation:\n\n{str(e)}"                                        #Generate error text
         wx.MessageBox(error_msg, "Script Error", wx.OK | wx.ICON_ERROR)                                             #Display error message to user
+        
+        if progress_dlg:
+            progress_dlg.Destroy()
         
         part.update()                                                                                               #Update part
         
