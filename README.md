@@ -84,6 +84,10 @@ Process Document Scripts
     Export_Process_Table_Parameters.py
 
         Exports machinging program parameters to excel file for user to check parameters.
+		
+	Export_ResourceListy.py
+		
+		Exports the names of all resources in process document to an csv file
 
 Product Document Scripts
 
