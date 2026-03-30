@@ -1326,9 +1326,17 @@ if __name__ == "__main__":
         if return_hybrid:                                                                                           #If hybrid desgin was turned off
             part_infa.com_object.HybridDesignMode = True                                                            #Turn hybrid desgin back on
         
-        traceback.print_exc()                                                                                       #Debug
+        full_traceback = traceback.format_exc()
+        print(full_traceback) 
         
-        error_msg = f"An error occurred during gear generation:\n\n{str(e)}"                                        #Generate error text
+        #error_msg = f"An error occurred during gear generation:\n\n{str(e)}"                                        #Generate error text
+        error_msg = (
+            f"An error occurred during gear generation:\n\n"
+            f"Error Summary: {str(e)}\n"
+            f"------------------------------------------\n"
+            f"Technical Debug Info:\n\n{full_traceback}"
+        )
+        
         wx.MessageBox(error_msg, "Script Error", wx.OK | wx.ICON_ERROR)                                             #Display error message to user
         
         if progress_dlg:
