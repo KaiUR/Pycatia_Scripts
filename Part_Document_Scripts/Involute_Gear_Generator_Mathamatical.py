@@ -746,8 +746,8 @@ if __name__ == "__main__":
         center_line_end_point.name = "center line end point"                                                        #Rename
         center_line.end_point = center_line_end_point                                                               #Set as endpoint
         
-        center_line_par = constraints.add_bi_elt_cst(CatConstraintType.catCstTypeParallelism, 
-                center_line, v_axis)                                                                                #Make line vertical
+        center_line_par = constraints.add_mono_elt_cst(CatConstraintType.catCstTypeVerticality, 
+                center_line)                                                                                        #Make line vertical
         center_line_par.name = "Center Line Parrallel V-Direction"                                                  #Rename Constraint
         center_line_on_1 = constraints.add_bi_elt_cst(CatConstraintType.catCstTypeOn, 
                 center_line_start_point, origin)                                                                    #Make start point coincident to origin
