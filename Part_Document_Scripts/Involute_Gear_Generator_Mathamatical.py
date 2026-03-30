@@ -39,6 +39,7 @@ import wx
 import wx.lib.dialogs as dialogs
 import os
 import json
+import traceback
 
 class DataInputDialog(wx.Dialog):
     def __init__(self, parent, title):
@@ -682,35 +683,47 @@ if __name__ == "__main__":
         v_axis = axis.get_item("VDirection")                                                                        #Get V direction
         origin = sketch_tooth_con.absolute_axis.origin                                                              #Get origin
        
+        center_point = ske2D_tooth_con.create_point(0, 0,)
+        center_point.name = "Center Point"
+        center_point_on = constraints.add_bi_elt_cst(CatConstraintType.catCstTypeOn, center_point, origin)
+        center_point_on.name = "Center Point Coincident Origin"
+       
         #create pitch circle
         pitch_circle = ske2D_tooth_con.create_closed_circle(0, 0, pitch_circle_radius)                              #Draw new circle
         pitch_circle.construction = True                                                                            #Make construction element
         pitch_circle.name = "Pitch Circle"                                                                          #Rename
-        constraints.add_bi_elt_cst(CatConstraintType.catCstTypeConcentricity, pitch_circle, origin)                 #Make concentric to origin
+        cnst_pitch_con = constraints.add_bi_elt_cst(CatConstraintType.catCstTypeConcentricity, pitch_circle, origin)#Make concentric to origin
+        cnst_pitch_con.name = "Pitch Circle Concentric Origin"
         cnst_rad_pitch = constraints.add_mono_elt_cst(CatConstraintType.catCstTypeRadius, pitch_circle)             #Add radius constraint
         cnst_rad_pitch.mode = CatConstraintMode.catCstModeDrivingDimension                                          #Set to driving dimension
         cnst_rad_pitch.dimension.value = pitch_circle_radius                                                        #Set dimension
+        cnst_rad_pitch.name = "Picth Circle Radius"
         
         #create addendum circle
         addendum_circle = ske2D_tooth_con.create_closed_circle(0, 0, addendum_circle_radius)                        #Draw circle
         addendum_circle.construction = True                                                                         #Make construction element
         addendum_circle.name = "Addendum/Tip Circle"                                                                #Rename
-        constraints.add_bi_elt_cst(CatConstraintType.catCstTypeConcentricity, 
+        cnst_add_con = constraints.add_bi_elt_cst(CatConstraintType.catCstTypeConcentricity, 
                 addendum_circle, origin)                                                                            #Make concentric to origin
+        cnst_add_con.name = "Addendum Circle Concentric Origin"
         cnst_rad_addendum = constraints.add_mono_elt_cst(CatConstraintType.catCstTypeRadius, 
                 addendum_circle)                                                                                    #Add radius constraint
         cnst_rad_addendum.mode = CatConstraintMode.catCstModeDrivingDimension                                       #Make driving dimension
         cnst_rad_addendum.dimension.value = addendum_circle_radius                                                  #Set dimension
+        cnst_rad_addendum.name = "Addendum Circle Radius"
         
         #create dedendum circle
         dedendum_circle = ske2D_tooth_con.create_closed_circle(0, 0, dedendum_circle_radius)                        #Draw circle
         dedendum_circle.construction = True                                                                         #Set to construction element
         dedendum_circle.name = "Dedendum/Root Circle"                                                               #Rename
-        constraints.add_bi_elt_cst(CatConstraintType.catCstTypeConcentricity, dedendum_circle, origin)              #Make concentric to origin
+        cnst_de_con = constraints.add_bi_elt_cst(CatConstraintType.catCstTypeConcentricity, dedendum_circle, origin)#Make concentric to origin
+        cnst_de_con.name = "Dedendum Circle Concentric Origin"
         cnst_rad_dedendum = constraints.add_mono_elt_cst(CatConstraintType.catCstTypeRadius, 
                 dedendum_circle)                                                                                    #Add radius constraint
         cnst_rad_dedendum.mode = CatConstraintMode.catCstModeDrivingDimension                                       #Make driving dimension
         cnst_rad_dedendum.dimension.value = dedendum_circle_radius                                                  #Set radius
+        cnst_rad_dedendum.name = "Dedendum Circle Radius"
+        
         
         #Create centre line
         center_line_origin = (0, 0)                                                                                 #Start point of line
@@ -729,10 +742,13 @@ if __name__ == "__main__":
         
         center_line_par = constraints.add_bi_elt_cst(CatConstraintType.catCstTypeParallelism, 
                 center_line, v_axis)                                                                                #Make line vertical
+        center_line_par.name = "Center Line Parrallel V-Direction"
         center_line_on_1 = constraints.add_bi_elt_cst(CatConstraintType.catCstTypeOn, 
                 center_line_start_point, origin)                                                                    #Make start point coincident to origin
+        center_line_on_1.name = "Center Line Coincident Origin"
         center_line_on_2 = constraints.add_bi_elt_cst(CatConstraintType.catCstTypeOn, 
                 center_line_end_point, addendum_circle)                                                             #Make end point coincident to addendum circle
+        center_line_on_2.name = "Center Line Coicnident Addendum Circle"
         
         #create preasure angle line
         pressure_line = ske2D_tooth_con.create_line(0, 0, 10, 10)                                                   #Draw line
@@ -749,25 +765,28 @@ if __name__ == "__main__":
         
         pressure_line_on_1 = constraints.add_bi_elt_cst(CatConstraintType.catCstTypeOn, 
                 pressure_line_start_point, origin)                                                                  #Make start point coincident to origin
-        
+        pressure_line_on_1.name = "Preasure Line Coicnident Origin"
         pressure_line_angle_cst = constraints.add_bi_elt_cst(CatConstraintType.catCstTypeAngle, 
                 pressure_line, center_line)                                                                         #Add new angle constraint
         pressure_line_angle_cst.mode = CatConstraintMode.catCstModeDrivingDimension                                 #Make driving dimension
         pressure_line_angle_cst.dimension.value = pressure_angle                                                    #Set angle
+        pressure_line_angle_cst.name = "Preasure Line Angle"
         
         pressure_line_on_2 = constraints.add_bi_elt_cst(CatConstraintType.catCstTypeOn, 
                 pressure_line_end_point, addendum_circle)                                                           #Make endpoint coincident to addendum circle
+        pressure_line_on_2.name = "Preasure Line Coincident Addendum Circle"
         
         #Create Base circle
         base_circle = ske2D_tooth_con.create_closed_circle(0, 0, base_circle_radius)                                #Draw circle
         base_circle.construction = True                                                                             #Make construction
         base_circle.name = "Base Circle"                                                                            #Rename
-        constraints.add_bi_elt_cst(CatConstraintType.catCstTypeConcentricity, base_circle, origin)                  #Make concentric to origin
+        cnst_base_con = constraints.add_bi_elt_cst(CatConstraintType.catCstTypeConcentricity, base_circle, origin)  #Make concentric to origin
+        cnst_base_con.name = "Base Circle Concentric Origin"
         cnst_rad_base_circle = constraints.add_mono_elt_cst(CatConstraintType.catCstTypeRadius, 
                 base_circle)                                                                                        #Add radius dimension
         cnst_rad_base_circle.mode = CatConstraintMode.catCstModeDrivingDimension                                    #Make driving dimension
         cnst_rad_base_circle.dimension.value = base_circle_radius                                                   #set radius
-        
+        cnst_rad_base_circle.name = "Base Circle Radius"
         
         #Calculate invalute flank
         max_t = math.sqrt(((addendum_circle_radius) / base_circle_radius)**2 - 1)                                   #Calculate maximum parameter value in radians
@@ -795,13 +814,15 @@ if __name__ == "__main__":
             point_l = ske2D_tooth_con.create_point(x_l, y_l)                                                        #Create left flank involute point for this step
             point_l.name = f"Involute_Point__Left_{i}"                                                              #Rename point
             if i != 0:                                                                                              #Dont fix the point so we can add tangency
-                constraints.add_mono_elt_cst(CatConstraintType.catCstTypeReference, point_l)                        #Add fixed constraint
+                cnst_1 = constraints.add_mono_elt_cst(CatConstraintType.catCstTypeReference, point_l)               #Add fixed constraint
+                cnst_1.name = f"Fixed Involute_Point__Left_{i}"
             points_list_left.append(point_l)                                                                        #Add to list
             
             point_r = ske2D_tooth_con.create_point(-x_l, y_l)                                                       #Create right flank involute point for this step
             point_r.name = f"Involute_Point__Right_{i}"                                                             #Rename point
             if i != 0:                                                                                              #Dont fix the point so we can add tangency
-                constraints.add_mono_elt_cst(CatConstraintType.catCstTypeReference, point_r)                        #Create fixed constraint
+                cnst_2 = constraints.add_mono_elt_cst(CatConstraintType.catCstTypeReference, point_r)               #Create fixed constraint
+                cnst_2.name = f"Fixed Involute_Point__Right_{i}"
             points_list_right.append(point_r)                                                                       #Add to list
 
         involute_flank_left = ske2D_tooth_con.create_spline(points_list_left)                                       #Create left involute flank spline
@@ -833,12 +854,15 @@ if __name__ == "__main__":
 
         top_land_on_1 = constraints.add_bi_elt_cst(CatConstraintType.catCstTypeOn, 
                 top_land_start_point, p_top_right)                                                                  #Make coincedent to right involute spline
+        top_land_on_1.name = "Top Land Coincendent Involute Right"
         top_land_on_2 = constraints.add_bi_elt_cst(CatConstraintType.catCstTypeOn, 
                 top_land_end_point, p_top_left)                                                                     #Make coincedent to left involute spline
+        top_land_on_2.name = "Top Land Coincendent Involute Left"
         
         cnst_rad_top_land = constraints.add_mono_elt_cst(CatConstraintType.catCstTypeRadius, top_land)              #Add radius constraint to arc
         cnst_rad_top_land.mode = CatConstraintMode.catCstModeDrivingDimension                                       #Make driving dimmension
         cnst_rad_top_land.dimension.value = addendum_circle_radius                                                  #Set radius
+        cnst_rad_top_land.name = "Top Land Radius"
         
         #Create root fillets 
         if base_circle_radius > dedendum_circle_radius:                                                             #Only run if the base circle is larger than the dedendum (requires a transition curve)
@@ -866,7 +890,8 @@ if __name__ == "__main__":
             radial_line_left_start_point = ske2D_tooth_con.create_point(x_s, y_s)
             radial_line_left_start_point.name = "radial_line_left start point"
             radial_line_left.start_point = radial_line_left_start_point
-            constraints.add_mono_elt_cst(CatConstraintType.catCstTypeReference, radial_line_left_start_point)
+            rad_line_left_cnst_start = constraints.add_mono_elt_cst(CatConstraintType.catCstTypeReference, radial_line_left_start_point)
+            rad_line_left_cnst_start.name = "Fixed Radial Line Start Point Left"
      
             radial_line_left_end_point = ske2D_tooth_con.create_point(x_f_start, y_f_start)
             radial_line_left_end_point.name = "radial_line_left end point"
@@ -874,8 +899,11 @@ if __name__ == "__main__":
 
             # Constrain the line to be coincident with the involute and tangent to the flank
             radial_line_on_1 = constraints.add_bi_elt_cst(CatConstraintType.catCstTypeOn, radial_line_left_start_point, points_list_left[0])
+            radial_line_on_1.name = "Radial Line Left Coincendent Involute Spline"
             radial_line_tangnt = constraints.add_bi_elt_cst(CatConstraintType.catCstTypeTangency, radial_line_left, involute_flank_left )
-            constraints.add_mono_elt_cst(CatConstraintType.catCstTypeReference, radial_line_left_end_point)
+            radial_line_tangnt.name = "Radial Line Left Tangent Involute Spline"
+            rad_line_left_cnst_end = constraints.add_mono_elt_cst(CatConstraintType.catCstTypeReference, radial_line_left_end_point)
+            rad_line_left_cnst_end.name = "Fixed Radial Line End Point Left"
 
             # Calculate the center point (cx, cy) of the left fillet arc
             angle_perp = angle_s + (math.pi / 2)
@@ -901,10 +929,13 @@ if __name__ == "__main__":
 
             # Constrain the fillet to the radial line and set its radius dimension
             fillet_left_on_1 = constraints.add_bi_elt_cst(CatConstraintType.catCstTypeOn, fillet_left_end_point, radial_line_left_end_point)
-            constraints.add_mono_elt_cst(CatConstraintType.catCstTypeReference, fillet_left_start_point) 
+            fillet_left_on_1.name = "Fillet Left Coincident Radial Line Left"
+            fillet_left_start_pt = constraints.add_mono_elt_cst(CatConstraintType.catCstTypeReference, fillet_left_start_point) 
+            fillet_left_start_pt.name = "Fixed Fillet Left Start Point"
             cnst_rad_fillet_left = constraints.add_mono_elt_cst(CatConstraintType.catCstTypeRadius, fillet_left)
             cnst_rad_fillet_left.mode = CatConstraintMode.catCstModeDrivingDimension
             cnst_rad_fillet_left.dimension.value = r_f
+            cnst_rad_fillet_left.name = "Fillet Left Radius"
             
             # ---Right fillet and line---
             # Create a mirrored radial line for the right side of the tooth      
@@ -915,7 +946,8 @@ if __name__ == "__main__":
             radial_line_right_start_point = ske2D_tooth_con.create_point(-x_s, y_s)
             radial_line_right_start_point.name = "radial_line_right start point"
             radial_line_right.start_point = radial_line_right_start_point
-            constraints.add_mono_elt_cst(CatConstraintType.catCstTypeReference, radial_line_right_start_point)
+            rad_line_right_cnst_start = constraints.add_mono_elt_cst(CatConstraintType.catCstTypeReference, radial_line_right_start_point)
+            rad_line_right_cnst_start.name = "Fixed Radial Line Start Point Right"
         
             radial_line_right_end_point = ske2D_tooth_con.create_point(-x_f_start, y_f_start)
             radial_line_right_end_point.name = "radial_line_right end point"
@@ -923,8 +955,11 @@ if __name__ == "__main__":
 
             # Constrain the line to be coincident with the involute and tangent to the flank
             radial_line_on_1 = constraints.add_bi_elt_cst(CatConstraintType.catCstTypeOn, radial_line_right_start_point, points_list_right[0])
+            radial_line_on_1.name = "Radial Line Right Coincendent Involute Spline"
             radial_line_tangnt = constraints.add_bi_elt_cst(CatConstraintType.catCstTypeTangency, radial_line_right, involute_flank_right )
-            constraints.add_mono_elt_cst(CatConstraintType.catCstTypeReference, radial_line_right_end_point)
+            radial_line_tangnt.name = "Radial Line Right Tangent Involute Spline"
+            rad_line_right_cnst_end = constraints.add_mono_elt_cst(CatConstraintType.catCstTypeReference, radial_line_right_end_point)
+            rad_line_right_cnst_end.name = "Fixed Radial Line End Point Right"
             
             # Calculate the mirrored center point and angles for the right fillet
             cx_r, cy_r = -cx, cy
@@ -946,10 +981,13 @@ if __name__ == "__main__":
 
             # Finalize constraints and radius for the right fillet
             fillet_right_on_1 = constraints.add_bi_elt_cst(CatConstraintType.catCstTypeOn, fillet_right_start_point, radial_line_right_end_point)
-            constraints.add_mono_elt_cst(CatConstraintType.catCstTypeReference, fillet_right_end_point) 
+            fillet_right_on_1.name = "Fillet Right Coincident Radial Line Right"
+            fillet_right_start_pt = constraints.add_mono_elt_cst(CatConstraintType.catCstTypeReference, fillet_right_end_point) 
+            fillet_right_start_pt.name = "Fixed Fillet Right Start Point"
             cnst_rad_fillet_right = constraints.add_mono_elt_cst(CatConstraintType.catCstTypeRadius, fillet_right)
             cnst_rad_fillet_right.mode = CatConstraintMode.catCstModeDrivingDimension
             cnst_rad_fillet_right.dimension.value = r_f
+            cnst_rad_fillet_right.name = "Fillet Right Radius"
             
         else:
             # Base circle is inside or on the dedendum circle
@@ -978,8 +1016,10 @@ if __name__ == "__main__":
             fillet_left_end_point.name = "fillet_left_end_point"
             fillet_left.end_point = fillet_left_end_point
             #Put the point on the spline and make tangent
-            constraints.add_bi_elt_cst(CatConstraintType.catCstTypeOn, fillet_left_end_point, p_start_left)
-            constraints.add_bi_elt_cst(CatConstraintType.catCstTypeTangency, fillet_left, involute_flank_left)
+            fillet_l_on = constraints.add_bi_elt_cst(CatConstraintType.catCstTypeOn, fillet_left_end_point, p_start_left)
+            fillet_l_on.name = "Fillet Left Coincident Involute Spline"
+            fillet_l_t = constraints.add_bi_elt_cst(CatConstraintType.catCstTypeTangency, fillet_left, involute_flank_left)
+            fillet_l_t.name = "Fillet Left Tangent Involute Spline"
             
             fillet_left_start_point = ske2D_tooth_con.create_point(dedendum_circle_radius * math.cos(a2), dedendum_circle_radius * math.sin(a2))
             fillet_left_start_point.name = "fillet_left_start_point"
@@ -988,6 +1028,7 @@ if __name__ == "__main__":
             # Add Radius Constraint
             cnst_rad_l = constraints.add_mono_elt_cst(CatConstraintType.catCstTypeRadius, fillet_left)
             cnst_rad_l.dimension.value = r_f
+            cnst_rad_l.name = "Fillet Left Radius"
 
             # Create Right Fillet (Mirror of left)
             cx_r, cy_r = -cx, cy
@@ -1001,8 +1042,10 @@ if __name__ == "__main__":
             fillet_right_start_point.name = "fillet_right_start_point"
             fillet_right.start_point = fillet_right_start_point
             #Put the point on the spline and make tangent
-            constraints.add_bi_elt_cst(CatConstraintType.catCstTypeOn, fillet_right_start_point, points_list_right[0])
-            constraints.add_bi_elt_cst(CatConstraintType.catCstTypeTangency, fillet_right, involute_flank_right)
+            fillet_r_on = constraints.add_bi_elt_cst(CatConstraintType.catCstTypeOn, fillet_right_start_point, points_list_right[0])
+            fillet_r_on.name = "Fillet Right Coincident Involute Spline"
+            fillet_r_t = constraints.add_bi_elt_cst(CatConstraintType.catCstTypeTangency, fillet_right, involute_flank_right)
+            fillet_r_t.name = "Fillet Right Tangent Involute Spline"
             
             fillet_right_end_point = ske2D_tooth_con.create_point(dedendum_circle_radius * math.cos(a2_r), dedendum_circle_radius * math.sin(a2_r))
             fillet_right_end_point.name = "fillet_right_end_point"
@@ -1010,13 +1053,16 @@ if __name__ == "__main__":
             
             cnst_rad_r = constraints.add_mono_elt_cst(CatConstraintType.catCstTypeRadius, fillet_right)
             cnst_rad_r.dimension.value = r_f
+            cnst_rad_r.name = "Fillet Right Radius"
             
             #Add distance constraints to fully define sketch
             dist_cst_1 = constraints.add_bi_elt_cst(CatConstraintType.catCstTypeDistance, origin, fillet_left_end_point)
             dist_cst_1.mode = CatConstraintMode.catCstModeDrivingDimension
+            dist_cst_1.name = "Fillet Left End Point Origin Distance"
             
             dist_cst_2 = constraints.add_bi_elt_cst(CatConstraintType.catCstTypeDistance, origin, fillet_right_start_point)
             dist_cst_2.mode = CatConstraintMode.catCstModeDrivingDimension
+            dist_cst_2.name = "Fillet Right End Point Origin Distance"
 
 
         #Add the root of tooth
@@ -1042,14 +1088,20 @@ if __name__ == "__main__":
 
         root_arc_on_1 = constraints.add_bi_elt_cst(CatConstraintType.catCstTypeOn,
                 root_arc_start_point, fillet_right_end_point)                                               #Make coincedent to root arc
+        root_arc_on_1.name = "Root Arc Coincident Fillet Right"
         root_arc_on_2 = constraints.add_bi_elt_cst(CatConstraintType.catCstTypeOn,
                 root_arc_end_point, fillet_left_start_point)                                                #Make coincedent to root arc
-        constraints.add_bi_elt_cst(CatConstraintType.catCstTypeConcentricity, root_arc, origin)             #Make concentric to origin
+        root_arc_on_2.name = "Root Arc Coincident Fillet Left"
+        root_arc_con = constraints.add_bi_elt_cst(CatConstraintType.catCstTypeConcentricity, root_arc, origin)#Make concentric to origin
+        root_arc_con.name = "Root Arc Concentric Origin"
 
         if base_circle_radius <= dedendum_circle_radius:                                                    #Add different constartis when there is no extention
-            constraints.add_bi_elt_cst(CatConstraintType.catCstTypeTangency, root_arc, fillet_left)         #Tangency
-            constraints.add_bi_elt_cst(CatConstraintType.catCstTypeTangency, root_arc, fillet_right)        #Tangency
-            constraints.add_bi_elt_cst(CatConstraintType.catCstTypeOn, root_arc, dedendum_circle)           #Coincident
+            tan_1 = constraints.add_bi_elt_cst(CatConstraintType.catCstTypeTangency, root_arc, fillet_left) #Tangency
+            tan_1.name = "Root Arc Tangent Fillet Left"
+            tan_2 = constraints.add_bi_elt_cst(CatConstraintType.catCstTypeTangency, root_arc, fillet_right)#Tangency
+            tan_2.name = "Root Arc Tangent Fillet Right"
+            con_1 = constraints.add_bi_elt_cst(CatConstraintType.catCstTypeOn, root_arc, dedendum_circle)   #Coincident
+            con_1.name  = "Root Arc Coincident Dedendum Circle"
         
         #Close edition
         sketch_tooth_con.close_edition()                                                                    #Stop editing sketch
@@ -1072,13 +1124,15 @@ if __name__ == "__main__":
         #create Body circle
         gear_circle = ske2D_body_con.create_closed_circle(0, 0, base_circle_radius + pad_tol)               #Draw circle
         gear_circle.name = "Body Circle"                                                                    #Rename circle
-        constraints_body.add_bi_elt_cst(CatConstraintType.catCstTypeConcentricity, 
+        cnst_con_bdy = constraints_body.add_bi_elt_cst(CatConstraintType.catCstTypeConcentricity, 
                 gear_circle, origin)                                                                        #Make concentric to origin
+        cnst_con_bdy.name = "Body Circle Concentric Origin"
         cnst_gear = constraints_body.add_mono_elt_cst(CatConstraintType.catCstTypeRadius, 
                 gear_circle)                                                                                #Add radius constraint
         cnst_gear.mode = CatConstraintMode.catCstModeDrivingDimension                                       #Make driving dimmension
 
         cnst_gear.dimension.value = dedendum_circle_radius + pad_tol                                        #Add radius (pad_tol is to make sure their are no gaps when creating the gear)
+        cnst_gear.name = "Body Circle Radius"
         
         #Close edition
         sketch_body_con.close_edition()                                                                     #Stop editing the sketch
@@ -1149,7 +1203,8 @@ if __name__ == "__main__":
             geo_elements_hole = sketch_hole.geometric_elements                                                  #Get the geometric elements
             point = geo_elements_hole.item("Point.1")                                                           #Get the point
             point.name = "Hole Center Point"                                                                    #Rename the point
-            constraints_hole.add_mono_elt_cst(CatConstraintType.catCstTypeReference, point)                     #Fix the point
+            cnst_hole = constraints_hole.add_mono_elt_cst(CatConstraintType.catCstTypeReference, point)         #Fix the point
+            cnst_hole.name = "Fixed Centre Point"
             
             sketch_hole.close_edition()                                                                         #Close the sketch
             
@@ -1198,42 +1253,50 @@ if __name__ == "__main__":
                 line1_sp = ske2D_key_con.create_point(x_left, y_start_inside)                                       #Create start point for line
                 line1_sp.name = "line1_sp"                                                                          #Rename point
                 line1.start_point = line1_sp                                                                        #Set point to line
-                constraints_key.add_mono_elt_cst(CatConstraintType.catCstTypeReference, line1_sp)                   #Add fixed constraint
+                l1_s = constraints_key.add_mono_elt_cst(CatConstraintType.catCstTypeReference, line1_sp)            #Add fixed constraint
+                l1_s.name = "Fixed Line 1 Start"
                 
                 line1_ep = ske2D_key_con.create_point(x_right, y_start_inside)                                      #Create end point for line
                 line1_ep.name = "line1_ep"                                                                          #Rename point
                 line1.end_point = line1_ep                                                                          #Set point to line
-                constraints_key.add_mono_elt_cst(CatConstraintType.catCstTypeReference, line1_ep)                   #Add fixed constraint
+                l1_e = constraints_key.add_mono_elt_cst(CatConstraintType.catCstTypeReference, line1_ep)            #Add fixed constraint
+                l1_e.name = "Fixed Line 1 End"
                 
                 line2_sp = ske2D_key_con.create_point(x_right, y_start_inside)                                      #Create start point for line
                 line2_sp.name = "line2_sp"                                                                          #Rename point
                 line2.start_point = line2_sp                                                                        #Set point to line
-                constraints_key.add_mono_elt_cst(CatConstraintType.catCstTypeReference, line2_sp)                   #Add fixed constraint
+                l2_s = constraints_key.add_mono_elt_cst(CatConstraintType.catCstTypeReference, line2_sp)            #Add fixed constraint
+                l2_s.name = "Fixed Line 2 Start"
                 
                 line2_ep = ske2D_key_con.create_point(x_right, y_end)                                               #Create end point for line
                 line2_ep.name = "line2_ep"                                                                          #Rename point
                 line2.end_point = line2_ep                                                                          #Set point to line
-                constraints_key.add_mono_elt_cst(CatConstraintType.catCstTypeReference, line2_ep)                   #Add fixed constraint
+                l2_e = constraints_key.add_mono_elt_cst(CatConstraintType.catCstTypeReference, line2_ep)            #Add fixed constraint
+                l2_e.name = "Fixed Line 2 End"
                 
                 line3_sp = ske2D_key_con.create_point(x_right, y_end)                                               #Create start point for line
                 line3_sp.name = "line3_sp"                                                                          #Rename point
                 line3.start_point = line3_sp                                                                        #Set point to line
-                constraints_key.add_mono_elt_cst(CatConstraintType.catCstTypeReference, line3_sp)                   #Add fixed constraint
+                l3_s = constraints_key.add_mono_elt_cst(CatConstraintType.catCstTypeReference, line3_sp)            #Add fixed constraint
+                l3_s.name = "Fixed Line 3 Start"
                 
                 line3_ep = ske2D_key_con.create_point(x_left, y_end)                                                #Create end point for line
                 line3_ep.name = "line3_ep"                                                                          #Rename point
                 line3.end_point = line3_ep                                                                          #Set point to line
-                constraints_key.add_mono_elt_cst(CatConstraintType.catCstTypeReference, line3_ep)                   #Add fixed constraint
+                l3_e = constraints_key.add_mono_elt_cst(CatConstraintType.catCstTypeReference, line3_ep)            #Add fixed constraint
+                l3_e.name = "Fixed Line 3 End"
                 
                 line4_sp = ske2D_key_con.create_point(x_left, y_end)                                                #Create start point for line 
                 line4_sp.name = "line4_sp"                                                                          #Rename point
                 line4.start_point = line4_sp                                                                        #Set point to line
-                constraints_key.add_mono_elt_cst(CatConstraintType.catCstTypeReference, line4_sp)                   #Add fixed constraint
+                l4_s = constraints_key.add_mono_elt_cst(CatConstraintType.catCstTypeReference, line4_sp)            #Add fixed constraint
+                l4_s.name = "Fixed Line 4 Start"
                 
                 line4_ep = ske2D_key_con.create_point(x_left, y_start_inside)                                       #Create end point for line
                 line4_ep.name = "line4_ep"                                                                          #Rename point
                 line4.end_point = line4_ep                                                                          #Set point to line
-                constraints_key.add_mono_elt_cst(CatConstraintType.catCstTypeReference, line4_ep)                   #Add fixed constraint
+                l4_e = constraints_key.add_mono_elt_cst(CatConstraintType.catCstTypeReference, line4_ep)            #Add fixed constraint
+                l4_e.name = "Fixed Line 4 End"
 
                 sketch_key_con.close_edition()                                                                      #Close sketch
                 
@@ -1262,6 +1325,8 @@ if __name__ == "__main__":
 
         if return_hybrid:                                                                                           #If hybrid desgin was turned off
             part_infa.com_object.HybridDesignMode = True                                                            #Turn hybrid desgin back on
+        
+        traceback.print_exc()                                                                                       #Debug
         
         error_msg = f"An error occurred during gear generation:\n\n{str(e)}"                                        #Generate error text
         wx.MessageBox(error_msg, "Script Error", wx.OK | wx.ICON_ERROR)                                             #Display error message to user
