@@ -15,7 +15,7 @@
     dependencies = [
                     "pycatia",
                     ]
-    requirements:   Python >= 9.10
+    requirements:   Python >= 3.10
                     pycatia
                     Catia V5 running with an geometric set that contains points. The points should be datums(Isolated)
                     This script needs an open part document.
@@ -122,16 +122,21 @@ def dot_product(vec1, vec2):
         The geometric set that is found, or None if not found
 '''    
 def searchHybridBody(seachName, currentHybridBodies):
-    currentSearch = currentHybridBodies.item(seachName)                                                     #Try to get the set we are looking for, will be none if not found.
-    
-    if currentSearch != None:                                                                               #If not none, i.e. Set was found
-        return hybrid_bodies.item(seachName)                                                                #Return the set
-    else:                                                                                                   #If not found
-        if currentHybridBodies.count > 0:                                                                   #If the current set contains sets                                                 
-            for index in range(hybrid_bodies.count):                                                        #Loop all sets in the current set
-                return searchHybridBody(seachName, hybrid_bodies.item(index+1).hybrid_bodies)               #Recursive call of this function to search further down tree.
-    
-    return None                                                                                             #Nothing found
+    try:                                                                                                        #Try at current level
+        currentSearch = currentHybridBodies.item(seachName)                                                     #Check if we can find it
+        if currentSearch is not None:                                                                           #If we found it
+            return currentSearch                                                                                #Return found Geometric set
+    except:
+        pass                                                                                                    #If no found move to recursion
+
+    for index in range(currentHybridBodies.count):                                                              #Loop through geometric sets of this level
+        if currentHybridBodies.item(index+1).hybrid_bodies.count > 0:
+            found = searchHybridBody(seachName, currentHybridBodies.item(index+1).hybrid_bodies)                #recursive call
+        
+            if found is not None:                                                                               #If found
+                return found                                                                                     #Return found
+
+    return None                                                                                                 #Return not found
 
 if __name__ == "__main__":
     #Anchoring relavent components
@@ -182,7 +187,7 @@ if __name__ == "__main__":
     hs = hb.hybrid_shapes                                                                                       #Get all hybrid shpaes in geometric set.
 
     print("\n Creating file\n\n")
-    f = open("output.csv", "w")                                                                                 #Create new file
+    f = open(hb.name + ".csv", "w")                                                                              #Create new file
 
     f.write("Point Name,X,Y,Z\n")                                                                                 #Heading
 
