@@ -633,11 +633,11 @@ if __name__ == "__main__":
         dlg.Destroy()                                                                                           #Close dialog
         exit()                                                                                                  #exit script
     dlg.Destroy()                                                                                               #Close dialog
-     
+    
     progress_dlg = wx.ProgressDialog(
         "Generating Gear", 
         "Initializing geometry...", 
-        maximum=steps, 
+        maximum=10, 
         parent=None, 
         style=wx.PD_APP_MODAL | wx.PD_AUTO_HIDE | wx.PD_SMOOTH
     )
