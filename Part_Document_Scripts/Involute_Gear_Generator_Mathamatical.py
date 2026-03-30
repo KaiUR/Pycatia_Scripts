@@ -1329,13 +1329,19 @@ if __name__ == "__main__":
         progress_dlg.Destroy()
         
     except Exception as e:                                                                                          #If any excption occurs during geomtry creation
-        selectionSet.clear()                                                                                        #Clear selection
-        selectionSet.add(partbody)                                                                                  #Select body we created
-        selectionSet.delete()                                                                                       #Delete selection
-        selectionSet.clear()                                                                                        #Clear selection
+        try:
+            selectionSet.clear()                                                                                    #Clear selection
+            selectionSet.add(partbody)                                                                              #Select body we created
+            selectionSet.delete()                                                                                   #Delete selection
+            selectionSet.clear()                                                                                    #Clear selection
+        except:
+            pass                                                                                                    #If delete fails, at least try the rest of the cleanup
 
         if return_hybrid:                                                                                           #If hybrid desgin was turned off
-            part_infa.com_object.HybridDesignMode = True                                                            #Turn hybrid desgin back on
+            try:
+                part_infa.com_object.HybridDesignMode = True                                                        #Turn hybrid desgin back on
+            except:
+                pass                                                                                                #Could not restore settings
         
         full_traceback = traceback.format_exc()
         print(full_traceback) 
@@ -1377,6 +1383,9 @@ if __name__ == "__main__":
         if progress_dlg:
             progress_dlg.Destroy()
         
-        part.update()                                                                                               #Update part
+        try:
+            part.update()                                                                                           #Update part
+        except:
+            pass                                                                                                    #Could not update part
         
         exit()                                                                                                      #Exit Script
