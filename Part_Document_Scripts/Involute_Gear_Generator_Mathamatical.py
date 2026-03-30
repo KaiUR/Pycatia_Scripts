@@ -633,12 +633,11 @@ if __name__ == "__main__":
         dlg.Destroy()                                                                                           #Close dialog
         exit()                                                                                                  #exit script
     dlg.Destroy()                                                                                               #Close dialog
-    
-    total_steps = 10 
+     
     progress_dlg = wx.ProgressDialog(
         "Generating Gear", 
         "Initializing geometry...", 
-        maximum=total_steps, 
+        maximum=steps, 
         parent=None, 
         style=wx.PD_APP_MODAL | wx.PD_AUTO_HIDE | wx.PD_SMOOTH
     )
@@ -1337,7 +1336,12 @@ if __name__ == "__main__":
             f"Technical Debug Info:\n\n{full_traceback}"
         )
         
-        wx.MessageBox(error_msg, "Script Error", wx.OK | wx.ICON_ERROR)                                             #Display error message to user
+        #wx.MessageBox(error_msg, "Script Error", wx.OK | wx.ICON_ERROR)                                             #Display error message to user
+        e_dlg = dialogs.ScrolledMessageDialog(None, error_msg, "Script Error")
+        mono_font = wx.Font(9, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
+        e_dlg.text.SetFont(mono_font)
+        e_dlg.ShowModal()
+        e_dlg.Destroy()
         
         if progress_dlg:
             progress_dlg.Destroy()
