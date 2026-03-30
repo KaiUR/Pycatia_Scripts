@@ -646,7 +646,6 @@ if __name__ == "__main__":
     sketches_part_body = partbody.sketches                                                                      #Get sketches in part body
     
     try:
-        raise ValueError("Invalid gear geometry detected") 
         progress_dlg.Update(1, "Calculating gear geometry...")
         #formulas
         pitch_circle_radius = module * number_of_teeth                                                              #Pitch circle formula
