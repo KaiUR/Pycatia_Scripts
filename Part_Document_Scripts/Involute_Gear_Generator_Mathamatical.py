@@ -37,6 +37,7 @@ from pycatia import CatLimitMode
 import math
 import wx
 import wx.lib.dialogs as dialogs
+import wx.lib.agw.pyprogress as PP
 import os
 import json
 import traceback
@@ -637,16 +638,22 @@ if __name__ == "__main__":
     progress_dlg = wx.ProgressDialog(
         "Generating Gear", 
         "Initializing geometry...", 
-        maximum=10, 
+        maximum=14, 
         parent=None, 
-        style=wx.PD_APP_MODAL | wx.PD_AUTO_HIDE | wx.PD_SMOOTH
+            style=(
+                wx.PD_APP_MODAL | 
+                wx.PD_AUTO_HIDE | 
+                wx.PD_SMOOTH | 
+                wx.PD_ELAPSED_TIME |
+                wx.PD_REMAINING_TIME
+            )
     )
     
     partbody = bodies.add()                                                                                     #Add new body
     sketches_part_body = partbody.sketches                                                                      #Get sketches in part body
     
     try:
-        progress_dlg.Update(1, "Calculating gear geometry...")
+        progress_dlg.Update(1, "Creating new Body ...")
         #formulas
         pitch_circle_radius = module * number_of_teeth                                                              #Pitch circle formula
         addendum_circle_radius = pitch_circle_radius + module                                                       #Addendum circle formula
@@ -669,7 +676,7 @@ if __name__ == "__main__":
         hb_sketches = partbody.sketches                                                                             #Get Collection of sketches
         plane_XY = part.origin_elements.plane_xy                                                                    #get reference to XY plane
 
-        progress_dlg.Update(2, "Drawing involute tooth profile...")
+        progress_dlg.Update(2, "Drawing pitch, addendum and dedendum circles ...")
         
         #create sketch for tooth on xy plane
         sketch_tooth_con = hb_sketches.add(plane_XY)                                                                #Add sketch                                    
@@ -725,6 +732,7 @@ if __name__ == "__main__":
         
         
         #Create centre line
+        progress_dlg.Update(3, "Drawing preasure line and center line ...")
         center_line_origin = (0, 0)                                                                                 #Start point of line
         center_line_end_point = (0, addendum_circle_radius)                                                         #End point of line
         
@@ -776,6 +784,7 @@ if __name__ == "__main__":
         pressure_line_on_2.name = "Preasure Line Coincident Addendum Circle"                                        #Rename Constraint
         
         #Create Base circle
+        progress_dlg.Update(4, "Drawing base circle ...")
         base_circle = ske2D_tooth_con.create_closed_circle(0, 0, base_circle_radius)                                #Draw circle
         base_circle.construction = True                                                                             #Make construction
         base_circle.name = "Base Circle"                                                                            #Rename
@@ -788,6 +797,7 @@ if __name__ == "__main__":
         cnst_rad_base_circle.name = "Base Circle Radius"                                                            #Rename Constraint
         
         #Calculate invalute flank
+        progress_dlg.Update(5, "Calculating and drawing involute flanks ...")
         max_t = math.sqrt(((addendum_circle_radius) / base_circle_radius)**2 - 1)                                   #Calculate maximum parameter value in radians
       
         inv_alpha = math.tan(math.radians(pressure_angle)) - math.radians(pressure_angle)                           #Involute function involute(alpha)
@@ -864,6 +874,7 @@ if __name__ == "__main__":
         cnst_rad_top_land.name = "Top Land Radius"                                                                  #Rename Constraint
         
         #Create root fillets 
+        progress_dlg.Update(6, "Drawing fillets ...")
         if base_circle_radius > dedendum_circle_radius:                                                             #Only run if the base circle is larger than the dedendum (requires a transition curve)
             # Get the first point of the involute (where it touches the base circle)
             p_start_involute = points_list_left[0]
@@ -1065,6 +1076,7 @@ if __name__ == "__main__":
 
 
         #Add the root of tooth
+        progress_dlg.Update(7, "Drawing root ...")
         angle_root_l = (math.atan2(cy, -cx) + 2 * math.pi) % (2 * math.pi)                                  #Calculate the normalized angles (0 to 2π) for the left and root point
         angle_root_r = (math.atan2(cy_r, -cx_r) + 2 * math.pi) % (2 * math.pi)                              #Calculate the normalized angles (0 to 2π) for the right and root point
         
@@ -1106,7 +1118,7 @@ if __name__ == "__main__":
         sketch_tooth_con.close_edition()                                                                    #Stop editing sketch
         part.update()                                                                                       #Update part
         
-        progress_dlg.Update(4, "Creating gear body sketch...")
+        progress_dlg.Update(8, "Drawing gear body ...")
         
         #create sketch for gear body on xy plane
         sketch_body_con = hb_sketches.add(plane_XY)                                                         #Create sketch on xy plane
@@ -1137,9 +1149,8 @@ if __name__ == "__main__":
         sketch_body_con.close_edition()                                                                     #Stop editing the sketch
         part.update()                                                                                       #Update the part
         
-        progress_dlg.Update(6, "Extruding gear body...")
-        
         #Create pad for gear body
+        progress_dlg.Update(9, "Extruding gear body...")
         pad_body = shape_factory.add_new_pad(sketch_body_con, gear_thicness)                                #Add new pad for gear body
         pad_body.direction_orientation = CatPrismOrientation.catRegularOrientation                          #Set direction
         pad_body.first_limit.limit_mode = CatLimitMode.catOffsetLimit                                       #Set limit mode to offset
@@ -1150,6 +1161,7 @@ if __name__ == "__main__":
         part.update()                                                                                       #Update part
         
         #Create pad for geart tooth
+        progress_dlg.Update(10, "Extruding gear tooth...")
         pad_tooth = shape_factory.add_new_pad(sketch_tooth_con, gear_thicness)                              #Add new pad for gear tooth
         pad_tooth.direction_orientation = CatPrismOrientation.catRegularOrientation                         #Set direction
         pad_tooth.first_limit.limit_mode = CatLimitMode.catOffsetLimit                                      #Set limit mode to offset
@@ -1159,7 +1171,7 @@ if __name__ == "__main__":
         
         part.update()                                                                                       #Update part
         
-        progress_dlg.Update(8, f"Patterning {number_of_teeth} teeth...")
+        progress_dlg.Update(11, f"Patterning {number_of_teeth} teeth...")
         
         # Create Circular Pattern for remaining gear teeth
         ref_axis = part.create_reference_from_object(plane_XY)                                              #Rotation axis
@@ -1185,7 +1197,7 @@ if __name__ == "__main__":
         part.update()                                                                                       #Update part
         
         if has_shaft:
-            progress_dlg.Update(9, "Cutting shaft hole...")
+            progress_dlg.Update(12, "Cutting shaft hole...")
             
             #Create shaft hole
             shaft_hole = shape_factory.add_new_hole_from_point(0, 0, 0, plane_XY, gear_thicness)                #Create a new Hole feature
@@ -1215,6 +1227,7 @@ if __name__ == "__main__":
             part.update()                                                                                       #Update part
             
             if has_key:
+                progress_dlg.Update(13, "Cutting key hole...")
                 #create sketch for key way on xy plane
                 sketch_key_con = hb_sketches.add(plane_XY)                                                          #Create sketch on xy plane
                 sketch_key_con.name = "sketch_key_con"                                                              #Rename sketch
@@ -1309,7 +1322,7 @@ if __name__ == "__main__":
                 
                 part.update()                                                                                       #Update part
 
-        progress_dlg.Update(10, "Finalizing part...")
+        progress_dlg.Update(14, "Finalizing part...")
 
         if return_hybrid:                                                                                           #If hybrid desgin was turned off
             part_infa.com_object.HybridDesignMode = True                                                            #Turn hybrid desgin back on
