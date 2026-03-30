@@ -37,7 +37,6 @@ from pycatia import CatLimitMode
 import math
 import wx
 import wx.lib.dialogs as dialogs
-import wx.lib.agw.pyprogress as PP
 import os
 import json
 import traceback
