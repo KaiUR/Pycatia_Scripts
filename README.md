@@ -56,6 +56,10 @@ Part Document Scripts
 
         Inserts points into active part from text file (Tab seperated) or csv file with point names 
 
+	Involute_Gear_Generator_Mathamatical.py
+
+		Allows the user to create an involute profiles gear using inputted parameters. Script will get user input with a message box.
+
     Join_Explicit_No_Connect.py
 
         Joins curves or surfaces without checking connex as datum in one curve/surface
