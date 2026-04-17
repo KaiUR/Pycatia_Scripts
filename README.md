@@ -21,6 +21,10 @@ Any Document Scripts:
 
         Allows user to rename hybrid shapes through message box
 
+	Replace_Name_Hybrid_Shapes.py
+
+		Allows user to use search and replace for any hybrid shape name.
+
 Part Document Scripts
 
     Create_ISM_OSM_STEP_Files.py
