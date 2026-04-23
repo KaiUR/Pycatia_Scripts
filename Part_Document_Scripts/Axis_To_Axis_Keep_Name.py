@@ -76,9 +76,8 @@ def create_datum(hybrid_shape_factory, hybrid_shape, hybrid_body, name=None):
 if __name__ == "__main__":
     caa = catia()                                                                                               #Catia application instance
     active_doc = caa.active_document                                                                            #Current Document
-    documents = caa.documents                                                                                   #Collection of documents
 
-    object_filter = ("AnyObject",)                                                                              #Set user selection filter (AnyObject)                             
+    object_filter = ("HybridShape",)                                                                            #Set user selection filter (AnyObject)                             
     selectionSet = caa.active_document.selection                                                                #Create container for selection
     status = selectionSet.select_element3(object_filter,"Select Hybridshapes to move axis to axis" , False , 2 , False)          #Runs an interactive selection command, exhaustive version. 
     if status != "Normal":                                                                                      #Check if selection was succesful
@@ -108,7 +107,7 @@ if __name__ == "__main__":
         hybridshapes_selected[index] = selectionSet.item(index + 1).reference                                   #Store selected shapes as reference
         hybridshapes_selected_name[index] = selectionSet.item(index + 1).value.name                             #Store Names
         
-    object_filter = ("AnyObject",)                                                                              #Set user selection filter (AnyObject)                             
+    object_filter = ("AxisSystem",)                                                                              #Set user selection filter (AnyObject)                             
     selectionSet.clear()
     status = selectionSet.select_element3(object_filter,"Select reference axis system" , False , 2 , False)     #Runs an interactive selection command, exhaustive version. 
     if status != "Normal":                                                                                      #Check if selection was succesful
@@ -118,7 +117,7 @@ if __name__ == "__main__":
     selected_axis_system_ref = selectionSet.item(1).value                                                       #Store selected axis system
     selected_axis_system_name_ref = selectionSet.item(1).name                                                   #Store selected axis system name
     
-    object_filter = ("AnyObject",)                                                                              #Set user selection filter (AnyObject)                             
+    object_filter = ("AxisSystem",)                                                                              #Set user selection filter (AnyObject)                             
     selectionSet.clear()
     status = selectionSet.select_element3(object_filter,"Select target axis system" , False , 2 , False)        #Runs an interactive selection command, exhaustive version. 
     if status != "Normal":                                                                                      #Check if selection was succesful

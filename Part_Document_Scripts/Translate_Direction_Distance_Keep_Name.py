@@ -74,10 +74,9 @@ def create_datum(hybrid_shape_factory, hybrid_shape, hybrid_body, name=None):
 
 if __name__ == "__main__":
     caa = catia()                                                                                               #Catia application instance
-    active_doc = caa.active_document                                                                            #Current Document
-    documents = caa.documents                                                                                   #Collection of documents
+    active_doc = caa.active_document                                                                            #Current Document                                                                                #Collection of documents
 
-    object_filter = ("AnyObject",)                                                                              #Set user selection filter (AnyObject)                             
+    object_filter = ("HybridShape",)                                                                            #Set user selection filter (AnyObject)                             
     selectionSet = caa.active_document.selection                                                                #Create container for selection
     status = selectionSet.select_element3(object_filter,"Select Hybridshapes to move axis to axis" , False , 2 , False)          #Runs an interactive selection command, exhaustive version. 
     if status != "Normal":                                                                                      #Check if selection was succesful
@@ -117,11 +116,15 @@ if __name__ == "__main__":
     #Create new direction using brep
     ref_name = selectionSet.item(1).reference.name                                                              #Get Reference name
 
-    brep_core = ref_name.replace("Selection_", "").split(");AxisSystem")[0]                                     #Remove selection_ from string
-    brep_name = f"{brep_core});WithPermanentBody;WithoutBuildError;WithSelectingFeatureSupport;MFBRepVersion_CXR29)"#Build bref string to create reference
-    
-    direction_ref = part.create_reference_from_b_rep_name(brep_name, selectionSet.item(1).value)                #Create reference from selected direction, works with face or line of axis system
-    selected_direction_ref = hybrid_shape_factory.add_new_direction(direction_ref)                              #Create new direction object
+    try:
+        brep_core = ref_name.replace("Selection_", "").split(");AxisSystem")[0]                                     #Remove selection_ from string
+        brep_name = f"{brep_core});WithPermanentBody;WithoutBuildError;WithSelectingFeatureSupport;MFBRepVersion_CXR29)"#Build bref string to create reference
+        
+        direction_ref = part.create_reference_from_b_rep_name(brep_name, selectionSet.item(1).value)                #Create reference from selected direction, works with face or line of axis system
+        selected_direction_ref = hybrid_shape_factory.add_new_direction(direction_ref)                              #Create new direction object
+    except:
+        print("You must select a face or line of an axis system as direction")
+        exit()       
     
     app = wx.App(None)
     distance = 0.0                                                                                              #Initilize distance to 0
@@ -144,7 +147,7 @@ if __name__ == "__main__":
     hb = searchHybridBody(part.in_work_object.name, hybrid_bodies)                                              #Look for the in work object geometric set
     if hb == None:                                                                                              #If not found
         hb = hybrid_bodies.add()                                                                                #Add new geometric set
-        hb.name = "Axis_To_Axis_Keep_Name"                                                                      #Rename geometric set
+        hb.name = "Translate_Keep_Name"                                                                         #Rename geometric set
     
     for index in range(hybridshapes_selected_count):                                                            #For each hybridshape
         transform = hybrid_shape_factory.add_new_empty_translate()                                              #Create new translate
