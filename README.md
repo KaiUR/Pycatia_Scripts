@@ -86,6 +86,9 @@ Part Document Scripts
 
     Measure_Radius_Surface.py
         Allows user to meaure radius of surface using intersection and three point circle without removing construction.
+		
+	Axis_To_Axis_Keep_Name.py
+		Allow user to do axis to axis transformation with any hybridshape keeping the original name of the shape.
 
 Process Document Scripts
 
