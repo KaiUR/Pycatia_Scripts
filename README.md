@@ -89,6 +89,9 @@ Part Document Scripts
 		
 	Axis_To_Axis_Keep_Name.py
 		Allow user to do axis to axis transformation with any hybridshape keeping the original name of the shape.
+		
+	Translate_Direction_Distance_Keep_Name.py
+		Allows user to translate hybrid shapes keeping the original names of the hybridshapes
 
 Process Document Scripts
 
