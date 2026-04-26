@@ -1,118 +1,125 @@
-
 # Pycatia Scripts
 
-This is a collection of pycatia scripts that I use.
+A collection of [PyCATIA](https://github.com/evereux/pycatia) scripts for automating CATIA V5, designed to be used with [CatiaMenuWin32](https://github.com/KaiUR/CatiaMenuWin32) — a native Windows launcher that syncs and runs these scripts directly from this repository.
 
+## 📋 Requirements
 
-## Acknowledgements
+**Python:** 3.9+
 
- - [Pycatia](https://github.com/evereux/pycatia)
+**Packages:**
+```
+pip install pycatia wxPython xlsxwriter
+```
 
+Or use the **↓ Deps** button in CatiaMenuWin32 to install automatically.
 
-## Appendix
+**CATIA V5** must be running before executing scripts that interact with it.
 
-Any Document Scripts:
+---
 
-    Hide_Planes_And_Axis_Systems.py
+## 📂 Scripts
 
-        Hides all planes and axis systems in a Product document or part document
+### Any Document Scripts
 
-    Rename_Hybrid_Shapes.py
+| Script | Description |
+|--------|-------------|
+| `Hide_Planes_And_Axis_Systems.py` | Hides all planes and axis systems in a Part or Product document |
+| `Rename_Hybrid_Shapes.py` | Rename hybrid shapes interactively via message box |
+| `Replace_Name_Hybrid_Shapes.py` | Search and replace any hybrid shape name |
 
-        Allows user to rename hybrid shapes through message box
+### Part Document Scripts
 
-	Replace_Name_Hybrid_Shapes.py
+| Script | Description |
+|--------|-------------|
+| `Create_ISM_OSM_STEP_Files.py` | Select two faces/surfaces, extract in tangency and export as ISM and OSM STEP files |
+| `Export_Points_Select_Axis_and_Geo_Set_To_CSV.py` | Export points from a geometric set relative to a selected axis system to CSV |
+| `Export_Points_Select_Axis_and_Geo_Set_To_XYZ.py` | Export points from a geometric set relative to a selected axis system to XYZ (PCDimms format) |
+| `Export_Points_Select_Geo_Set_To_CSV.py` | Export points from a geometric set relative to absolute axis to CSV |
+| `Export_Points_Select_Geo_Set_To_XYZ.py` | Export points from a geometric set relative to absolute axis to XYZ (PCDimms format) |
+| `IGES_Export_Curve_AXIS.py` | Export curve to IGES after moving from a reference axis system to absolute |
+| `Insert_Points_Catia.py` | Insert points into active part from tab-separated or CSV file |
+| `Insert_Points_Catia_With_Names.py` | Insert named points into active part from tab-separated or CSV file |
+| `Involute_Gear_Generator_Mathamatical.py` | Generate an involute gear profile from user-defined parameters |
+| `Join_Explicit_No_Connect.py` | Join curves or surfaces without connex check, as datum |
+| `Join_Explicit_No_Connect_Curve.py` | Join curves without connex check, as datum |
+| `Join_Explicit_No_Connect_Surface.py` | Join surfaces without connex check, as datum |
+| `Measure_Curve_With_3_PTS_AS_CIRCLE.py` | Measure curve radius using a 3-point circle |
+| `Measure_Curve_With_3_PTS_AS_CIRCLE_Keep_Con.py` | Measure curve radius using a 3-point circle without removing construction elements |
+| `Measure_Radius_Surface.py` | Measure surface radius using intersection and 3-point circle without removing construction |
+| `Axis_To_Axis_Keep_Name.py` | Axis-to-axis transformation keeping the original hybrid shape name |
+| `Translate_Direction_Distance_Keep_Name.py` | Translate hybrid shapes keeping their original names |
 
-		Allows user to use search and replace for any hybrid shape name.
+### Process Document Scripts
 
-Part Document Scripts
+| Script | Description |
+|--------|-------------|
+| `Export_Process_Table_Parameters.py` | Export machining program parameters to Excel |
+| `Export_ResourceList.py` | Export names of all resources in a process document to CSV |
 
-    Create_ISM_OSM_STEP_Files.py
+### Product Document Scripts
 
-        Allows user to select two faces or surfaces, then preforms an extract in tangency and exports 
-        the result as two step files ISM and OSM. Used to create Inside of metal and Outside of metal surfaces.
+| Script | Description |
+|--------|-------------|
+| `Save_Child_Parts_To_STEP.py` | Save all parts in a product to separate STEP files |
 
-    Export_Points_Select_Axis_and_Geo_Set_To_CSV.py
+---
 
-        Exports points contained in Geometric set relative to selected axis system to a csv file
+## 🚀 Usage with CatiaMenuWin32
 
-    Export_Points_Select_Axis_and_Geo_Set_To_XYZ.py
+[CatiaMenuWin32](https://github.com/KaiUR/CatiaMenuWin32) is a native Windows launcher that syncs directly from this repository and presents each script as a clickable button. No manual path setup required.
 
-        Exports points contained in Geometric set relative to selected axis system to a xyz file (Specifically PCDimms Format)
+1. Download [CatiaMenuWin32](https://github.com/KaiUR/CatiaMenuWin32/releases/latest)
+2. Launch the app — scripts sync automatically
+3. Click any button to run the script
 
-    Export_Points_Select_Geo_Set_To_CSV.py
+---
 
-        Exports points contained in Geometric set relative to absolute axis system to a csv file
+## ✍️ Script Header Format
 
-    Export_Points_Select_Geo_Set_To_XYZ.py
+Every script includes a structured metadata header that CatiaMenuWin32 reads to display script information in its tooltip:
 
-        Exports points contained in Geometric set relative to absolute axis system to a xyz file (Specifically PCDimms Format)
+```python
+'''
+    -----------------------------------------------------------------------------------------------------------------------
+    Script name:    Script_Name.py
+    Version:        1.0
+    Code:           Python3.10.4, Pycatia 0.8.3
+    Release:        V5R32
+    Purpose:        One line summary shown on the script button.
+    Author:         Your Name
+    Date:           DD.MM.YY
+    Description:    Full description of what the script does.
+                    Continuation lines must be indented.
+    dependencies = [
+                    "pycatia",
+                    ]
+    requirements:   Python >= 3.10
+                    pycatia
+                    Catia V5 running with an open document.
+    -----------------------------------------------------------------------------------------------------------------------
+'''
+```
 
-    IGES_Export_Curve_AXIS.py
+---
 
-        Exports curve to IGES file after axis to axis moves curve from a reference axis system to absolute axis system.
+## 🤝 Contributing
 
-    Insert_Points_Catia.py
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on adding new scripts.
 
-        Inserts points into active part from text file (Tab seperated) or csv file
+---
 
-    Insert_Points_Catia_With_Names.py
+## 📄 License
 
-        Inserts points into active part from text file (Tab seperated) or csv file with point names 
+MIT License — Copyright © 2025 Kai-Uwe Rathjen
 
-	Involute_Gear_Generator_Mathamatical.py
+---
 
-		Allows the user to create an involute profiles gear using inputted parameters. Script will get user input with a message box.
+## 🔗 Links
 
-    Join_Explicit_No_Connect.py
+- [CatiaMenuWin32](https://github.com/KaiUR/CatiaMenuWin32) — the launcher app for these scripts
+- [PyCATIA](https://github.com/evereux/pycatia) — the Python CATIA V5 automation library
+- [PyCATIA Documentation](https://pycatia.readthedocs.io/)
 
-        Joins curves or surfaces without checking connex as datum in one curve/surface
+---
 
-    Join_Explicit_No_Connect_Curve.py
-
-        Joins curves without checking connex as datum in one curve
-
-    Join_Explicit_No_Connect_Surface.py
-
-        Joins surfaces without checking connex as datum in one surface
-
-    Measure_Curve_With_3_PTS_AS_CIRCLE.py
-
-        Allows user to measure radius of curves using 3 point circle through curve
-
-    Measure_Curve_With_3_PTS_AS_CIRCLE_Keep_Con.py
-
-        Allows user to measure radius of curves using 3 point circle through curve without removing constuction elements
-
-    Measure_Radius_Surface.py
-        Allows user to meaure radius of surface using intersection and three point circle without removing construction.
-		
-	Axis_To_Axis_Keep_Name.py
-		Allow user to do axis to axis transformation with any hybridshape keeping the original name of the shape.
-		
-	Translate_Direction_Distance_Keep_Name.py
-		Allows user to translate hybrid shapes keeping the original names of the hybridshapes
-
-Process Document Scripts
-
-    Export_Process_Table_Parameters.py
-
-        Exports machinging program parameters to excel file for user to check parameters.
-		
-	Export_ResourceListy.py
-		
-		Exports the names of all resources in process document to an csv file
-
-Product Document Scripts
-
-    Save_Child_Parts_To_STEP.py
-
-        Script to save all parts in product to seperate STEP files.
-
-## Requirments
-
-Packages
-
-			pycatia
-			wxPython
-			xlsxwriter
+**Author:** [Kai-Uwe Rathjen](https://github.com/KaiUR)
