@@ -1,12 +1,12 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Export_Process_Table_Parameters.py
-    Version:        1.0
+    Version:        1.1
     Code:           Python3.10.4, Pycatia 0.9.5
     Release:        V5R32
     Purpose:        Exports parameters from process table to excel
     Author:         Kai-Uwe Rathjen
-    Date:           08.03.26
+    Date:           29.04.26
     Description:    This script will export all of the parameters in the process table for all part operations
                     and insert them into excel.
                     
@@ -18,14 +18,14 @@
                     "pycatia",
                     "xlsxwriter",
                     ]
-    requirements:   Python >= 9.10
+    requirements:   Python >= 3.9
                     pycatia >= 0.9.5 (There is a bug in privious vesrions, scritp will not work)
                     xlsxwriter
                     Catia V5 running wtih an open process containing a part operation with a program and operation.
                     This script needs an open part process document.
     -----------------------------------------------------------------------------------------------------------------------
     
-    Change:
+    Change:         29.04.26 1.1: Fixed script not showing part offset value for sweeps.
     
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -37,6 +37,7 @@ from pycatia.dmaps_interfaces.activities import Activities
 from pycatia.dmaps_interfaces.activity import Activity
 from pycatia.ppr_interfaces.ppr_document import PPRDocument
 import xlsxwriter
+import os
 
 '''
     | Due to the inherent design restrictions, PPRDocument and another interface ProcessDocument need to
@@ -145,45 +146,39 @@ if __name__ == "__main__":
                                     tool_changes_parameters = tool_changes.item(
                                             tool_change_index + 1).parameters                               #Get collection of parameters for current activity
                                     
-                                    for t_parmeter_index in [26,27,73,79,84,90,144,192,195,229,230,233,247,252]:#Cycle through parameters, only for indexes that have data that we want
-                                    
+                                    for t_parmeter_index in [26,27,73,79,84,90,144,192,195,229,230,232,233,247,252]:#Cycle through parameters, only for indexes that have data that we want
+                                        
                                         if tool_changes_parameters.item(
                                                 t_parmeter_index + 1 ).name.find("Maximum distance") != -1: #Look for Maximum distance parameter (Stepover distance)
                                             worksheet.write(row + operation_counter, 3, 
                                                     tool_changes_parameters.item(t_parmeter_index + 1 
                                                     ).value_as_string(), line_format_1)                     #Write value to sheet
-                                        
                                         if tool_changes_parameters.item(
                                                 t_parmeter_index + 1 ).name.find("Machining tolerance") != -1:  #Find tolerance parameter
                                             worksheet.write(row + operation_counter, 4, 
                                                     tool_changes_parameters.item(t_parmeter_index + 1 
                                                     ).value_as_string(), line_format_1)                     #Write value to sheet
-                                            
                                         if tool_changes_parameters.item(
                                                 t_parmeter_index + 1 ).name.find("Maximum depth of cut") != -1: #Find depth of cut
                                             worksheet.write(row + operation_counter, 5, 
                                                     tool_changes_parameters.item(t_parmeter_index + 1 
                                                     ).value_as_string(), line_format_1)                     #Write value to sheet
- 
                                         if tool_changes_parameters.item(
                                                 t_parmeter_index + 1 ).name.find("Offset on part") != -1:   #Find offset on part value
                                             worksheet.write(row + operation_counter, 6, 
                                                     tool_changes_parameters.item(t_parmeter_index + 1 
                                                     ).value_as_string(), line_format_1)                     #Write value to shet
- 
                                         if tool_changes_parameters.item(
                                                 t_parmeter_index + 1 ).name.find("Offset on check") != -1:  #Find Offset on check pararmeter
                                             worksheet.write(row + operation_counter, 7, 
                                                     tool_changes_parameters.item(t_parmeter_index + 1 
                                                     ).value_as_string(), line_format_1)                     #Write to sheet
-                                            
                                         if tool_changes_parameters.item(
                                                 t_parmeter_index + 1 
                                                 ).name.find("Depth of cut by level for Multi-Pass") != -1:  #Look for depth of cut parameter
                                             worksheet.write(row + operation_counter, 8, 
                                                     tool_changes_parameters.item(t_parmeter_index + 1 
                                                     ).value_as_string(), line_format_1)                     #Write to sheet
- 
                                     operation_counter = operation_counter + 1                               #Add row for next operation
                                     
                             row = row + tool_change_counter + operation_counter - 1                         #Update row counter for next manufacturing program
@@ -192,3 +187,5 @@ if __name__ == "__main__":
                 worksheet.fit_to_pages(1, 0)                                                                #Set print width to one sheet, and hight to unlimited
                       
     workbook.close()                                                                                        #Save and close workbook
+    
+    os.startfile(os.path.abspath('Process_Table.xlsx'))
