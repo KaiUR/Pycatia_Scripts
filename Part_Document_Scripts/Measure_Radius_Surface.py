@@ -8,7 +8,7 @@
     Author:         Kai-Uwe Rathjen
     Date:           30.04.26
     Description:    This script will ask the user to select a surface and the edge of the surface. The script will put three points on the curve and then place a 
-                    circle. Then the script will measure this circle. This script keeps the con elements
+                    circle. Then the script will measure this circle. This script does not keeps the con elements
     dependencies = [
                     "pycatia",  
                     ]
@@ -313,3 +313,7 @@ if __name__ == "__main__":
     
     result = catia().message_box(
             "Radius: " + str(radius) + "mm\nDiameter: " + str(radius * 2) + "mm", buttons=32, title="Result")   #Print result to message box.
+            
+    selectionSet.clear()
+    selectionSet.add(hb_con)
+    selectionSet.delete()
