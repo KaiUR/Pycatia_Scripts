@@ -315,5 +315,5 @@ if __name__ == "__main__":
             "Radius: " + str(radius) + "mm\nDiameter: " + str(radius * 2) + "mm", buttons=32, title="Result")   #Print result to message box.
             
     selectionSet.clear()
-    selectionSet.add(hb_con)
+    selectionSet.add(hb)
     selectionSet.delete()
