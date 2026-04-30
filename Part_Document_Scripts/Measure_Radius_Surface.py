@@ -1,12 +1,12 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Measure_Radius_Surface.py
-    Version:        1.1
+    Version:        1.2
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Measures surface by adding curves and adding three points and gives a diamiter.
     Author:         Kai-Uwe Rathjen
-    Date:           09.03.26
+    Date:           30.04.26
     Description:    This script will ask the user to select a surface and the edge of the surface. The script will put three points on the curve and then place a 
                     circle. Then the script will measure this circle. This script keeps the con elements
     dependencies = [
@@ -20,6 +20,10 @@
     
     Change:         19.03.26
                     Modified script to work when there is a process or procuct open containing a part.
+                    
+        
+                    30.04.26
+                    Fixed skript always saying something is colinear.
     
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -261,8 +265,8 @@ if __name__ == "__main__":
     
     #Check points
     coords_1 = coords_relative_to_axis(part.axis_systems.item(1), extremum_point_1)                             #Get the point coordinates
-    coords_2 = coords_relative_to_axis(part.axis_systems.item(1), extremum_point_1)                             #Get the point coordinates
-    coords_3 = coords_relative_to_axis(part.axis_systems.item(1), extremum_point_1)                             #Get the point coordinates
+    coords_2 = coords_relative_to_axis(part.axis_systems.item(1), extremum_point_2)                             #Get the point coordinates
+    coords_3 = coords_relative_to_axis(part.axis_systems.item(1), extremum_point_3)                             #Get the point coordinates
     
     '''
     Here we replace points if the extremums didnt give a good result
@@ -278,6 +282,10 @@ if __name__ == "__main__":
         point_3 = hybrid_shape_factory.add_new_point_on_curve_from_percent(hb.hybrid_shapes.item(1), 0.8, 0)    #Create point on curve 80%
         hb.append_hybrid_shape(point_3)                                                                         #Add point to set
         part.update()                                                                                           #Part update
+        
+        coords_1 = coords_relative_to_axis(part.axis_systems.item(1), point_1)                             #Get the point coordinates
+        coords_2 = coords_relative_to_axis(part.axis_systems.item(1), point_2)                             #Get the point coordinates
+        coords_3 = coords_relative_to_axis(part.axis_systems.item(1), point_3)                             #Get the point coordinates
         
     if are_collinear(coords_1, coords_2, coords_3) == True:                                                     #Checks if points are colinear, 3point circle will fail in this case
         radius = 0
