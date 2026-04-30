@@ -1,0 +1,315 @@
+'''
+    -----------------------------------------------------------------------------------------------------------------------
+    Script name:    Measure_Radius_Surface_Keep_Con.py
+    Version:        1.2
+    Code:           Python3.10.4, Pycatia 0.8.3
+    Release:        V5R32
+    Purpose:        Measures surface by adding curves and adding three points and gives a diamiter.
+    Author:         Kai-Uwe Rathjen
+    Date:           30.04.26
+    Description:    This script will ask the user to select a surface and the edge of the surface. The script will put three points on the curve and then place a 
+                    circle. Then the script will measure this circle. This script keeps the con elements
+    dependencies = [
+                    "pycatia",  
+                    ]
+    requirements:   Python >= 9.10
+                    pycatia
+                    Catia V5 running wtih an open part cantaining a surface to measure
+                    This script needs an open part document.
+    -----------------------------------------------------------------------------------------------------------------------
+    
+    Change:         19.03.26
+                    Modified script to work when there is a process or procuct open containing a part.
+                    
+        
+                    30.04.26
+                    Fixed skript always saying something is colinear.
+    
+    -----------------------------------------------------------------------------------------------------------------------
+'''
+
+#Imports
+from pycatia import catia
+from pycatia.hybrid_shape_interfaces.hybrid_shape_extract import HybridShapeExtract
+from pycatia.hybrid_shape_interfaces.hybrid_shape_point_on_curve import HybridShapePointOnCurve
+from pycatia.mec_mod_interfaces.part_document import PartDocument
+from pycatia.mec_mod_interfaces.part import Part
+import time
+'''
+    This function will return a points coordinates relative to an axis system.
+    
+    Inputs:
+        axis_system         The axis sytem to measure relative to
+        point               The point being measured
+        precision=6         The precision for the calculation (Default = 6)
+        
+    output:
+        The coordinates of the point relative to the axis system inputed as a vector
+        
+    Requirments:
+        Two custom functions to calculate the dot product and a function to 
+        normalize vectors.
+'''
+def coords_relative_to_axis(axis_system, point, precision=6):
+    #Get axises
+    a_origin = axis_system.get_origin()
+    a_xaxis = axis_system.get_x_axis()
+    a_yaxis = axis_system.get_y_axis()
+    a_zaxis = axis_system.get_z_axis()
+
+    #Normalize
+    n_x = normalize_vector(a_xaxis)
+    n_y = normalize_vector(a_yaxis)
+    n_z = normalize_vector(a_zaxis)
+
+    #Measure Point
+    reference = part.create_reference_from_object(point)
+    measurable = spa_workbench.get_measurable(reference)
+    coordinates = measurable.get_point()
+
+    #Get difference
+    diff = [0] * 3
+    diff[0] = coordinates[0] - a_origin[0]
+    diff[1] = coordinates[1] - a_origin[1]
+    diff[2] = coordinates[2] - a_origin[2]
+
+    #Get dot product
+    x = round(dot_product(diff, n_x), precision)
+    y = round(dot_product(diff, n_y), precision)
+    z = round(dot_product(diff, n_z), precision)
+
+    return x, y, z
+
+'''
+    This function will return a noralized vector
+    
+    Inputs:
+        vec     The vector to normalize
+        
+    output:
+        Normalized vector as vector
+'''
+def normalize_vector(vec):
+    #Get magnitude
+    magnitude = (vec[0] ** 2 + vec[1] ** 2 + vec[2] ** 2) ** 0.5
+    
+    #Normalize
+    if magnitude != 0:
+        x = vec[0] / magnitude
+        y = vec[1] / magnitude
+        z = vec[2] / magnitude
+
+        return x, y, z
+
+'''
+    This function will return the dot product of two vectors
+    
+    Inputs:
+        vec1    First vector
+        vec2    Second vector
+        
+    output:
+        Dot product of two vectors
+'''
+def dot_product(vec1, vec2):
+    #return dot product
+    return vec1[0] * vec2[0] + vec1[1] * vec2[1] + vec1[2] * vec2[2]
+    
+'''
+    This function will return the cross product of two vectors
+    
+    Inputs:
+        vec1    First vector
+        vec2    Second vector
+        
+    output:
+        Cross product of two vectors
+'''
+def cross_product(a, b):
+    # a x b = [ay*bz - az*by, az*bx - ax*bz, ax*by - ay*bx]
+    return [
+        a[1]*b[2] - a[2]*b[1],
+        a[2]*b[0] - a[0]*b[2],
+        a[0]*b[1] - a[1]*b[0]
+    ]
+
+"""
+    Check if three 2D points are collinear using the cross product ,ethod
+
+    Args:
+        p1, p2, p3: Tuples or lists representing the points, e.g., (x1, y1, z1).
+
+    Returns:
+        True if the points are collinear, False otherwise.
+"""
+def are_collinear(point_a, point_b, point_c):
+    
+    vectorAB = point_b[0] - point_a[0], point_b[1] - point_a[1], point_b[2] - point_a[2]
+    vectorAC = point_c[0] - point_a[0], point_c[1] - point_a[1], point_c[2] - point_a[2]
+    
+    cross_poduct_vectors = cross_product(vectorAB, vectorAC)
+    
+    #Check if cross product magnitude squared is near zero
+    return cross_poduct_vectors[0]**2 + cross_poduct_vectors[1]**2 + cross_poduct_vectors[2]**2 < 0.000001
+
+if __name__ == "__main__":
+    #Anchoring relavent components
+    caa = catia()                                                                                               #Catia 
+    active_doc = caa.active_document                                                                            #Current Document
+
+    object_filter = ("Face",)                                                                                   #Set user selection filter(Curves)                              
+    selectionSet = caa.active_document.selection                                                                #Create container for selection
+    status = selectionSet.select_element3(
+            object_filter,"Select a Surface to measure" , False , 2 , False)                                    #Runs an interactive selection command, exhaustive version. 
+    if status != "Normal":                                                                                      #Check if selection was succesful
+        print("You must select a surface")
+        exit()
+        
+    selected_item = selectionSet.item(1)                                                                        #Selected element
+   
+    if type(active_doc) is PartDocument:
+        part = active_doc.part                                                                                  #If document is part document
+        part_document : PartDocument = active_doc
+    else:                                                                                                       #Else get part from product structure
+        # We are in a Product or Process; find the Part via the selection
+        # We use .com_object to access the LeafProduct property
+        leaf_product = selected_item.com_object.LeafProduct
+        part_document = PartDocument(leaf_product.ReferenceProduct.Parent)
+        # Navigation: LeafProduct -> ReferenceProduct -> Parent (PartDocument) -> Part
+        part = part_document.part                                                                               #Get new part object
+
+    spa_workbench = active_doc.spa_workbench()
+    
+    hybrid_bodies = part.hybrid_bodies                                                                          #Set off all top level geometric sets
+    hybrid_shape_factory = part.hybrid_shape_factory                                                            #GSD workbentch to create hybridshapes
+    
+    surface_ref = selectionSet.item(1).reference
+    
+    selectionSet.clear()
+    object_filter_1 = ("MonoDimInfinite",)                                                                      #Set user selection filter(Curves)                              
+    selectionSet = caa.active_document.selection                                                                #Create container for selection
+    status = selectionSet.select_element3(
+            object_filter_1,"Select a edge on surface" , False , 2 , False)                                     #Runs an interactive selection command, exhaustive version. 
+    if status != "Normal":                                                                                      #Check if selection was succesful
+        print("You must select an edge")
+        exit()
+    
+    edge_ref = selectionSet.item(1).reference
+    
+    #Create curve to measure
+    hb_con = hybrid_bodies.add()
+    hb_con.name = "CURVE CON"
+    
+    try:
+        mid_point = hybrid_shape_factory.add_new_point_on_curve_from_percent(edge_ref, 0.5, 0)
+        plane_normal = hybrid_shape_factory.add_new_plane_normal(edge_ref, mid_point)
+        hb_con.append_hybrid_shape(plane_normal)
+        part.update()
+    except:
+        selectionSet.clear()
+        selectionSet.add(hb_con)
+        selectionSet.delete()
+        result = catia().message_box(
+        "You cannot select a closed curve as an edge for this macro", 
+        buttons=32, title="Error")  
+        exit()
+    
+    intersect_curve = hybrid_shape_factory.add_new_intersection(hb_con.hybrid_shapes.item(1), surface_ref)
+    hb_con.append_hybrid_shape(intersect_curve)
+    part.update()
+    
+    #create extract from selection
+    hb = hybrid_bodies.add()                                                                                    #Add new geometric set
+    hb.name = "MEASURE SURFACE CURVE AS CIRCLE"                                                                 #Set name for new geometric set
+    part.in_work_object = hb                                                                                    #Make new geometric set inwork object
+
+    curve_extract = hybrid_shape_factory.add_new_extract(hb_con.hybrid_shapes.item(2))                                           #Create new extract
+
+    curve_extract.propagation_type = 1                                                                          #Set Propagation type
+    curve_extract.complementary_extract = False                                                                 #Set Comp extract to false
+    curve_extract.is_federated = False                                                                          #Set federated to false
+    hb.append_hybrid_shape(curve_extract)                                                                       #Add ectract to geometric set
+
+    hb.hybrid_shapes.item(1).name = "Curve_Extract"                                                             #Rename Extract
+
+    part.update()                                                                                               #Update part document
+    
+    #create Datum from Curve
+    curve_extract_explicit = hybrid_shape_factory.add_new_curve_datum(hb.hybrid_shapes.item(1))                 #Create datum
+    hb.append_hybrid_shape(curve_extract_explicit)                                                              #Add to geometric set
+
+    hb.hybrid_shapes.item(2).name = "Curve_Extract_Datum"                                                       #Rename datum
+
+    hybrid_shape_factory.delete_object_for_datum(hb.hybrid_shapes.item(1))                                      #Remove construction
+
+    selectionSet.clear()
+    selectionSet.add(hb_con)
+    selectionSet.delete()
+
+    part.update()                                                                                               #Update part document
+    
+    point_1 = hybrid_shape_factory.add_new_point_on_curve_from_percent(hb.hybrid_shapes.item(1), 0.2, 0)    #Create point on curve 20%
+    hb.append_hybrid_shape(point_1)                                                                         #Add point to set
+    point_2 = hybrid_shape_factory.add_new_point_on_curve_from_percent(hb.hybrid_shapes.item(1), 0.5, 0)    #Create point on curve 50%
+    hb.append_hybrid_shape(point_2)                                                                         #Add point to set
+    point_3 = hybrid_shape_factory.add_new_point_on_curve_from_percent(hb.hybrid_shapes.item(1), 0.8, 0)    #Create point on curve 80%
+    hb.append_hybrid_shape(point_3)                                                                         #Add point to set
+    part.update()                                                                                           #Part update
+        
+    coords_1 = coords_relative_to_axis(part.axis_systems.item(1), point_1)                             #Get the point coordinates
+    coords_2 = coords_relative_to_axis(part.axis_systems.item(1), point_2)                             #Get the point coordinates
+    coords_3 = coords_relative_to_axis(part.axis_systems.item(1), point_3)                             #Get the point coordinates
+        
+    if are_collinear(coords_1, coords_2, coords_3) == True:                                                     #Checks if points are colinear, 3point circle will fail in this case
+        radius = 0
+        result = catia().message_box(
+                "Radius: " + str(radius) + "mm\nDiameter: " + str(radius * 2) + 
+                "mm\n\nSurface is Planar in selected direction\nPoints are colinear", 
+                buttons=32, title="Result")                                                                     #Print result to message box.
+        exit()
+    
+    #Create datum from points
+    point_1_datum = hybrid_shape_factory.add_new_point_datum(hb.hybrid_shapes.item(2))                          #Create datum from point
+    point_2_datum = hybrid_shape_factory.add_new_point_datum(hb.hybrid_shapes.item(3))                          #Create datum from point
+    point_3_datum = hybrid_shape_factory.add_new_point_datum(hb.hybrid_shapes.item(4))                          #Create datum from point
+    
+    hb.append_hybrid_shape(point_1_datum)                                                                       #Add point to set
+    hb.append_hybrid_shape(point_2_datum)                                                                       #Add point to set
+    hb.append_hybrid_shape(point_3_datum)                                                                       #Add point to set
+    
+    hb.hybrid_shapes.item(5).name = "Point_Datum_1"                                                             #Rename point
+    hb.hybrid_shapes.item(6).name = "Point_datum_2"                                                             #Rename point
+    hb.hybrid_shapes.item(7).name = "Point_datum_3"                                                             #Rename point
+    
+    hybrid_shape_factory.delete_object_for_datum(hb.hybrid_shapes.item(2))                                      #Remove construction
+    hybrid_shape_factory.delete_object_for_datum(hb.hybrid_shapes.item(2))                                      #Remove construction
+    hybrid_shape_factory.delete_object_for_datum(hb.hybrid_shapes.item(2))                                      #Remove construction
+    
+    part.update()                                                                                               #Update part
+    
+    #Create 3 Point circle
+    circle_to_measure = hybrid_shape_factory.add_new_circle3_points(
+            hb.hybrid_shapes.item(2), hb.hybrid_shapes.item(3), hb.hybrid_shapes.item(4))                       #Create circle with 3 points
+    
+    circle_to_measure.set_limitation(1)                                                                         #Set limitation to 1, (Full circle)
+    hb.append_hybrid_shape(circle_to_measure)                                                                   #Add circle to set
+    
+    part.update()                                                                                               #Update part
+    
+    circle_to_measure_datum = hybrid_shape_factory.add_new_circle_datum(hb.hybrid_shapes.item(5))               #Create datum from circle
+    hb.append_hybrid_shape(circle_to_measure_datum)                                                             #Add datum to set
+    hb.hybrid_shapes.item(6).name = "Circle_To_Measure_Datum"                                                   #Rename circle
+    
+    hybrid_shape_factory.delete_object_for_datum(hb.hybrid_shapes.item(5))                                      #Remove construction
+    
+    part.update()                                                                                               #Update part
+    
+    #Measure_Curve_With_3_PTS_AS_CIRCLE
+    
+    reference = part.create_reference_from_object(hb.hybrid_shapes.item(5))                                     #Create ref to measure
+    measurable = spa_workbench.get_measurable(reference)                                                        #Create measureable object from spa workbench
+
+    radius =  round(measurable.radius, 2)                                                                       #Get radius, rounded to 2 decimal places
+    
+    result = catia().message_box(
+            "Radius: " + str(radius) + "mm\nDiameter: " + str(radius * 2) + "mm", buttons=32, title="Result")   #Print result to message box.
