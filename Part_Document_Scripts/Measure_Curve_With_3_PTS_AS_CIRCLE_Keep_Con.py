@@ -208,8 +208,8 @@ if __name__ == "__main__":
     
     #Check points
     coords_1 = coords_relative_to_axis(part.axis_systems.item(1), extremum_point_1)                             #Get the point coordinates
-    coords_2 = coords_relative_to_axis(part.axis_systems.item(1), extremum_point_1)                             #Get the point coordinates
-    coords_3 = coords_relative_to_axis(part.axis_systems.item(1), extremum_point_1)                             #Get the point coordinates
+    coords_2 = coords_relative_to_axis(part.axis_systems.item(1), extremum_point_2)                             #Get the point coordinates
+    coords_3 = coords_relative_to_axis(part.axis_systems.item(1), extremum_point_3)                             #Get the point coordinates
     
     '''
     Here we replace points if the extremums didnt give a good result

@@ -200,11 +200,19 @@ if __name__ == "__main__":
     hb_con = hybrid_bodies.add()
     hb_con.name = "CURVE CON"
     
-    mid_point = hybrid_shape_factory.add_new_point_on_curve_from_percent(edge_ref, 0.5, 0)
-    
-    plane_normal = hybrid_shape_factory.add_new_plane_normal(edge_ref, mid_point)
-    hb_con.append_hybrid_shape(plane_normal)
-    part.update()
+    try:
+        mid_point = hybrid_shape_factory.add_new_point_on_curve_from_percent(edge_ref, 0.5, 0)
+        plane_normal = hybrid_shape_factory.add_new_plane_normal(edge_ref, mid_point)
+        hb_con.append_hybrid_shape(plane_normal)
+        part.update()
+    except:
+        selectionSet.clear()
+        selectionSet.add(hb_con)
+        selectionSet.delete()
+        result = catia().message_box(
+        "You cannot select a closed curve as an edge for this macro", 
+        buttons=32, title="Error")  
+        exit()
     
     intersect_curve = hybrid_shape_factory.add_new_intersection(hb_con.hybrid_shapes.item(1), surface_ref)
     hb_con.append_hybrid_shape(intersect_curve)
@@ -240,52 +248,17 @@ if __name__ == "__main__":
 
     part.update()                                                                                               #Update part document
     
-    '''
-    We are creating the points as extremums becuase if you try to create points on a closed curve
-    the script will fail as the points on a closed curves are explicit, and can only be exposed using
-    boundary references. However creating extremums will not work on curves with big radii, in this case 
-    we will check for the failur of the extremum points( generally all three poinst are the same) and
-    we will instead create the point as a percentage along the curve.
-    '''
-    dir_con_1 = hybrid_shape_factory.add_new_direction_by_coord(0, 0, 1)                                        #Create direction for extremum
-    dir_con_2 = hybrid_shape_factory.add_new_direction_by_coord(0, 1, 0)                                        #Create direction for extremum
-    dir_con_3 = hybrid_shape_factory.add_new_direction_by_coord(1, 0, 0)                                        #Create direction for extremum
-    
-    curve_ref = part.create_reference_from_object(hb.hybrid_shapes.item(1))                                     #Create a ref
-    extremum_point_1 = hybrid_shape_factory.add_new_extremum(curve_ref, dir_con_1, 1)                           #Create first extremum point
-    hb.append_hybrid_shape(extremum_point_1)                                                                    #Add point to set
-    
-    extremum_point_2 = hybrid_shape_factory.add_new_extremum(curve_ref, dir_con_2, 1)                           #Create first extremum point
-    hb.append_hybrid_shape(extremum_point_2)                                                                    #Add point to set
-    
-    extremum_point_3 = hybrid_shape_factory.add_new_extremum(curve_ref, dir_con_3, 1)                           #Create first extremum point
-    hb.append_hybrid_shape(extremum_point_3)                                                                    #Add point to set
-    
-    part.update()                                                                                               #Update part
-    
-    #Check points
-    coords_1 = coords_relative_to_axis(part.axis_systems.item(1), extremum_point_1)                             #Get the point coordinates
-    coords_2 = coords_relative_to_axis(part.axis_systems.item(1), extremum_point_2)                             #Get the point coordinates
-    coords_3 = coords_relative_to_axis(part.axis_systems.item(1), extremum_point_3)                             #Get the point coordinates
-    
-    '''
-    Here we replace points if the extremums didnt give a good result
-    '''
-    if len(set([coords_1, coords_2, coords_3])) == 1:                                                           #If points are equal
-        hybrid_shape_factory.delete_object_for_datum(hb.hybrid_shapes.item(2))                                  #Remove point
-        hybrid_shape_factory.delete_object_for_datum(hb.hybrid_shapes.item(2))                                  #Remove point
-        hybrid_shape_factory.delete_object_for_datum(hb.hybrid_shapes.item(2))                                  #Remove point
-        point_1 = hybrid_shape_factory.add_new_point_on_curve_from_percent(hb.hybrid_shapes.item(1), 0.2, 0)    #Create point on curve 20%
-        hb.append_hybrid_shape(point_1)                                                                         #Add point to set
-        point_2 = hybrid_shape_factory.add_new_point_on_curve_from_percent(hb.hybrid_shapes.item(1), 0.5, 0)    #Create point on curve 50%
-        hb.append_hybrid_shape(point_2)                                                                         #Add point to set
-        point_3 = hybrid_shape_factory.add_new_point_on_curve_from_percent(hb.hybrid_shapes.item(1), 0.8, 0)    #Create point on curve 80%
-        hb.append_hybrid_shape(point_3)                                                                         #Add point to set
-        part.update()                                                                                           #Part update
+    point_1 = hybrid_shape_factory.add_new_point_on_curve_from_percent(hb.hybrid_shapes.item(1), 0.2, 0)    #Create point on curve 20%
+    hb.append_hybrid_shape(point_1)                                                                         #Add point to set
+    point_2 = hybrid_shape_factory.add_new_point_on_curve_from_percent(hb.hybrid_shapes.item(1), 0.5, 0)    #Create point on curve 50%
+    hb.append_hybrid_shape(point_2)                                                                         #Add point to set
+    point_3 = hybrid_shape_factory.add_new_point_on_curve_from_percent(hb.hybrid_shapes.item(1), 0.8, 0)    #Create point on curve 80%
+    hb.append_hybrid_shape(point_3)                                                                         #Add point to set
+    part.update()                                                                                           #Part update
         
-        coords_1 = coords_relative_to_axis(part.axis_systems.item(1), point_1)                             #Get the point coordinates
-        coords_2 = coords_relative_to_axis(part.axis_systems.item(1), point_2)                             #Get the point coordinates
-        coords_3 = coords_relative_to_axis(part.axis_systems.item(1), point_3)                             #Get the point coordinates
+    coords_1 = coords_relative_to_axis(part.axis_systems.item(1), point_1)                             #Get the point coordinates
+    coords_2 = coords_relative_to_axis(part.axis_systems.item(1), point_2)                             #Get the point coordinates
+    coords_3 = coords_relative_to_axis(part.axis_systems.item(1), point_3)                             #Get the point coordinates
         
     if are_collinear(coords_1, coords_2, coords_3) == True:                                                     #Checks if points are colinear, 3point circle will fail in this case
         radius = 0
