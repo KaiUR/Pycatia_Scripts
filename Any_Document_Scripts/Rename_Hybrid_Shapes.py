@@ -13,7 +13,7 @@
                     "pycatia",
                     "wxPython",
                     ]
-    requirements:   Python >= 9.10
+    requirements:   Python >= 3.10
                     pycatia
                     wxPython
                     Catia V5 running wtih an open part, product or process.

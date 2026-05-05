@@ -18,7 +18,7 @@
     dependencies = [
                     "pycatia",
                     ]
-    requirements:   Python >= 9.10
+    requirements:   Python >= 3.10
                     pycatia
                     Catia V5 running with an open product with part.
                     This script needs an open part document.
@@ -34,6 +34,7 @@ from pycatia import catia, CatWorkModeType
 from pycatia.mec_mod_interfaces.part_document import PartDocument
 from pycatia.product_structure_interfaces.product_document import ProductDocument
 from pathlib import Path
+import sys
 
 if __name__ == "__main__":
     caa = catia()                                                                                                       #Catia application instance

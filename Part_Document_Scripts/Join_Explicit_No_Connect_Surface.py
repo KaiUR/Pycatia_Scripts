@@ -11,7 +11,7 @@
     dependencies = [
                     "pycatia",
                     ]
-    requirements:   Python >= 9.10
+    requirements:   Python >= 3.10
                     pycatia
                     Catia V5 running wtih an open part cantaining surfaces.
                     This script needs an open part document.

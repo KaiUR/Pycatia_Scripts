@@ -167,7 +167,7 @@ if __name__ == "__main__":
     hs = hb.hybrid_shapes                                                                                       #Get all hybrid shpaes in geometric set.
 
     print("\n Creating file\n\n")
-    f = open(hb.name + ".xyz", "w")                                                                             #Create new file
+    f = open(hb.name + ".csv", "w")                                                                             #Create new file
     f.write("Point Name,X,Y,Z\n")                                                                              #csv file header
 
     #Walk through all points

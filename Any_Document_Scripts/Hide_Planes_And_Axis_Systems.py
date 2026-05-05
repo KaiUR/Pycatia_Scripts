@@ -11,7 +11,7 @@
     dependencies = [
                     "pycatia",
                     ]
-    requirements:   Python >= 9.10
+    requirements:   Python >= 3.10
                     pycatia
                     Catia V5 running.
                     This script needs an open part document ,product document or process document.
@@ -25,7 +25,6 @@
 #Imports
 from pycatia import catia
 from pycatia.mec_mod_interfaces.part_document import PartDocument
-import wx
 
 if __name__ == "__main__":
 

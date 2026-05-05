@@ -14,7 +14,7 @@
                     "pycatia",
                     "wxPython",
                     ]
-    requirements:   Python >= 9.10
+    requirements:   Python >= 3.10
                     pycatia
                     Catia V5 running wtih an open part containing a curve and an axis system.
                     This script needs an open part document.

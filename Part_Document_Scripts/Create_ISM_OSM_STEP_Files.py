@@ -14,7 +14,7 @@
     dependencies = [
                     "pycatia",
                     ]
-    requirements:   Python >= 9.10
+    requirements:   Python >= 3.10
                     pycatia
                     Catia V5 running with an open part that contains either surfaces or solids.
                     This script needs an open part document.
@@ -74,7 +74,7 @@ if __name__ == "__main__":
     OSM_Extract.propagation_type = 2                                                                            #Set Propagation type to tangent
 
     ISM_Extract.complementary_extract = False                                                                   #Set Comp extract to false
-    OSM_Extract.complementary_xtract = False                                                                    #Set Comp extract to false
+    OSM_Extract.complementary_extract = False                                                                   #Set Comp extract to false
 
     ISM_Extract.is_federated = False                                                                            #Set federated to false
     OSM_Extract.is_federated = False                                                                            #Set federated to false

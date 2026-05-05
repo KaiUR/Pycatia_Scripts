@@ -19,7 +19,7 @@
                     "pycatia", 
                     "wxPython",
                     ]
-    requirements:   Python >= 9.10
+    requirements:   Python >= 3.10
                     pycatia
                     Catia V5 running wtih an open part. A CVS or Text file containing the points.
                     This script needs an open part document.
@@ -68,6 +68,10 @@ if __name__ == "__main__":
     hybrid_shape_factory = part.hybrid_shape_factory                            #GSD workbentch to create hybridshapes
 
     inport_filepath = get_path('*.txt;*.csv')                                   #Ask the user to select a file, either txt or csv
+
+    if inport_filepath is None:                                                 #If user cancelled or no file selected
+        print("No file selected.")
+        exit()
 
     if ".txt" in inport_filepath:                                               #If text file
         delimiter = ' '

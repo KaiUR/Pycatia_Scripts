@@ -323,6 +323,17 @@ class DataInputDialog(wx.Dialog):
         self.key_d.Enable(state)
     
     def Validate(self):
+        # Pre-read module and teeth values used across multiple engineering checks.
+        # We parse cautiously so the field-validation loop can still catch bad input.
+        try:
+            m = float(self.module.GetValue())
+        except ValueError:
+            m = 0.0
+        try:
+            z = int(self.number_of_teeth.GetValue())
+        except ValueError:
+            z = 0
+
         fields = [
             (self.module, "Module", float),
             (self.number_of_teeth, "Number of Teeth", int),
@@ -364,7 +375,7 @@ class DataInputDialog(wx.Dialog):
                 return False
         
         pa = float(self.pressure_angle.GetValue())
-        z = int(self.number_of_teeth.GetValue()) 
+        # z and m already set at top of Validate
 
         z_min_calc = 2 / (math.sin(math.radians(pa))**2)
         
@@ -396,7 +407,6 @@ class DataInputDialog(wx.Dialog):
             
         #engineeing check for to deep key
         if self.has_shaft.IsChecked() and self.has_keyway.IsChecked():
-            m = float(self.module.GetValue())
             r_shaft = float(self.shaft_radius.GetValue())
             
             # Calculate Dedendum (Root) Radius
