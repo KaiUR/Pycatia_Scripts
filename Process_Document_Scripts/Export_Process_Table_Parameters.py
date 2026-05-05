@@ -81,6 +81,10 @@ if __name__ == "__main__":
     line_format_1.set_font_name('Century')                                                                  #Set font
     line_format_1.set_font_size(12)                                                                         #Set font size                                        
 
+    DEBUG_PARAMS = False                                                                                    #Set to True to print all parameter names and indices for each operation
+                                                                                                            #Useful for discovering indices when adding support for new operation types
+                                                                                                            #Set back to False for normal use
+
     for process_index in range(processes.count):                                                            #Cycle through all processes
         activity = processes.item(process_index + 1)                                                        #Get process
         
@@ -145,9 +149,15 @@ if __name__ == "__main__":
                                 else:                                                                       #All remaining activiies are operations
                                     tool_changes_parameters = tool_changes.item(
                                             tool_change_index + 1).parameters                               #Get collection of parameters for current activity
-                                    
-                                    for t_parmeter_index in [26,27,73,79,84,90,144,192,195,229,230,232,233,247,252]:#Cycle through parameters, only for indexes that have data that we want
+
+                                    if DEBUG_PARAMS:                                                        #If debug mode is on, print all parameter names and indices
+                                        print(f"--- Operation: {tool_changes.item(tool_change_index + 1).name} ---")
                                         
+                                        for i in range(tool_changes_parameters.count):                     #Loop through all parameters
+                                            print(f"  [{i}] {tool_changes_parameters.item(i + 1).name}")  #Print index and name
+
+                                    for t_parmeter_index in [26,27,73,79,84,90,144,192,195,229,230,232,233,247,252]:#Cycle through parameters, only for indexes that have data that we want
+                                       
                                         if tool_changes_parameters.item(
                                                 t_parmeter_index + 1 ).name.find("Maximum distance") != -1: #Look for Maximum distance parameter (Stepover distance)
                                             worksheet.write(row + operation_counter, 3, 
@@ -159,7 +169,8 @@ if __name__ == "__main__":
                                                     tool_changes_parameters.item(t_parmeter_index + 1 
                                                     ).value_as_string(), line_format_1)                     #Write value to sheet
                                         if tool_changes_parameters.item(
-                                                t_parmeter_index + 1 ).name.find("Maximum depth of cut") != -1: #Find depth of cut
+                                                t_parmeter_index + 1).name.find("Maximum depth of cut") != -1 or tool_changes_parameters.item(
+                                                t_parmeter_index + 1).name.find("Depth of cut by level for Multi-Pas") != -1: #Find depth of cut
                                             worksheet.write(row + operation_counter, 5, 
                                                     tool_changes_parameters.item(t_parmeter_index + 1 
                                                     ).value_as_string(), line_format_1)                     #Write value to sheet
