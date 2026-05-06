@@ -24,18 +24,27 @@ Or use the **↓ Deps** button in CatiaMenuWin32 to install automatically.
 | Script | Description |
 |--------|-------------|
 | `Hide_Planes_And_Axis_Systems.py` | Hides all planes and axis systems in a Part or Product document |
+| `Find_And_Select_By_Name.py` | Find and select all hybrid shapes whose names contain a search string |
 | `Rename_Hybrid_Shapes.py` | Rename hybrid shapes interactively via message box |
 | `Replace_Name_Hybrid_Shapes.py` | Search and replace any hybrid shape name |
+| `Toggle_Show_Hide_Geometric_Set.py` | Toggle the visibility of a selected geometric set and all its children |
 
 ### Part Document Scripts
 
 | Script | Description |
 |--------|-------------|
+| `Axis_To_Axis_Keep_Name.py` | Axis-to-axis transformation keeping the original hybrid shape name |
+| `Batch_Isolate_Geometric_Set.py` | Isolate every element in a geometric set as a datum in one operation |
+| `Check_Duplicate_Names_In_Geometric_Set.py` | Scan a geometric set and report any elements that share a name |
+| `Copy_Geometric_Set_To_New_Part.py` | Copy a selected geometric set and all its contents into a new blank CATPart |
 | `Create_ISM_OSM_STEP_Files.py` | Select two faces/surfaces, extract in tangency and export as ISM and OSM STEP files |
+| `Export_All_Parameters_To_CSV.py` | Export all parameters from the active part to CSV |
+| `Export_Geometric_Set_Structure_To_CSV.py` | Export the full geometric set tree and its contents to CSV |
 | `Export_Points_Select_Axis_and_Geo_Set_To_CSV.py` | Export points from a geometric set relative to a selected axis system to CSV |
 | `Export_Points_Select_Axis_and_Geo_Set_To_XYZ.py` | Export points from a geometric set relative to a selected axis system to XYZ (PCDimms format) |
 | `Export_Points_Select_Geo_Set_To_CSV.py` | Export points from a geometric set relative to absolute axis to CSV |
 | `Export_Points_Select_Geo_Set_To_XYZ.py` | Export points from a geometric set relative to absolute axis to XYZ (PCDimms format) |
+| `Extract_Boundary_Curves.py` | Extract boundary edges of a selected surface as datum curves |
 | `IGES_Export_Curve_AXIS.py` | Export curve to IGES after moving from a reference axis system to absolute |
 | `Insert_Points_Catia.py` | Insert points into active part from tab-separated or CSV file |
 | `Insert_Points_Catia_With_Names.py` | Insert named points into active part from tab-separated or CSV file |
@@ -46,15 +55,19 @@ Or use the **↓ Deps** button in CatiaMenuWin32 to install automatically.
 | `Measure_Curve_With_3_PTS_AS_CIRCLE.py` | Measure curve radius using a 3-point circle |
 | `Measure_Curve_With_3_PTS_AS_CIRCLE_Keep_Con.py` | Measure curve radius using a 3-point circle without removing construction elements |
 | `Measure_Radius_Surface.py` | Measure surface radius using intersection and 3-point circle without removing construction |
-| `Axis_To_Axis_Keep_Name.py` | Axis-to-axis transformation keeping the original hybrid shape name |
+| `Reorder_Geometric_Set_Alphabetically.py` | Sort all elements inside a geometric set alphabetically by name |
 | `Translate_Direction_Distance_Keep_Name.py` | Translate hybrid shapes keeping their original names |
 
 ### Process Document Scripts
 
 | Script | Description |
 |--------|-------------|
+| `Check_Operation_Parameters_Against_Limits.py` | Check all operation parameters against predefined min/max limits and flag violations |
+| `Export_NC_Program_Names_To_CSV.py` | Export all manufacturing program names and descriptions to CSV |
 | `Export_Process_Table_Parameters.py` | Export machining program parameters to Excel |
 | `Export_ResourceList.py` | Export names of all resources in a process document to CSV |
+| `Export_Tool_List_From_Process.py` | Export all cutting tools from a process document to Excel |
+| `Rename_Operations_From_Tool_Name.py` | Automatically rename each operation to match the assigned tool name |
 
 ### Product Document Scripts
 
