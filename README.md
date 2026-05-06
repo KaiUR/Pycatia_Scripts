@@ -34,6 +34,7 @@ Or use the **↓ Deps** button in CatiaMenuWin32 to install automatically.
 | Script | Description |
 |--------|-------------|
 | `Axis_To_Axis_Keep_Name.py` | Axis-to-axis transformation keeping the original hybrid shape name |
+| `Axis_To_Axis_Keep_Name_And_Structure.py` | Axis-to-axis transformation on all shapes in a geometric set, preserving names and structure |
 | `Batch_Isolate_Geometric_Set.py` | Isolate every element in a geometric set as a datum in one operation |
 | `Check_Duplicate_Names_In_Geometric_Set.py` | Scan a geometric set and report any elements that share a name |
 | `Copy_Geometric_Set_To_New_Part.py` | Copy a selected geometric set and all its contents into a new blank CATPart |
@@ -58,6 +59,7 @@ Or use the **↓ Deps** button in CatiaMenuWin32 to install automatically.
 | `Publish_Hybrid_Shapes_In_Geometric_Set.py` | Publish all hybrid shapes in a selected geometric set |
 | `Reorder_Geometric_Set_Alphabetically.py` | Sort all elements inside a geometric set alphabetically by name |
 | `Translate_Direction_Distance_Keep_Name.py` | Translate hybrid shapes keeping their original names |
+| `Translate_Direction_Distance_Keep_Name_And_Structure.py` | Translate all shapes in a geometric set by direction and distance, preserving names and structure |
 
 ### Process Document Scripts
 
