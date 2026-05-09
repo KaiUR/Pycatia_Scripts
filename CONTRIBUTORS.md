@@ -9,6 +9,7 @@ Thanks to everyone who has contributed to Pycatia Scripts.
 ## Acknowledgements
 
 - [evereux](https://github.com/evereux) — creator of the [PyCATIA](https://github.com/evereux/pycatia) library that makes these scripts possible
+- [Claude](https://claude.ai) (Anthropic) — AI assistant, contributed to script development and documentation
 
 ---
 
