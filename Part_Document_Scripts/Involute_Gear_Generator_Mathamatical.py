@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Involute_Gear_Generator_Mathamatical.py
-    Version:        1.0
+    Version:        1.1
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Create Involute Gear
@@ -21,8 +21,8 @@
                     Hybrid desgin should be disabled, the script will tempoary disable it if it is on.
     -----------------------------------------------------------------------------------------------------------------------
     
-    Change:
-    
+    Change:         10.05.26 1.1: Settings path moved to %APPDATA%\pycatia_scripts\<script_name>.
+
     -----------------------------------------------------------------------------------------------------------------------
 '''
 
@@ -571,7 +571,7 @@ class DataInputDialog(wx.Dialog):
         ctrl.SelectAll()
 
 if __name__ == "__main__":
-    SETTINGS_DIR = os.path.join(os.environ['APPDATA'], 'InvoluteGearTool')                                      #User settings path
+    SETTINGS_DIR = os.path.join(os.environ['APPDATA'], 'pycatia_scripts', 'Involute_Gear_Generator_Mathamatical') #User settings path
     SETTINGS_FILE = os.path.join(SETTINGS_DIR, 'user_presets.json')                                             #User settings file
 
     if not os.path.exists(SETTINGS_DIR):                                                                        #Check if directory does not exist
