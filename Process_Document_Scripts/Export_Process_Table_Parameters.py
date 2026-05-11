@@ -180,7 +180,7 @@ if __name__ == "__main__":
 
                         worksheet.write(row, 1, man_prog_desc, prog_desc_fmt)                               #Write description to sheet
                         for col in range(2, 9):                                                             #Fill remaining program row cells
-                            worksheet.write_blank(row, col, None, prog_desc_fmt)
+                            worksheet.write_blank(row, col, prog_desc_fmt)
                         
                         if man_prog.children_activities.count > 1:                                          #If the program has activities
                             tool_changes = man_prog.children_activities                                     #Get activities for program
@@ -193,13 +193,13 @@ if __name__ == "__main__":
                                 if tool_changes.item(tool_change_index + 1).type == "ToolChange":           #If activity is Tool Change
                                     r_fmt = line_format_1 if operation_counter % 2 == 0 else line_format_2
                                     tc_row = row + tool_change_counter
-                                    worksheet.write_blank(tc_row, 0, None, r_fmt)                                 #Fill cols with no data
-                                    worksheet.write_blank(tc_row, 1, None, r_fmt)
+                                    worksheet.write_blank(tc_row, 0, r_fmt)                                 #Fill cols with no data
+                                    worksheet.write_blank(tc_row, 1, r_fmt)
                                     worksheet.write(tc_row, 2, tool_changes.item(
                                             tool_change_index + 1).resources.item(1).name.split("(")[0],
                                             r_fmt)                                                          #Write tool name, stripping extra info
                                     for col in range(3, 9):
-                                        worksheet.write_blank(tc_row, col, None, r_fmt)
+                                        worksheet.write_blank(tc_row, col, r_fmt)
                                     tool_change_counter = tool_change_counter + 1                           #Increment tool change count
 
                                 elif tool_changes.item(tool_change_index + 1).type == "Start":              #Skip Start activity
@@ -216,11 +216,11 @@ if __name__ == "__main__":
                                     n_fmt  = num_fmt_1     if operation_counter % 2 == 0 else num_fmt_2     #Alternating numeric cell colour
 
                                     op_row = row + operation_counter
-                                    worksheet.write_blank(op_row, 0, None, r_fmt)                                 #Fill cols with no data
-                                    worksheet.write_blank(op_row, 1, None, r_fmt)
-                                    worksheet.write_blank(op_row, 2, None, r_fmt)
+                                    worksheet.write_blank(op_row, 0, r_fmt)                                 #Fill cols with no data
+                                    worksheet.write_blank(op_row, 1, r_fmt)
+                                    worksheet.write_blank(op_row, 2, r_fmt)
                                     for col in range(3, 9):                                                 #Pre-fill value cols; overwritten below if data exists
-                                        worksheet.write_blank(op_row, col, None, n_fmt)
+                                        worksheet.write_blank(op_row, col, n_fmt)
 
                                     if DEBUG_PARAMS:                                                        #If debug mode is on, print all parameter names and indices
                                         print(f"--- Operation: {tool_changes.item(tool_change_index + 1).name} ---")
