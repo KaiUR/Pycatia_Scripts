@@ -125,7 +125,13 @@ Every script includes a structured metadata header that CatiaMenuWin32 reads to 
 
 ## 🤝 Contributing
 
-Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on adding new scripts.
+Contributions are welcome! Starting points and guidance:
+
+- **[Script Templates](setup/templates/)** — copy a ready-to-use template from `setup/templates/` and follow the `EDIT:` and `# TODO:` markers
+- **[Writing Scripts](https://github.com/KaiUR/Pycatia_Scripts/wiki/Writing-Scripts)** — folder structure, header format, naming conventions, and the persistent data pattern
+- **[Script Templates (wiki)](https://github.com/KaiUR/Pycatia_Scripts/wiki/Script-Templates)** — how to choose the right template and step-by-step setup guide
+- **[Common Functions](https://github.com/KaiUR/Pycatia_Scripts/wiki/Common-Functions)** — reusable helpers available in `setup/templates/common_functions.py`
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** — pull request process and code style
 
 ---
 
@@ -138,6 +144,7 @@ MIT License — Copyright © 2025 Kai-Uwe Rathjen
 ## 🔗 Links
 
 - [CatiaMenuWin32](https://github.com/KaiUR/CatiaMenuWin32) — the launcher app for these scripts
+- [Wiki](https://github.com/KaiUR/Pycatia_Scripts/wiki) — full documentation including script guides and templates
 - [PyCATIA](https://github.com/evereux/pycatia) — the Python CATIA V5 automation library
 - [PyCATIA Documentation](https://pycatia.readthedocs.io/)
 
