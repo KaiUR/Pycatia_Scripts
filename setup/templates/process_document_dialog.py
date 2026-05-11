@@ -29,6 +29,7 @@ from pycatia import catia
 from pycatia.dmaps_interfaces.process_document import ProcessDocument
 from pycatia.ppr_interfaces.ppr_document import PPRDocument
 import wx
+import wx.lib.dialogs
 
 class ScriptDialog(wx.Dialog):
     def __init__(self, parent, title):
@@ -72,8 +73,8 @@ if __name__ == "__main__":
     elif type(check_document) is PPRDocument:                                                                  #Active document is already a PPRDocument
         current_document: PPRDocument = caa.active_document
     else:
-        wx.MessageBox("A CATProcess document must be the active document.", "Error",
-                wx.OK | wx.ICON_ERROR | wx.STAY_ON_TOP)
+        wx.MessageDialog(None, "A CATProcess document must be the active document.", "Error",
+                wx.OK | wx.ICON_ERROR | wx.STAY_ON_TOP).ShowModal()
         exit()
 
     dlg = ScriptDialog(None, "EDIT: Dialog Title")                                                             #EDIT: Set dialog title
@@ -87,10 +88,12 @@ if __name__ == "__main__":
 
     # EDIT: Validate inputs
     if not param_1:
-        wx.MessageBox("EDIT: Parameter 1 cannot be empty.", "Error", wx.OK | wx.ICON_ERROR | wx.STAY_ON_TOP)
+        wx.MessageDialog(None, "EDIT: Parameter 1 cannot be empty.", "Error",
+                wx.OK | wx.ICON_ERROR | wx.STAY_ON_TOP).ShowModal()
         exit()
 
     processes = current_document.processes                                                                     #Get process list
+    result_count = 0                                                                                           #Counter for reporting
 
     for process_index in range(processes.count):                                                               #Cycle through all processes
         activity = processes.item(process_index + 1)                                                          #Get process
@@ -112,7 +115,15 @@ if __name__ == "__main__":
                         for operation_index in range(operations.count):                                      #Cycle through operations
                             operation = operations.item(operation_index + 1)                                 #Get operation
 
-                            # TODO: Add logic for each operation here using param_1, param_2
-                            pass
+                            # TODO: Add logic for each operation using param_1, param_2
+                            # operation.name                     — operation name
+                            # operation.type                     — operation type string
+                            # operation.parameters.item(n + 1)  — access operation parameters (1-indexed)
+                            #   param.name                       — parameter name
+                            #   param.value_as_string()          — parameter value as string
+                            result_count += 1
 
-    print("\n\n Completed\n\n")
+    # To show large text results:
+    #   wx.lib.dialogs.ScrolledMessageDialog(None, result_text, "Results", size=(500, 400)).ShowModal()
+
+    print(f"\n\n Completed — {result_count} operation(s) processed\n\n")

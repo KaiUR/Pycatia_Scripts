@@ -28,9 +28,39 @@
 #Imports
 from pycatia import catia
 from pycatia.mec_mod_interfaces.part_document import PartDocument
+from pathlib import Path
 import wx
+import wx.lib.dialogs
 import os
 import json
+
+'''
+    This function searches for a hybrid body (geometric set) by name and returns it.
+    Searches recursively through all nested geometric sets.
+
+    Inputs:
+        searchName              The name of the geometric set being searched for.
+        currentHybridBodies     The current collection of hybrid bodies to search.
+
+    output:
+        The geometric set if found, or None if not found.
+'''
+def searchHybridBody(seachName, currentHybridBodies):
+    try:                                                                                                        #Try at current level
+        currentSearch = currentHybridBodies.item(seachName)                                                    #Check if we can find it
+        if currentSearch is not None:                                                                          #If found
+            return currentSearch                                                                               #Return found geometric set
+    except:
+        pass                                                                                                   #Not found at this level — recurse
+
+    for index in range(currentHybridBodies.count):                                                             #Loop through geometric sets at this level
+        if currentHybridBodies.item(index+1).hybrid_bodies.count > 0:
+            found = searchHybridBody(seachName, currentHybridBodies.item(index+1).hybrid_bodies)               #Recursive call
+
+            if found is not None:                                                                              #If found
+                return found                                                                                   #Return found
+
+    return None                                                                                                #Return not found
 
 class ScriptDialog(wx.Dialog):
     def __init__(self, parent, title):
@@ -55,10 +85,12 @@ class ScriptDialog(wx.Dialog):
         # EDIT: Add one StaticText + TextCtrl pair per parameter. Duplicate rows as needed.
         grid.Add(wx.StaticText(self, label="EDIT Parameter 1:"), 0, wx.ALIGN_CENTER_VERTICAL)
         self.param_1 = wx.TextCtrl(self, value=str(defaults["param_1"]))                                       #Pre-fill from saved settings
+        self.param_1.SetToolTip("EDIT: Tooltip shown on hover.")                                               #EDIT: Set tooltip (optional, remove if not needed)
         grid.Add(self.param_1, 1, wx.EXPAND)
 
         grid.Add(wx.StaticText(self, label="EDIT Parameter 2:"), 0, wx.ALIGN_CENTER_VERTICAL)
         self.param_2 = wx.TextCtrl(self, value=str(defaults["param_2"]))                                       #Pre-fill from saved settings
+        self.param_2.SetToolTip("EDIT: Tooltip shown on hover.")                                               #EDIT: Set tooltip (optional, remove if not needed)
         grid.Add(self.param_2, 1, wx.EXPAND)
 
         grid.AddGrowableCol(1, 1)
@@ -83,19 +115,20 @@ class ScriptDialog(wx.Dialog):
         self.Center()
 
     def on_help(self, event):
-        """Show inline help text."""
+        """Show inline help text in a scrollable dialog."""
         help_text = (
             "EDIT: Script Name\n"
             "==================================================\n\n"
             # EDIT: Fill in the help text for your script
             " PARAMETER 1\n"
-            "   EDIT: Description of what Parameter 1 does.\n\n"
+            "   EDIT: Description of what Parameter 1 does and its valid range.\n\n"
             " PARAMETER 2\n"
-            "   EDIT: Description of what Parameter 2 does.\n\n"
+            "   EDIT: Description of what Parameter 2 does and its valid range.\n\n"
             " [Reset Defaults]   Restores factory default values (fields flash green).\n"
             " [Clear Saved]      Deletes the locally stored settings file.\n\n"
             " Settings are saved to:\n"
-            "   %APPDATA%\\pycatia_scripts\\Your_Script_Name\\user_settings.json\n"  #EDIT: Match script name
+            "   %%APPDATA%%\\pycatia_scripts\\Your_Script_Name\\user_settings.json\n"  #EDIT: Match script name
+            " The saved values are pre-filled each time the script is run.\n"
         )
         dlg = wx.lib.dialogs.ScrolledMessageDialog(self, help_text, "Help", size=(520, 400))
         dlg.ShowModal()
@@ -127,15 +160,15 @@ class ScriptDialog(wx.Dialog):
         if os.path.exists(SETTINGS_FILE):
             try:
                 os.remove(SETTINGS_FILE)
-                wx.MessageBox("Saved settings deleted.", "Settings Cleared",
-                        wx.OK | wx.ICON_INFORMATION | wx.STAY_ON_TOP)
+                wx.MessageDialog(None, "Saved settings deleted.", "Settings Cleared",
+                        wx.OK | wx.ICON_INFORMATION | wx.STAY_ON_TOP).ShowModal()
                 self.on_reset(None)
             except Exception as e:
-                wx.MessageBox(f"Error deleting settings: {e}", "Error",
-                        wx.OK | wx.ICON_ERROR | wx.STAY_ON_TOP)
+                wx.MessageDialog(None, f"Error deleting settings: {e}", "Error",
+                        wx.OK | wx.ICON_ERROR | wx.STAY_ON_TOP).ShowModal()
         else:
-            wx.MessageBox("No saved settings file found.", "Information",
-                    wx.OK | wx.ICON_INFORMATION | wx.STAY_ON_TOP)
+            wx.MessageDialog(None, "No saved settings file found.", "Information",
+                    wx.OK | wx.ICON_INFORMATION | wx.STAY_ON_TOP).ShowModal()
 
 if __name__ == "__main__":
     SETTINGS_DIR  = os.path.join(os.environ['APPDATA'], 'pycatia_scripts', 'Your_Script_Name')                 #EDIT: Match script filename without .py
@@ -149,14 +182,34 @@ if __name__ == "__main__":
     app = wx.App(None)                                                                                         #Initialize wx application
 
     if type(active_doc) is not PartDocument:                                                                   #Check that a CATPart is active
-        wx.MessageBox("A CATPart document must be the active document.", "Error",
-                wx.OK | wx.ICON_ERROR | wx.STAY_ON_TOP)
+        wx.MessageDialog(None, "A CATPart document must be the active document.", "Error",
+                wx.OK | wx.ICON_ERROR | wx.STAY_ON_TOP).ShowModal()
         exit()
 
     part_document: PartDocument = active_doc                                                                   #Cast to PartDocument
     part = part_document.part                                                                                  #Current part
     hybrid_bodies = part.hybrid_bodies                                                                         #Top level geometric sets
     hybrid_shape_factory = part.hybrid_shape_factory                                                           #GSD workbench for creating hybrid shapes
+
+    # NOTE: If your script selects geometry in CATIA, replace the check above with the
+    # LeafProduct-aware pattern so the script also works on parts inside a product:
+    #
+    #   object_filter = ("HybridBody",)                                        # EDIT: filter type
+    #   selectionSet = active_doc.selection
+    #   status = selectionSet.select_element3(object_filter, "Select ...", False, 2, False)
+    #   if status != "Normal":
+    #       wx.MessageDialog(None, "Selection failed.", "Error",
+    #               wx.OK | wx.ICON_ERROR | wx.STAY_ON_TOP).ShowModal()
+    #       exit()
+    #   selected_item = selectionSet.item(1)
+    #
+    #   if type(active_doc) is PartDocument:
+    #       part_document: PartDocument = active_doc
+    #       part = active_doc.part
+    #   else:
+    #       leaf_product = selected_item.com_object.LeafProduct
+    #       part_document = PartDocument(leaf_product.ReferenceProduct.Parent)
+    #       part = part_document.part
 
     dlg = ScriptDialog(None, "EDIT: Dialog Title")                                                             #EDIT: Set dialog title
     if dlg.ShowModal() != wx.ID_OK:                                                                            #If user cancelled
@@ -189,11 +242,12 @@ if __name__ == "__main__":
         progress_dlg.Update(1, "EDIT: Step 1 message...")
 
         # TODO: Step 1 — first phase of work
-        # part operations, geometry creation, etc.
+        # part.update() here if geometry was created in this step
 
         progress_dlg.Update(2, "EDIT: Step 2 message...")
 
         # TODO: Step 2
+        # part.update() here if geometry was created in this step
 
         progress_dlg.Update(3, "EDIT: Step 3 message...")
 
@@ -203,19 +257,20 @@ if __name__ == "__main__":
 
         # TODO: Step 4
 
-        part.update()                                                                                          #Update part after all operations
+        part.update()                                                                                          #Final update after all operations
 
         progress_dlg.Update(PROGRESS_STEPS, "Done.")
 
     except Exception as e:
         # EDIT: If your script creates a body/geometric set that should be cleaned up on error,
-        # delete it here before showing the error.
+        # delete it here before showing the error message.
+        # Example: bodies.remove(new_body)
         progress_dlg.Destroy()
-        wx.MessageBox(
+        wx.MessageDialog(None,
             f"An error occurred:\n\n{e}\n\n"
-            "EDIT: Add any cleanup instructions for the user here.",
+            "EDIT: Add any user-facing cleanup instructions here.",
             "Error", wx.OK | wx.ICON_ERROR | wx.STAY_ON_TOP
-        )
+        ).ShowModal()
         exit()
 
     finally:

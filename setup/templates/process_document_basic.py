@@ -65,8 +65,11 @@ if __name__ == "__main__":
                             operation = operations.item(operation_index + 1)                                 #Get operation
 
                             # TODO: Add logic for each operation here
-                            # operation.name     — operation name
-                            # operation.type     — operation type string
+                            # operation.name                     — operation name
+                            # operation.type                     — operation type string
+                            # operation.parameters.item(n + 1)  — access operation parameters (1-indexed)
+                            #   param.name                       — parameter name
+                            #   param.value_as_string()          — parameter value as string
                             print(f"  {part_op.name} | {program.name} | {operation.name}")
 
     print("\n\n Completed\n\n")

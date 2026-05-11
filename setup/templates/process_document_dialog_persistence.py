@@ -130,15 +130,15 @@ class ScriptDialog(wx.Dialog):
         if os.path.exists(SETTINGS_FILE):
             try:
                 os.remove(SETTINGS_FILE)
-                wx.MessageBox("Saved settings deleted.", "Settings Cleared",
-                        wx.OK | wx.ICON_INFORMATION | wx.STAY_ON_TOP)
+                wx.MessageDialog(None, "Saved settings deleted.", "Settings Cleared",
+                        wx.OK | wx.ICON_INFORMATION | wx.STAY_ON_TOP).ShowModal()
                 self.on_reset(None)
             except Exception as e:
-                wx.MessageBox(f"Error deleting settings: {e}", "Error",
-                        wx.OK | wx.ICON_ERROR | wx.STAY_ON_TOP)
+                wx.MessageDialog(None, f"Error deleting settings: {e}", "Error",
+                        wx.OK | wx.ICON_ERROR | wx.STAY_ON_TOP).ShowModal()
         else:
-            wx.MessageBox("No saved settings file found.", "Information",
-                    wx.OK | wx.ICON_INFORMATION | wx.STAY_ON_TOP)
+            wx.MessageDialog(None, "No saved settings file found.", "Information",
+                    wx.OK | wx.ICON_INFORMATION | wx.STAY_ON_TOP).ShowModal()
 
     def get_settings_to_save(self):
         """Return current field values for JSON serialization."""
@@ -164,8 +164,8 @@ if __name__ == "__main__":
     elif type(check_document) is PPRDocument:                                                                  #Active document is already a PPRDocument
         current_document: PPRDocument = caa.active_document
     else:
-        wx.MessageBox("A CATProcess document must be the active document.", "Error",
-                wx.OK | wx.ICON_ERROR | wx.STAY_ON_TOP)
+        wx.MessageDialog(None, "A CATProcess document must be the active document.", "Error",
+                wx.OK | wx.ICON_ERROR | wx.STAY_ON_TOP).ShowModal()
         exit()
 
     dlg = ScriptDialog(None, "EDIT: Dialog Title")                                                             #EDIT: Set dialog title
@@ -205,6 +205,14 @@ if __name__ == "__main__":
                             operation = operations.item(operation_index + 1)                                 #Get operation
 
                             # TODO: Add logic for each operation here using param_1, param_2
+                            # operation.name                     — operation name
+                            # operation.type                     — operation type string
+                            # operation.parameters.item(n + 1)  — access operation parameters (1-indexed)
+                            #   param.name                       — parameter name
+                            #   param.value_as_string()          — parameter value as string
                             result_count += 1
+
+    # To show large text results:
+    #   wx.lib.dialogs.ScrolledMessageDialog(None, result_text, "Results", size=(500, 400)).ShowModal()
 
     print(f"\n\n Completed — {result_count} operation(s) processed\n\n")

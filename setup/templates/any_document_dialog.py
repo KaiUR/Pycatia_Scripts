@@ -27,6 +27,26 @@
 #Imports
 from pycatia import catia
 import wx
+import wx.lib.dialogs
+
+'''
+    This function opens a file open dialog and returns the selected file path, or None if cancelled.
+
+    Inputs:
+        wildcard    File type filter string, e.g. '*.txt;*.csv'
+
+    output:
+        The selected file path as a string, or None if cancelled.
+'''
+def get_path(wildcard):
+    style = wx.FD_OPEN | wx.FD_FILE_MUST_EXIST                                                                 #Open dialog flags
+    dialog = wx.FileDialog(None, 'Open', wildcard=wildcard, style=style)                                       #Create file dialog
+    if dialog.ShowModal() == wx.ID_OK:                                                                         #Show dialog and wait for selection
+        path = dialog.GetPath()                                                                                #Get selected path
+    else:
+        path = None                                                                                            #User cancelled
+    dialog.Destroy()                                                                                           #Close dialog
+    return path                                                                                                #Return path or None
 
 class ScriptDialog(wx.Dialog):
     def __init__(self, parent, title):
@@ -75,12 +95,31 @@ if __name__ == "__main__":
 
     # EDIT: Validate inputs
     if not param_1:
-        wx.MessageBox("EDIT: Parameter 1 cannot be empty.", "Error", wx.OK | wx.ICON_ERROR | wx.STAY_ON_TOP)
+        wx.MessageDialog(None, "EDIT: Parameter 1 cannot be empty.", "Error",
+                wx.OK | wx.ICON_ERROR | wx.STAY_ON_TOP).ShowModal()
         exit()
 
     selectionSet = active_doc.selection                                                                        #Create container for selection
     selectionSet.clear()                                                                                       #Clear any existing selection
 
     # TODO: Add script logic here using param_1, param_2
+    # active_doc works for Part, Product, and Process documents.
+    #
+    # To ask the user to select geometry in CATIA:
+    #   object_filter = ("AnyObject",)             # EDIT: see filter type table in part_document_dialog.py
+    #   status = selectionSet.select_element3(object_filter, "Select ...", False, 2, False)
+    #   if status != "Normal":
+    #       wx.MessageDialog(None, "Selection failed.", "Error",
+    #               wx.OK | wx.ICON_ERROR | wx.STAY_ON_TOP).ShowModal()
+    #       exit()
+    #   selected_item = selectionSet.item(1)         # 1-indexed
+    #
+    # To show large text results use ScrolledMessageDialog:
+    #   wx.lib.dialogs.ScrolledMessageDialog(None, result_text, "Results", size=(500, 400)).ShowModal()
+    #
+    # To prompt for a file path use get_path():
+    #   path = get_path('*.txt;*.csv')
+    #   if path is None:
+    #       exit()
 
     print("\n\n Completed\n\n")
