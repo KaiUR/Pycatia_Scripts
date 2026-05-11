@@ -107,6 +107,22 @@ if __name__ == "__main__":
                                                                                                             #Useful for discovering indices when adding support for new operation types
                                                                                                             #Set back to False for normal use
 
+    used_sheet_names = set()                                                                                 #Track sheet names to avoid duplicates
+
+    def unique_sheet_name(name):                                                                             #Return a unique sheet name <= 31 chars
+        base = name[:31]
+        if base not in used_sheet_names:
+            used_sheet_names.add(base)
+            return base
+        counter = 2
+        while True:
+            suffix = f"_{counter}"
+            candidate = name[:31 - len(suffix)] + suffix
+            if candidate not in used_sheet_names:
+                used_sheet_names.add(candidate)
+                return candidate
+            counter += 1
+
     for process_index in range(processes.count):                                                            #Cycle through all processes
         activity = processes.item(process_index + 1)                                                        #Get process
         
@@ -116,7 +132,8 @@ if __name__ == "__main__":
             part_op = part_operations.item(part_operation_index + 1)                                        #Get Operation
             
             if part_op.type == "ManufacturingSetup":                                                        #Check for Part operation
-                worksheet = workbook.add_worksheet(part_op.name)                                            #Create new sheet in workbook
+                sheet_name = unique_sheet_name(part_op.name)                                                 #Unique sheet name, max 31 chars
+                worksheet = workbook.add_worksheet(sheet_name)                                              #Create new sheet in workbook
                 worksheet.set_landscape()                                                                   #Set sheet to landscape
                 worksheet.set_row(0, 22)                                                                    #Header row height
                 worksheet.freeze_panes(1, 0)                                                                #Freeze header row
