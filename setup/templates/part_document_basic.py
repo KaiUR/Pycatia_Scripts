@@ -55,6 +55,42 @@ def searchHybridBody(seachName, currentHybridBodies):
 
     return None                                                                                                #Return not found
 
+
+'''
+    Replaces a hybrid shape with an isolated datum of the same type, preserving its name.
+    Supports points (1), curves (2), lines (3), circles (4), and surfaces (5).
+
+    Inputs:
+        hybrid_shape_factory    The part's HybridShapeFactory (part.hybrid_shape_factory).
+        hybrid_shape            The HybridShape to isolate.
+        hybrid_body             The geometric set to append the new datum to.
+        name                    Optional name for the datum.
+
+    output:
+        None — part.update() must be called after one or more create_datum calls.
+'''
+def create_datum(hybrid_shape_factory, hybrid_shape, hybrid_body, name=None):
+    geo_type = hybrid_shape_factory.get_geometrical_feature_type(hybrid_shape)                                 #Get geometry type
+
+    if geo_type == 1:                                                                                          #Point
+        datum = hybrid_shape_factory.add_new_point_datum(hybrid_shape)
+    elif geo_type == 2:                                                                                        #Curve
+        datum = hybrid_shape_factory.add_new_curve_datum(hybrid_shape)
+    elif geo_type == 3:                                                                                        #Line
+        datum = hybrid_shape_factory.add_new_line_datum(hybrid_shape)
+    elif geo_type == 4:                                                                                        #Circle
+        datum = hybrid_shape_factory.add_new_circle_datum(hybrid_shape)
+    elif geo_type == 5:                                                                                        #Surface
+        datum = hybrid_shape_factory.add_new_surface_datum(hybrid_shape)
+    else:
+        print(f"  Warning: unsupported geometry type ({geo_type}) for '{name}' — skipped")
+        return
+
+    if name: datum.name = name                                                                                 #Apply name if given
+    hybrid_body.append_hybrid_shape(datum)                                                                     #Add datum to geometric set
+    hybrid_shape_factory.delete_object_for_datum(hybrid_shape)                                                 #Remove the original construction shape
+
+
 if __name__ == "__main__":
     caa = catia()                                                                                               #Catia application instance
     active_doc = caa.active_document                                                                           #Current active document
@@ -77,6 +113,7 @@ if __name__ == "__main__":
     #   hybrid_bodies.add()                            — add a new geometric set
     #   part.in_work_object = <hybrid_body>            — set the active geometric set
     #   hybrid_shape_factory.add_new_*()               — create hybrid shape features
+    #   create_datum(hybrid_shape_factory, shape, target_set, "Name")  — isolate shape as datum
     #   part.update()                                  — update after creating geometry
     #
     # For scripts that write files, build the output path alongside the document:
