@@ -88,6 +88,7 @@ if __name__ == "__main__":
             'bold':       bold,
             'font_color': color,
             'bg_color':   bg,
+            'pattern':    1,
             'align':      align,
             'valign':     valign,
             'border':     1,
