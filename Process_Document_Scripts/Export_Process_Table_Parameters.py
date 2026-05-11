@@ -88,7 +88,6 @@ if __name__ == "__main__":
             'bold':       bold,
             'font_color': color,
             'bg_color':   bg,
-            'pattern':    1,
             'align':      align,
             'valign':     valign,
             'border':     1,
@@ -179,9 +178,7 @@ if __name__ == "__main__":
                             man_prog_desc = ""                                                              #Set to empty
 
                         worksheet.write(row, 1, man_prog_desc, prog_desc_fmt)                               #Write description to sheet
-                        for col in range(2, 9):                                                             #Fill remaining program row cells with colour
-                            worksheet.write_blank(row, col, None, prog_desc_fmt)
-
+                        
                         if man_prog.children_activities.count > 1:                                          #If the program has activities
                             tool_changes = man_prog.children_activities                                     #Get activities for program
 
@@ -192,14 +189,9 @@ if __name__ == "__main__":
 
                                 if tool_changes.item(tool_change_index + 1).type == "ToolChange":           #If activity is Tool Change
                                     r_fmt = line_format_1 if operation_counter % 2 == 0 else line_format_2
-                                    tc_row = row + tool_change_counter
-                                    worksheet.write_blank(tc_row, 0, None, r_fmt)                           #Blank coloured cells
-                                    worksheet.write_blank(tc_row, 1, None, r_fmt)
-                                    worksheet.write(tc_row, 2, tool_changes.item(
+                                    worksheet.write(row + tool_change_counter, 2, tool_changes.item(
                                             tool_change_index + 1).resources.item(1).name.split("(")[0],
                                             r_fmt)                                                          #Write tool name, stripping extra info
-                                    for col in range(3, 9):
-                                        worksheet.write_blank(tc_row, col, None, r_fmt)
                                     tool_change_counter = tool_change_counter + 1                           #Increment tool change count
 
                                 elif tool_changes.item(tool_change_index + 1).type == "Start":              #Skip Start activity
@@ -214,42 +206,46 @@ if __name__ == "__main__":
 
                                     r_fmt  = line_format_1 if operation_counter % 2 == 0 else line_format_2 #Alternating row colour
                                     n_fmt  = num_fmt_1     if operation_counter % 2 == 0 else num_fmt_2     #Alternating numeric cell colour
-                                    op_row = row + operation_counter
 
                                     if DEBUG_PARAMS:                                                        #If debug mode is on, print all parameter names and indices
                                         print(f"--- Operation: {tool_changes.item(tool_change_index + 1).name} ---")
                                         for i in range(tool_changes_parameters.count):                     #Loop through all parameters
                                             print(f"  [{i}] {tool_changes_parameters.item(i + 1).name}")  #Print index and name
 
-                                    #Collect values first so each cell is written exactly once
-                                    op_values = {}
-                                    for t_parmeter_index in [26,27,73,79,84,90,144,192,195,229,230,232,233,247,252]:
-                                        param = tool_changes_parameters.item(t_parmeter_index + 1)
-                                        name  = param.name
-                                        if name.find("Maximum distance") != -1:                             #Stepover
-                                            op_values[3] = param.value_as_string()
-                                        if name.find("Machining tolerance") != -1:                          #Tolerance
-                                            op_values[4] = param.value_as_string()
-                                        if name.find("Maximum depth of cut") != -1 or name.find(
-                                                "Depth of cut by level for Multi-Pas") != -1:               #Depth of cut
-                                            op_values[5] = param.value_as_string()
-                                        if name.find("Offset on part") != -1:                               #Offset on part
-                                            op_values[6] = param.value_as_string()
-                                        if name.find("Offset on check") != -1:                              #Offset on check
-                                            op_values[7] = param.value_as_string()
-                                        if name.find("Depth of cut by level for Multi-Pass") != -1:         #Depth of cut by level
-                                            op_values[8] = param.value_as_string()
+                                    for t_parmeter_index in [26,27,73,79,84,90,144,192,195,229,230,232,233,247,252]: #Cycle through relevant parameter indices
 
-                                    #Write cols 0-2 as blank with colour, cols 3-8 as value or blank — one write per cell
-                                    worksheet.write_blank(op_row, 0, None, r_fmt)
-                                    worksheet.write_blank(op_row, 1, None, r_fmt)
-                                    worksheet.write_blank(op_row, 2, None, r_fmt)
-                                    for col in range(3, 9):
-                                        if col in op_values:
-                                            worksheet.write(op_row, col, op_values[col], n_fmt)
-                                        else:
-                                            worksheet.write_blank(op_row, col, None, n_fmt)
-
+                                        if tool_changes_parameters.item(
+                                                t_parmeter_index + 1).name.find("Maximum distance") != -1: #Stepover distance
+                                            worksheet.write(row + operation_counter, 3,
+                                                    tool_changes_parameters.item(t_parmeter_index + 1
+                                                    ).value_as_string(), n_fmt)
+                                        if tool_changes_parameters.item(
+                                                t_parmeter_index + 1).name.find("Machining tolerance") != -1: #Machining tolerance
+                                            worksheet.write(row + operation_counter, 4,
+                                                    tool_changes_parameters.item(t_parmeter_index + 1
+                                                    ).value_as_string(), n_fmt)
+                                        if tool_changes_parameters.item(
+                                                t_parmeter_index + 1).name.find("Maximum depth of cut") != -1 or tool_changes_parameters.item(
+                                                t_parmeter_index + 1).name.find("Depth of cut by level for Multi-Pas") != -1: #Depth of cut
+                                            worksheet.write(row + operation_counter, 5,
+                                                    tool_changes_parameters.item(t_parmeter_index + 1
+                                                    ).value_as_string(), n_fmt)
+                                        if tool_changes_parameters.item(
+                                                t_parmeter_index + 1).name.find("Offset on part") != -1:   #Offset on part
+                                            worksheet.write(row + operation_counter, 6,
+                                                    tool_changes_parameters.item(t_parmeter_index + 1
+                                                    ).value_as_string(), n_fmt)
+                                        if tool_changes_parameters.item(
+                                                t_parmeter_index + 1).name.find("Offset on check") != -1:  #Offset on check
+                                            worksheet.write(row + operation_counter, 7,
+                                                    tool_changes_parameters.item(t_parmeter_index + 1
+                                                    ).value_as_string(), n_fmt)
+                                        if tool_changes_parameters.item(
+                                                t_parmeter_index + 1
+                                                ).name.find("Depth of cut by level for Multi-Pass") != -1: #Depth of cut by level
+                                            worksheet.write(row + operation_counter, 8,
+                                                    tool_changes_parameters.item(t_parmeter_index + 1
+                                                    ).value_as_string(), n_fmt)
                                     operation_counter = operation_counter + 1                               #Add row for next operation
 
                             row = row + tool_change_counter + operation_counter - 1                         #Update row counter for next manufacturing program
