@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Export_Process_Table_Parameters.py
-    Version:        1.1
+    Version:        1.2
     Code:           Python3.10.4, Pycatia 0.9.5
     Release:        V5R32
     Purpose:        Exports parameters from process table to excel
@@ -26,6 +26,7 @@
     -----------------------------------------------------------------------------------------------------------------------
     
     Change:         29.04.26 1.1: Fixed script not showing part offset value for sweeps.
+                    11.05.26 1.2: Improved Excel formatting — navy header, alternating row bands, centred numeric columns, frozen header row, navy tab colour, explicit column widths.
     
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -70,16 +71,37 @@ if __name__ == "__main__":
     processes = current_document.processes                                                                  #Get process list
     
     workbook = xlsxwriter.Workbook('Process_Table.xlsx')                                                    #Create new excel file
-    
-    heading_format = workbook.add_format()                                                                  #Create new format fo headings
-    heading_format.set_font_name('Century')                                                                 #Set font for heading
-    heading_format.set_bold()                                                                               #Set heading to bold
-    heading_format.set_font_size(14)                                                                        #Set font size
-    heading_format.set_center_across()                                                                      #Centre text
-    
-    line_format_1 = workbook.add_format()                                                                   #Create new format for text
-    line_format_1.set_font_name('Century')                                                                  #Set font
-    line_format_1.set_font_size(12)                                                                         #Set font size                                        
+
+    # --- Formats ---
+    FONT        = 'Century'
+    HDR_BG      = '#1F3864'   # Dark navy
+    HDR_FG      = '#FFFFFF'
+    PROG_BG     = '#D6E4F0'   # Soft blue for program rows
+    ROW_BG_ODD  = '#FFFFFF'
+    ROW_BG_EVEN = '#EEF2F7'   # Very light blue-grey for alternating rows
+    BORDER_CLR  = '#B0BEC5'
+
+    def _base(bg, bold=False, size=11, font=FONT, color='#000000', align='left', valign='vcenter'):
+        fmt = workbook.add_format({
+            'font_name':  font,
+            'font_size':  size,
+            'bold':       bold,
+            'font_color': color,
+            'bg_color':   bg,
+            'align':      align,
+            'valign':     valign,
+            'border':     1,
+            'border_color': BORDER_CLR,
+        })
+        return fmt
+
+    heading_format  = _base(HDR_BG, bold=True, size=11, color=HDR_FG, align='center')   #Column heading
+    prog_fmt        = _base(PROG_BG, bold=True, size=11)                                 #Program name row
+    prog_desc_fmt   = _base(PROG_BG, bold=False, size=11)                               #Program description row
+    line_format_1   = _base(ROW_BG_ODD,  size=11)                                       #Operation row (odd)
+    line_format_2   = _base(ROW_BG_EVEN, size=11)                                       #Operation row (even)
+    num_fmt_1       = _base(ROW_BG_ODD,  size=11, align='center')                       #Numeric cell (odd)
+    num_fmt_2       = _base(ROW_BG_EVEN, size=11, align='center')                       #Numeric cell (even)
 
     DEBUG_PARAMS = False                                                                                    #Set to True to print all parameter names and indices for each operation
                                                                                                             #Useful for discovering indices when adding support for new operation types
@@ -95,19 +117,34 @@ if __name__ == "__main__":
             
             if part_op.type == "ManufacturingSetup":                                                        #Check for Part operation
                 worksheet = workbook.add_worksheet(part_op.name)                                            #Create new sheet in workbook
-                worksheet.set_landscape()                                                                   #Set shet to landscape
+                worksheet.set_landscape()                                                                   #Set sheet to landscape
+                worksheet.set_row(0, 22)                                                                    #Header row height
+                worksheet.freeze_panes(1, 0)                                                                #Freeze header row
+                worksheet.set_tab_color('#1F3864')                                                          #Navy tab colour
+
+                #Set column widths
+                worksheet.set_column(0, 0, 28)   # Program Name
+                worksheet.set_column(1, 1, 32)   # Description
+                worksheet.set_column(2, 2, 30)   # Tool
+                worksheet.set_column(3, 3, 14)   # Stepover
+                worksheet.set_column(4, 4, 16)   # MC Tolerance
+                worksheet.set_column(5, 5, 16)   # Depth of Cut
+                worksheet.set_column(6, 6, 16)   # Offset on Part
+                worksheet.set_column(7, 7, 17)   # Offset on Check
+                worksheet.set_column(8, 8, 22)   # Depth of cut by level
+
                 row = 0                                                                                     #Set row counter to 0
-                
+
                 #Add headings to sheet
-                worksheet.write(0, 0, "Program Name", heading_format)
-                worksheet.write(0, 1, "Description", heading_format)
-                worksheet.write(0, 2, "Tool", heading_format)
-                worksheet.write(0, 3, "Stepover", heading_format)
-                worksheet.write(0, 4, "MC Tolerance", heading_format)
-                worksheet.write(0, 5, "Depth of Cut",heading_format)
-                worksheet.write(0, 6, "Offset on Part", heading_format)
-                worksheet.write(0, 7, "Offset on Check", heading_format)
-                worksheet.write(0, 8, "Depth of cut by level", heading_format)
+                worksheet.write(0, 0, "Program Name",         heading_format)
+                worksheet.write(0, 1, "Description",          heading_format)
+                worksheet.write(0, 2, "Tool",                 heading_format)
+                worksheet.write(0, 3, "Stepover",             heading_format)
+                worksheet.write(0, 4, "MC Tolerance",         heading_format)
+                worksheet.write(0, 5, "Depth of Cut",         heading_format)
+                worksheet.write(0, 6, "Offset on Part",       heading_format)
+                worksheet.write(0, 7, "Offset on Check",      heading_format)
+                worksheet.write(0, 8, "Depth of Cut by Level",heading_format)
                 
                 
                 manufacturing_programs = part_op.children_activities                                        #Get all activities for part operation
@@ -117,85 +154,86 @@ if __name__ == "__main__":
                     
                     if man_prog.type == "ManufacturingProgram":                                             #Check if activity is program
                         row = row + 1                                                                       #Add a new row for program
-                        worksheet.write(row, 0, man_prog.name, line_format_1)                               #Write program name to sheet
-                        
-                        man_prog_desc = man_prog.description                                                #Get decription for program
-                        if man_prog_desc.find("No Description") != -1:                                      #If default descriptin
+                        worksheet.write(row, 0, man_prog.name, prog_fmt)                                    #Write program name to sheet
+
+                        man_prog_desc = man_prog.description                                                #Get description for program
+                        if man_prog_desc.find("No Description") != -1:                                      #If default description
                             man_prog_desc = ""                                                              #Set to empty
-                        
-                        worksheet.write(row, 1, man_prog_desc, line_format_1)                               #Write description to sheet
+
+                        worksheet.write(row, 1, man_prog_desc, prog_desc_fmt)                               #Write description to sheet
                         
                         if man_prog.children_activities.count > 1:                                          #If the program has activities
-                            tool_changes = man_prog.children_activities                                     #Get activites for program
-                            
+                            tool_changes = man_prog.children_activities                                     #Get activities for program
+
                             tool_change_counter = 0                                                         #Count how many tool changes
-                            operation_counter = 0                                                           #Count how many perations
-                            
+                            operation_counter = 0                                                           #Count how many operations
+
                             for tool_change_index in range(tool_changes.count):                             #Cycle through all activities of program
-                                
+
                                 if tool_changes.item(tool_change_index + 1).type == "ToolChange":           #If activity is Tool Change
-                                    
+                                    r_fmt = line_format_1 if operation_counter % 2 == 0 else line_format_2
                                     worksheet.write(row + tool_change_counter, 2, tool_changes.item(
-                                            tool_change_index + 1).resources.item(1).name.split("(")[0], 
-                                            line_format_1)                                                  #Write tool name and number to sheet, stripping extra info
+                                            tool_change_index + 1).resources.item(1).name.split("(")[0],
+                                            r_fmt)                                                          #Write tool name, stripping extra info
                                     tool_change_counter = tool_change_counter + 1                           #Increment tool change count
-                                    
+
                                 elif tool_changes.item(tool_change_index + 1).type == "Start":              #Skip Start activity
                                     continue
-                                    
+
                                 elif tool_changes.item(tool_change_index + 1).type == "Stop":               #Skip Stop activity
                                     continue
-                                    
-                                else:                                                                       #All remaining activiies are operations
+
+                                else:                                                                       #All remaining activities are operations
                                     tool_changes_parameters = tool_changes.item(
                                             tool_change_index + 1).parameters                               #Get collection of parameters for current activity
 
+                                    r_fmt  = line_format_1 if operation_counter % 2 == 0 else line_format_2 #Alternating row colour
+                                    n_fmt  = num_fmt_1     if operation_counter % 2 == 0 else num_fmt_2     #Alternating numeric cell colour
+
                                     if DEBUG_PARAMS:                                                        #If debug mode is on, print all parameter names and indices
                                         print(f"--- Operation: {tool_changes.item(tool_change_index + 1).name} ---")
-                                        
                                         for i in range(tool_changes_parameters.count):                     #Loop through all parameters
                                             print(f"  [{i}] {tool_changes_parameters.item(i + 1).name}")  #Print index and name
 
-                                    for t_parmeter_index in [26,27,73,79,84,90,144,192,195,229,230,232,233,247,252]:#Cycle through parameters, only for indexes that have data that we want
-                                       
+                                    for t_parmeter_index in [26,27,73,79,84,90,144,192,195,229,230,232,233,247,252]: #Cycle through relevant parameter indices
+
                                         if tool_changes_parameters.item(
-                                                t_parmeter_index + 1 ).name.find("Maximum distance") != -1: #Look for Maximum distance parameter (Stepover distance)
-                                            worksheet.write(row + operation_counter, 3, 
-                                                    tool_changes_parameters.item(t_parmeter_index + 1 
-                                                    ).value_as_string(), line_format_1)                     #Write value to sheet
+                                                t_parmeter_index + 1).name.find("Maximum distance") != -1: #Stepover distance
+                                            worksheet.write(row + operation_counter, 3,
+                                                    tool_changes_parameters.item(t_parmeter_index + 1
+                                                    ).value_as_string(), n_fmt)
                                         if tool_changes_parameters.item(
-                                                t_parmeter_index + 1 ).name.find("Machining tolerance") != -1:  #Find tolerance parameter
-                                            worksheet.write(row + operation_counter, 4, 
-                                                    tool_changes_parameters.item(t_parmeter_index + 1 
-                                                    ).value_as_string(), line_format_1)                     #Write value to sheet
+                                                t_parmeter_index + 1).name.find("Machining tolerance") != -1: #Machining tolerance
+                                            worksheet.write(row + operation_counter, 4,
+                                                    tool_changes_parameters.item(t_parmeter_index + 1
+                                                    ).value_as_string(), n_fmt)
                                         if tool_changes_parameters.item(
                                                 t_parmeter_index + 1).name.find("Maximum depth of cut") != -1 or tool_changes_parameters.item(
-                                                t_parmeter_index + 1).name.find("Depth of cut by level for Multi-Pas") != -1: #Find depth of cut
-                                            worksheet.write(row + operation_counter, 5, 
-                                                    tool_changes_parameters.item(t_parmeter_index + 1 
-                                                    ).value_as_string(), line_format_1)                     #Write value to sheet
+                                                t_parmeter_index + 1).name.find("Depth of cut by level for Multi-Pas") != -1: #Depth of cut
+                                            worksheet.write(row + operation_counter, 5,
+                                                    tool_changes_parameters.item(t_parmeter_index + 1
+                                                    ).value_as_string(), n_fmt)
                                         if tool_changes_parameters.item(
-                                                t_parmeter_index + 1 ).name.find("Offset on part") != -1:   #Find offset on part value
-                                            worksheet.write(row + operation_counter, 6, 
-                                                    tool_changes_parameters.item(t_parmeter_index + 1 
-                                                    ).value_as_string(), line_format_1)                     #Write value to shet
+                                                t_parmeter_index + 1).name.find("Offset on part") != -1:   #Offset on part
+                                            worksheet.write(row + operation_counter, 6,
+                                                    tool_changes_parameters.item(t_parmeter_index + 1
+                                                    ).value_as_string(), n_fmt)
                                         if tool_changes_parameters.item(
-                                                t_parmeter_index + 1 ).name.find("Offset on check") != -1:  #Find Offset on check pararmeter
-                                            worksheet.write(row + operation_counter, 7, 
-                                                    tool_changes_parameters.item(t_parmeter_index + 1 
-                                                    ).value_as_string(), line_format_1)                     #Write to sheet
+                                                t_parmeter_index + 1).name.find("Offset on check") != -1:  #Offset on check
+                                            worksheet.write(row + operation_counter, 7,
+                                                    tool_changes_parameters.item(t_parmeter_index + 1
+                                                    ).value_as_string(), n_fmt)
                                         if tool_changes_parameters.item(
-                                                t_parmeter_index + 1 
-                                                ).name.find("Depth of cut by level for Multi-Pass") != -1:  #Look for depth of cut parameter
-                                            worksheet.write(row + operation_counter, 8, 
-                                                    tool_changes_parameters.item(t_parmeter_index + 1 
-                                                    ).value_as_string(), line_format_1)                     #Write to sheet
+                                                t_parmeter_index + 1
+                                                ).name.find("Depth of cut by level for Multi-Pass") != -1: #Depth of cut by level
+                                            worksheet.write(row + operation_counter, 8,
+                                                    tool_changes_parameters.item(t_parmeter_index + 1
+                                                    ).value_as_string(), n_fmt)
                                     operation_counter = operation_counter + 1                               #Add row for next operation
-                                    
+
                             row = row + tool_change_counter + operation_counter - 1                         #Update row counter for next manufacturing program
             
-                worksheet.autofit()                                                                         #Autofit sheet
-                worksheet.fit_to_pages(1, 0)                                                                #Set print width to one sheet, and hight to unlimited
+                worksheet.fit_to_pages(1, 0)                                                                #Set print width to one sheet, height unlimited
                       
     workbook.close()                                                                                        #Save and close workbook
     
