@@ -102,6 +102,8 @@ if __name__ == "__main__":
     line_format_2   = _base(ROW_BG_EVEN, size=11)                                       #Operation row (even)
     num_fmt_1       = _base(ROW_BG_ODD,  size=11, align='center')                       #Numeric cell (odd)
     num_fmt_2       = _base(ROW_BG_EVEN, size=11, align='center')                       #Numeric cell (even)
+    line_format_1_bold = _base(ROW_BG_ODD,  bold=True, size=11)                        #Bold operation row (odd) — programme name cell
+    line_format_2_bold = _base(ROW_BG_EVEN, bold=True, size=11)                        #Bold operation row (even) — programme name cell
 
     DEBUG_PARAMS = False                                                                                    #Set to True to print all parameter names and indices for each operation
                                                                                                             #Useful for discovering indices when adding support for new operation types
@@ -165,7 +167,8 @@ if __name__ == "__main__":
                 
                 
                 manufacturing_programs = part_op.children_activities                                        #Get all activities for part operation
-                
+                global_op_index = 0                                                                        #Global counter for alternating row colours across all programs
+
                 for man_index in range(manufacturing_programs.count):                                       #Cycle through all activities
                     man_prog = manufacturing_programs.item(man_index + 1)                                   #Get an activiy
                     
@@ -178,6 +181,8 @@ if __name__ == "__main__":
                             man_prog_desc = ""                                                              #Set to empty
 
                         worksheet.write(row, 1, man_prog_desc, prog_desc_fmt)                               #Write description to sheet
+                        for _col in range(2, 9):                                                            #Fill remaining columns with programme row background
+                            worksheet.write_blank(row, _col, None, prog_fmt)
                         
                         if man_prog.children_activities.count > 1:                                          #If the program has activities
                             tool_changes = man_prog.children_activities                                     #Get activities for program
@@ -185,10 +190,17 @@ if __name__ == "__main__":
                             tool_change_counter = 0                                                         #Count how many tool changes
                             operation_counter = 0                                                           #Count how many operations
 
+                            alt_fmt      = line_format_1      if global_op_index % 2 == 0 else line_format_2      #Alternating colour for this program's row
+                            alt_fmt_bold = line_format_1_bold if global_op_index % 2 == 0 else line_format_2_bold #Bold variant for programme name cell
+                            worksheet.write(row, 0, man_prog.name, alt_fmt_bold)                           #Overwrite name cell — bold, alternating colour
+                            worksheet.write(row, 1, man_prog_desc, alt_fmt)                                #Overwrite description cell with alternating colour
+                            for _col in range(2, 9):
+                                worksheet.write_blank(row, _col, None, alt_fmt)                            #Overwrite remaining cells with alternating colour
+
                             for tool_change_index in range(tool_changes.count):                             #Cycle through all activities of program
 
                                 if tool_changes.item(tool_change_index + 1).type == "ToolChange":           #If activity is Tool Change
-                                    r_fmt = line_format_1 if operation_counter % 2 == 0 else line_format_2
+                                    r_fmt = line_format_1 if global_op_index % 2 == 0 else line_format_2
                                     worksheet.write(row + tool_change_counter, 2, tool_changes.item(
                                             tool_change_index + 1).resources.item(1).name.split("(")[0],
                                             r_fmt)                                                          #Write tool name, stripping extra info
@@ -204,8 +216,8 @@ if __name__ == "__main__":
                                     tool_changes_parameters = tool_changes.item(
                                             tool_change_index + 1).parameters                               #Get collection of parameters for current activity
 
-                                    r_fmt  = line_format_1 if operation_counter % 2 == 0 else line_format_2 #Alternating row colour
-                                    n_fmt  = num_fmt_1     if operation_counter % 2 == 0 else num_fmt_2     #Alternating numeric cell colour
+                                    r_fmt  = line_format_1 if global_op_index % 2 == 0 else line_format_2  #Alternating row colour
+                                    n_fmt  = num_fmt_1     if global_op_index % 2 == 0 else num_fmt_2      #Alternating numeric cell colour
 
                                     if DEBUG_PARAMS:                                                        #If debug mode is on, print all parameter names and indices
                                         print(f"--- Operation: {tool_changes.item(tool_change_index + 1).name} ---")
@@ -247,8 +259,9 @@ if __name__ == "__main__":
                                                     tool_changes_parameters.item(t_parmeter_index + 1
                                                     ).value_as_string(), n_fmt)
                                     operation_counter = operation_counter + 1                               #Add row for next operation
+                                    global_op_index = global_op_index + 1                                  #Advance global colour index
 
-                            row = row + tool_change_counter + operation_counter - 1                         #Update row counter for next manufacturing program
+                            row = row + max(tool_change_counter, operation_counter) - 1                  #Update row counter for next manufacturing program
             
                 worksheet.fit_to_pages(1, 0)                                                                #Set print width to one sheet, height unlimited
                       
