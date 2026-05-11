@@ -17,4 +17,20 @@ Starting points for writing new Pycatia Scripts. Copy the template that best mat
 | `process_document_dialog_persistence.py` | CATProcess | Yes | Yes | No |
 | `product_document_basic.py` | CATProduct | No | No | No |
 
+## Common Helper Functions
+
+`common_functions.py` is a reference file — not a template to copy wholesale. It contains helper functions that appear across many scripts, organised into four categories:
+
+| Function | Category |
+|---|---|
+| `searchHybridBody` | Geometric set navigation |
+| `searchHybridBodyWithPath` | Geometric set navigation |
+| `create_datum` | Geometry operations |
+| `collect_all_names` | Geometry operations |
+| `normalize_vector`, `dot_product`, `cross_product`, `are_collinear` | Coordinate maths |
+| `coords_relative_to_axis` | Coordinate maths |
+| `get_path` | File input |
+
+Copy only the functions you need into your script. All Part Document templates already include `searchHybridBody` and `create_datum`. See the [Common Functions](https://github.com/KaiUR/Pycatia_Scripts/wiki/Common-Functions) wiki page for full signatures and usage examples.
+
 See the [Writing Scripts](https://github.com/KaiUR/Pycatia_Scripts/wiki/Writing-Scripts) wiki page for full guidance including the persistent data pattern and contribution guidelines.
