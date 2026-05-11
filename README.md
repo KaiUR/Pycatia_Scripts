@@ -49,7 +49,6 @@ Or use the **↓ Deps** button in CatiaMenuWin32 to install automatically.
 | `IGES_Export_Curve_AXIS.py` | Export curve to IGES after moving from a reference axis system to absolute |
 | `Insert_Points_Catia.py` | Insert points into active part from tab-separated or CSV file |
 | `Insert_Points_Catia_With_Names.py` | Insert named points into active part from tab-separated or CSV file |
-| `Involute_Gear_Generator_Mathamatical.py` | Generate an involute gear profile from user-defined parameters |
 | `Join_Explicit_No_Connect.py` | Join curves or surfaces without connex check, as datum |
 | `Join_Explicit_No_Connect_Curve.py` | Join curves without connex check, as datum |
 | `Join_Explicit_No_Connect_Surface.py` | Join surfaces without connex check, as datum |
@@ -60,6 +59,12 @@ Or use the **↓ Deps** button in CatiaMenuWin32 to install automatically.
 | `Reorder_Geometric_Set_Alphabetically.py` | Sort all elements inside a geometric set alphabetically by name |
 | `Translate_Direction_Distance_Keep_Name.py` | Translate hybrid shapes keeping their original names |
 | `Translate_Direction_Distance_Keep_Name_And_Structure.py` | Translate all shapes in a geometric set by direction and distance, preserving names and structure |
+
+### Shape Generation Scripts
+
+| Script | Description |
+|--------|-------------|
+| `Involute_Gear_Generator_Mathamatical.py` | Generate an involute gear profile from user-defined parameters |
 
 ### Process Document Scripts
 
