@@ -1,0 +1,224 @@
+'''
+    -----------------------------------------------------------------------------------------------------------------------
+    Script name:    Your_Script_Name.py
+    Version:        1.0
+    Code:           Python3.10.4, Pycatia 0.8.3
+    Release:        V5R32
+    Purpose:        EDIT: One line summary shown on the script button.
+    Author:         EDIT: Your Name
+    Date:           EDIT: DD.MM.YY
+    Description:    EDIT: Full description of what the script does.
+                    EDIT: Continuation lines must be indented.
+                    Settings are saved between sessions.
+    dependencies = [
+                    "pycatia",
+                    "wxPython",
+                    ]
+    requirements:   Python >= 3.10
+                    pycatia
+                    wxPython
+                    Catia V5 running with an open part document.
+    -----------------------------------------------------------------------------------------------------------------------
+
+    Change:
+
+    -----------------------------------------------------------------------------------------------------------------------
+'''
+
+#Imports
+from pycatia import catia
+from pycatia.mec_mod_interfaces.part_document import PartDocument
+import wx
+import os
+import json
+
+class ScriptDialog(wx.Dialog):
+    def __init__(self, parent, title):
+        self.hardcoded_defaults = {                                                                            #Factory defaults — these never change
+            "param_1": "EDIT default",                                                                         #EDIT: Add your parameters and defaults
+            "param_2": "EDIT default",                                                                         #EDIT: Add your parameters and defaults
+        }
+        defaults = self.hardcoded_defaults.copy()
+
+        if os.path.exists(SETTINGS_FILE):                                                                      #Load saved settings if available
+            try:
+                with open(SETTINGS_FILE, 'r') as f:
+                    defaults.update(json.load(f))
+            except:
+                pass                                                                                           #Fall back to hardcoded defaults on error
+
+        super().__init__(parent, title=title, size=(420, 260))                                                 #EDIT: Adjust dialog size to fit your fields
+
+        vbox = wx.BoxSizer(wx.VERTICAL)
+        grid = wx.FlexGridSizer(2, 2, 10, 10)                                                                  #EDIT: First arg = number of parameter rows
+
+        # EDIT: Add one StaticText + TextCtrl pair per parameter. Duplicate rows as needed.
+        grid.Add(wx.StaticText(self, label="EDIT Parameter 1:"), 0, wx.ALIGN_CENTER_VERTICAL)
+        self.param_1 = wx.TextCtrl(self, value=str(defaults["param_1"]))                                       #Pre-fill from saved settings
+        grid.Add(self.param_1, 1, wx.EXPAND)
+
+        grid.Add(wx.StaticText(self, label="EDIT Parameter 2:"), 0, wx.ALIGN_CENTER_VERTICAL)
+        self.param_2 = wx.TextCtrl(self, value=str(defaults["param_2"]))                                       #Pre-fill from saved settings
+        grid.Add(self.param_2, 1, wx.EXPAND)
+
+        grid.AddGrowableCol(1, 1)
+        vbox.Add(grid, 1, wx.ALL | wx.EXPAND, 15)
+
+        #Buttons
+        reset_btn = wx.Button(self, label="Reset Defaults")
+        clear_btn = wx.Button(self, label="Clear Saved")
+        std_btn_sizer = self.CreateButtonSizer(wx.OK | wx.CANCEL | wx.HELP)
+
+        btn_row = wx.BoxSizer(wx.HORIZONTAL)
+        btn_row.Add(reset_btn,     0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
+        btn_row.Add(clear_btn,     0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
+        btn_row.Add(std_btn_sizer, 0, wx.ALL, 5)
+        vbox.Add(btn_row, 0, wx.ALIGN_CENTER | wx.BOTTOM, 10)
+
+        self.Bind(wx.EVT_BUTTON, self.on_help, id=wx.ID_HELP)
+        reset_btn.Bind(wx.EVT_BUTTON, self.on_reset)
+        clear_btn.Bind(wx.EVT_BUTTON, self.on_clear_settings)
+
+        self.SetSizer(vbox)
+        self.Center()
+
+    def on_help(self, event):
+        """Show inline help text."""
+        help_text = (
+            "EDIT: Script Name\n"
+            "==================================================\n\n"
+            # EDIT: Fill in the help text for your script
+            " PARAMETER 1\n"
+            "   EDIT: Description of what Parameter 1 does.\n\n"
+            " PARAMETER 2\n"
+            "   EDIT: Description of what Parameter 2 does.\n\n"
+            " [Reset Defaults]   Restores factory default values (fields flash green).\n"
+            " [Clear Saved]      Deletes the locally stored settings file.\n\n"
+            " Settings are saved to:\n"
+            "   %APPDATA%\\pycatia_scripts\\Your_Script_Name\\user_settings.json\n"  #EDIT: Match script name
+        )
+        dlg = wx.lib.dialogs.ScrolledMessageDialog(self, help_text, "Help", size=(520, 400))
+        dlg.ShowModal()
+        dlg.Destroy()
+
+    def on_reset(self, event):
+        """Restore all fields to hardcoded factory defaults with a brief green flash."""
+        d = self.hardcoded_defaults
+        success_color = wx.Colour(200, 255, 200)
+        default_color = wx.SystemSettings.GetColour(wx.SYS_COLOUR_WINDOW)
+
+        # EDIT: Set each field to its hardcoded default
+        self.param_1.SetValue(str(d["param_1"]))
+        self.param_2.SetValue(str(d["param_2"]))
+
+        controls = [self.param_1, self.param_2]                                                                #EDIT: List all text controls
+        for ctrl in controls:
+            ctrl.SetBackgroundColour(success_color)
+            ctrl.Refresh()
+        wx.CallLater(500, self._clear_feedback_colors, controls, default_color)
+
+    def _clear_feedback_colors(self, controls, color):
+        for ctrl in controls:
+            ctrl.SetBackgroundColour(color)
+            ctrl.Refresh()
+
+    def on_clear_settings(self, event):
+        """Delete the saved settings file and reset the UI to factory defaults."""
+        if os.path.exists(SETTINGS_FILE):
+            try:
+                os.remove(SETTINGS_FILE)
+                wx.MessageBox("Saved settings deleted.", "Settings Cleared",
+                        wx.OK | wx.ICON_INFORMATION | wx.STAY_ON_TOP)
+                self.on_reset(None)
+            except Exception as e:
+                wx.MessageBox(f"Error deleting settings: {e}", "Error",
+                        wx.OK | wx.ICON_ERROR | wx.STAY_ON_TOP)
+        else:
+            wx.MessageBox("No saved settings file found.", "Information",
+                    wx.OK | wx.ICON_INFORMATION | wx.STAY_ON_TOP)
+
+if __name__ == "__main__":
+    SETTINGS_DIR  = os.path.join(os.environ['APPDATA'], 'pycatia_scripts', 'Your_Script_Name')                 #EDIT: Match script filename without .py
+    SETTINGS_FILE = os.path.join(SETTINGS_DIR, 'user_settings.json')                                          #User settings file
+
+    if not os.path.exists(SETTINGS_DIR):                                                                       #Create settings directory if it does not exist
+        os.makedirs(SETTINGS_DIR)
+
+    caa = catia()                                                                                               #Catia application instance
+    active_doc = caa.active_document                                                                           #Current active document
+    app = wx.App(None)                                                                                         #Initialize wx application
+
+    if type(active_doc) is not PartDocument:                                                                   #Check that a CATPart is active
+        wx.MessageBox("A CATPart document must be the active document.", "Error",
+                wx.OK | wx.ICON_ERROR | wx.STAY_ON_TOP)
+        exit()
+
+    part_document: PartDocument = active_doc                                                                   #Cast to PartDocument
+    part = part_document.part                                                                                  #Current part
+    hybrid_bodies = part.hybrid_bodies                                                                         #Top level geometric sets
+    hybrid_shape_factory = part.hybrid_shape_factory                                                           #GSD workbench for creating hybrid shapes
+
+    dlg = ScriptDialog(None, "EDIT: Dialog Title")                                                             #EDIT: Set dialog title
+    if dlg.ShowModal() != wx.ID_OK:                                                                            #If user cancelled
+        dlg.Destroy()
+        exit()
+
+    param_1 = dlg.param_1.GetValue().strip()                                                                   #EDIT: Get each field value
+    param_2 = dlg.param_2.GetValue().strip()                                                                   #EDIT: Get each field value
+
+    with open(SETTINGS_FILE, 'w') as f:                                                                        #Save settings for next run
+        json.dump({                                                                                            #EDIT: Include every field
+            "param_1": dlg.param_1.GetValue(),
+            "param_2": dlg.param_2.GetValue(),
+        }, f, indent=4)
+
+    dlg.Destroy()                                                                                              #Destroy dialog
+
+    # EDIT: Set maximum to the number of distinct progress steps in your script
+    PROGRESS_STEPS = 5
+    progress_dlg = wx.ProgressDialog(
+        "EDIT: Operation Title",
+        "Initializing...",
+        maximum=PROGRESS_STEPS,
+        parent=None,
+        style=(wx.PD_APP_MODAL | wx.PD_AUTO_HIDE | wx.PD_SMOOTH |
+               wx.PD_ELAPSED_TIME | wx.PD_REMAINING_TIME)
+    )
+
+    try:
+        progress_dlg.Update(1, "EDIT: Step 1 message...")
+
+        # TODO: Step 1 — first phase of work
+        # part operations, geometry creation, etc.
+
+        progress_dlg.Update(2, "EDIT: Step 2 message...")
+
+        # TODO: Step 2
+
+        progress_dlg.Update(3, "EDIT: Step 3 message...")
+
+        # TODO: Step 3
+
+        progress_dlg.Update(4, "EDIT: Step 4 message...")
+
+        # TODO: Step 4
+
+        part.update()                                                                                          #Update part after all operations
+
+        progress_dlg.Update(PROGRESS_STEPS, "Done.")
+
+    except Exception as e:
+        # EDIT: If your script creates a body/geometric set that should be cleaned up on error,
+        # delete it here before showing the error.
+        progress_dlg.Destroy()
+        wx.MessageBox(
+            f"An error occurred:\n\n{e}\n\n"
+            "EDIT: Add any cleanup instructions for the user here.",
+            "Error", wx.OK | wx.ICON_ERROR | wx.STAY_ON_TOP
+        )
+        exit()
+
+    finally:
+        progress_dlg.Destroy()                                                                                 #Always close progress dialog
+
+    print("\n\n Completed\n\n")
