@@ -59,6 +59,10 @@ Or use the **↓ Deps** button in CatiaMenuWin32 to install automatically.
 | `Mirror_Keep_Name_And_Structure.py` | Mirror all shapes in a geometric set about a plane, preserving names and structure |
 | `Publish_Hybrid_Shapes_In_Geometric_Set.py` | Publish all hybrid shapes in a selected geometric set |
 | `Reorder_Geometric_Set_Alphabetically.py` | Sort all elements inside a geometric set alphabetically by name |
+| `Rotate_Angle_Keep_Name.py` | Rotate hybrid shapes by an angle around an axis keeping their original names |
+| `Rotate_Angle_Keep_Name_And_Structure.py` | Rotate all shapes in a geometric set by an angle, preserving names and structure |
+| `Rotate_Three_Points_Keep_Name.py` | Rotate hybrid shapes using three points definition keeping their original names |
+| `Rotate_Three_Points_Keep_Name_And_Structure.py` | Rotate all shapes in a geometric set using three points, preserving names and structure |
 | `Translate_Direction_Distance_Keep_Name.py` | Translate hybrid shapes keeping their original names |
 | `Translate_Direction_Distance_Keep_Name_And_Structure.py` | Translate all shapes in a geometric set by direction and distance, preserving names and structure |
 
