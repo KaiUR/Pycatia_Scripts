@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Translate_Direction_Distance_Keep_Name.py
-    Version:        1.1
+    Version:        1.2
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Moves hybrid shapes with translate while keeping the names.
@@ -20,6 +20,7 @@
     -----------------------------------------------------------------------------------------------------------------------
     
     Change:         12.05.26 1.1: Dialog raised to foreground of CATIA window.
+                    13.05.26 1.2: Replace name-based HybridBody lookup with direct COM reference.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''

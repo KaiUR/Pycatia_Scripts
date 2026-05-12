@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Rotate_Angle_Keep_Name.py
-    Version:        1.0
+    Version:        1.1
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Rotates hybrid shapes by an angle around an axis while keeping the names.
@@ -20,7 +20,7 @@
                     This script needs an open part document.
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:
+    Change:         13.05.26 1.1: Replace name-based HybridBody lookup with direct COM reference.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
