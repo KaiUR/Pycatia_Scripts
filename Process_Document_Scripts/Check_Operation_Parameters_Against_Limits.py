@@ -41,6 +41,20 @@ import wx
 import wx.lib.dialogs
 import os
 import json
+import ctypes
+
+def _bring_to_front(window):
+    u32 = ctypes.windll.user32
+    hwnd = window.GetHandle()
+    fg_hwnd = u32.GetForegroundWindow()
+    fg_tid = u32.GetWindowThreadProcessId(fg_hwnd, None)
+    our_tid = ctypes.windll.kernel32.GetCurrentThreadId()
+    if fg_tid != our_tid:
+        u32.AttachThreadInput(fg_tid, our_tid, True)
+    u32.BringWindowToTop(hwnd)
+    u32.SetForegroundWindow(hwnd)
+    if fg_tid != our_tid:
+        u32.AttachThreadInput(fg_tid, our_tid, False)
 
 PARAM_ORDER = [
     "Maximum distance",
@@ -75,7 +89,7 @@ class LimitsDialog(wx.Dialog):
             except:
                 pass
 
-        super().__init__(parent, title=title, size=(560, 370))
+        super().__init__(parent, title=title, size=(560, 370), style=wx.DEFAULT_DIALOG_STYLE | wx.STAY_ON_TOP)
 
         vbox = wx.BoxSizer(wx.VERTICAL)
 
@@ -270,7 +284,7 @@ if __name__ == "__main__":
         exit()
 
     dlg = LimitsDialog(None, "Parameter Limit Checker - Set Limits", SETTINGS_FILE)                               #Show limits dialog
-
+    wx.CallAfter(_bring_to_front, dlg)
     if dlg.ShowModal() != wx.ID_OK:                                                                               #User cancelled
         dlg.Destroy()
         exit()
@@ -364,6 +378,9 @@ if __name__ == "__main__":
         report_lines.insert(0, summary + "\n" + "-" * 60 + "\n")                                                 #Insert summary at top of report
         report_text = "\n".join(report_lines)                                                                     #Join report lines into single string
 
-        wx.lib.dialogs.ScrolledMessageDialog(None, report_text,
+        _dlg = wx.lib.dialogs.ScrolledMessageDialog(None, report_text,
                 "Parameter Check - Violations Found",
-                size=(550, 450)).ShowModal()                                                                       #Show scrollable violations report dialog
+                size=(550, 450))
+        wx.CallAfter(_bring_to_front, _dlg)
+        _dlg.ShowModal()                                                                                           #Show scrollable violations report dialog
+        _dlg.Destroy()

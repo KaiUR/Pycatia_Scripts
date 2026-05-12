@@ -40,6 +40,20 @@ import wx.lib.dialogs as dialogs
 import os
 import json
 import traceback
+import ctypes
+
+def _bring_to_front(window):
+    u32 = ctypes.windll.user32
+    hwnd = window.GetHandle()
+    fg_hwnd = u32.GetForegroundWindow()
+    fg_tid = u32.GetWindowThreadProcessId(fg_hwnd, None)
+    our_tid = ctypes.windll.kernel32.GetCurrentThreadId()
+    if fg_tid != our_tid:
+        u32.AttachThreadInput(fg_tid, our_tid, True)
+    u32.BringWindowToTop(hwnd)
+    u32.SetForegroundWindow(hwnd)
+    if fg_tid != our_tid:
+        u32.AttachThreadInput(fg_tid, our_tid, False)
 
 class DataInputDialog(wx.Dialog):
     def __init__(self, parent, title):
@@ -58,7 +72,7 @@ class DataInputDialog(wx.Dialog):
                     defaults.update(json.load(f))
             except: pass # Fallback to hardcoded defaults on error
 
-        super().__init__(parent, title=title, size=(450, 580))                                          #Set size of dialog
+        super().__init__(parent, title=title, size=(450, 580), style=wx.DEFAULT_DIALOG_STYLE | wx.STAY_ON_TOP) #Set size of dialog
         
         vbox = wx.BoxSizer(wx.VERTICAL)                                                                 #Use the Dialog itself as the parent for the sizer
         
@@ -606,6 +620,7 @@ if __name__ == "__main__":
         return_hybrid = True                                                                                    #Set flag to turn on hybrid design again at end of script
     
     dlg = DataInputDialog(None, "Involute Gear Parameters")                                                     #New dialog to get user parameters
+    wx.CallAfter(_bring_to_front, dlg)
     if dlg.ShowModal() == wx.ID_OK:                                                                             #If user input is valid and user pressed ok
         module = float(dlg.module.GetValue())                                                                   #Get value form dialog
         number_of_teeth = int(dlg.number_of_teeth.GetValue())                                                   #Get value form dialog
@@ -1387,6 +1402,7 @@ if __name__ == "__main__":
         e_dlg.SetSize((600, 400)) 
         
         e_dlg.CenterOnParent()
+        wx.CallAfter(_bring_to_front, e_dlg)
         e_dlg.ShowModal()
         e_dlg.Destroy()
         

@@ -30,6 +30,20 @@ from pycatia.mec_mod_interfaces.part_document import PartDocument
 from pathlib import Path
 import wx
 import wx.lib.dialogs
+import ctypes
+
+def _bring_to_front(window):
+    u32 = ctypes.windll.user32
+    hwnd = window.GetHandle()
+    fg_hwnd = u32.GetForegroundWindow()
+    fg_tid = u32.GetWindowThreadProcessId(fg_hwnd, None)
+    our_tid = ctypes.windll.kernel32.GetCurrentThreadId()
+    if fg_tid != our_tid:
+        u32.AttachThreadInput(fg_tid, our_tid, True)
+    u32.BringWindowToTop(hwnd)
+    u32.SetForegroundWindow(hwnd)
+    if fg_tid != our_tid:
+        u32.AttachThreadInput(fg_tid, our_tid, False)
 
 '''
     This function opens a file open dialog and returns the selected file path, or None if cancelled.
@@ -117,7 +131,7 @@ def create_datum(hybrid_shape_factory, hybrid_shape, hybrid_body, name=None):
 
 class ScriptDialog(wx.Dialog):
     def __init__(self, parent, title):
-        super().__init__(parent, title=title, size=(420, 200))                                                  #EDIT: Adjust dialog size to fit your fields
+        super().__init__(parent, title=title, size=(420, 200), style=wx.DEFAULT_DIALOG_STYLE | wx.STAY_ON_TOP)  #EDIT: Adjust dialog size to fit your fields
 
         vbox = wx.BoxSizer(wx.VERTICAL)
         grid = wx.FlexGridSizer(2, 2, 10, 10)                                                                  #EDIT: First arg = number of parameter rows
@@ -192,6 +206,7 @@ if __name__ == "__main__":
     #   "Face"           — faces
 
     dlg = ScriptDialog(None, "EDIT: Dialog Title")                                                             #EDIT: Set dialog title
+    wx.CallAfter(_bring_to_front, dlg)
     if dlg.ShowModal() != wx.ID_OK:                                                                            #If user cancelled
         dlg.Destroy()
         exit()
