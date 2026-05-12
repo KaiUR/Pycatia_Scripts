@@ -125,8 +125,8 @@ def process_hybrid_body(source_hb, target_hb, part, hybrid_shape_factory, center
         rotate = hybrid_shape_factory.add_new_empty_rotate()                                                    #Create new rotate
         rotate.elem_to_rotate = shape_ref                                                                       #Add element to rotate
         rotate.rotation_type = 2                                                                                #Set to three points
-        rotate.first_point = center_ref                                                                         #Add center point
-        rotate.second_point = start_ref                                                                         #Add start point
+        rotate.first_point = start_ref                                                                          #Add start point
+        rotate.second_point = center_ref                                                                        #Add center point
         rotate.third_point = end_ref                                                                            #Add end point
         rotate.volume_result = False                                                                            #Disable volume result
         rotate.name = shape_name                                                                                #Set name to match source shape

@@ -137,8 +137,8 @@ if __name__ == "__main__":
         rotate = hybrid_shape_factory.add_new_empty_rotate()                                                   #Create new rotate
         rotate.elem_to_rotate = hybridshapes_selected[index]                                                   #Add element to rotate
         rotate.rotation_type = 2                                                                               #Set to three points
-        rotate.first_point = center_ref                                                                        #Add center point
-        rotate.second_point = start_ref                                                                        #Add start point
+        rotate.first_point = start_ref                                                                         #Add start point
+        rotate.second_point = center_ref                                                                       #Add center point
         rotate.third_point = end_ref                                                                           #Add end point
         rotate.volume_result = False                                                                           #Disable volume result
         rotate.name = hybridshapes_selected_name[index]                                                        #Set name
