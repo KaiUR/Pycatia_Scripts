@@ -38,6 +38,7 @@ def _bring_to_front(window):
     our_tid = ctypes.windll.kernel32.GetCurrentThreadId()
     if fg_tid != our_tid:
         u32.AttachThreadInput(fg_tid, our_tid, True)
+    u32.SetWindowLongW(hwnd, -20, u32.GetWindowLongW(hwnd, -20) | 0x0008)
     u32.BringWindowToTop(hwnd)
     u32.SetForegroundWindow(hwnd)
     if fg_tid != our_tid:
