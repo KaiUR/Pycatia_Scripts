@@ -28,6 +28,20 @@
 from pycatia import catia
 from pycatia.mec_mod_interfaces.part_document import PartDocument
 import wx
+import ctypes
+
+def _bring_to_front(window):
+    u32 = ctypes.windll.user32
+    hwnd = window.GetHandle()
+    fg_hwnd = u32.GetForegroundWindow()
+    fg_tid = u32.GetWindowThreadProcessId(fg_hwnd, None)
+    our_tid = ctypes.windll.kernel32.GetCurrentThreadId()
+    if fg_tid != our_tid:
+        u32.AttachThreadInput(fg_tid, our_tid, True)
+    u32.BringWindowToTop(hwnd)
+    u32.SetForegroundWindow(hwnd)
+    if fg_tid != our_tid:
+        u32.AttachThreadInput(fg_tid, our_tid, False)
 
 if __name__ == "__main__":
     #Anchoring relavent components
@@ -44,6 +58,7 @@ if __name__ == "__main__":
     app = wx.App(None)                                                                                          #bootstrap the wxPython system 
     style = wx.OK | wx.CANCEL | wx.CENTRE | wx.STAY_ON_TOP
     dialog = wx.TextEntryDialog(None, "Enter a new name for the Objects", "Rename Objects", "New Name", style)  #Create dialog
+    wx.CallAfter(_bring_to_front, dialog)
     if dialog.ShowModal() == wx.ID_OK:                                                                          #Show dialog and wait for ok
         newName = dialog.GetValue()                                                                             #Get path that user selected
     else:                                                                                                       #Something whent wrong or user canceled

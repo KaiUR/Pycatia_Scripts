@@ -32,6 +32,20 @@ from pycatia import catia
 from pycatia.mec_mod_interfaces.part_document import PartDocument
 import wx
 import wx.lib.dialogs
+import ctypes
+
+def _bring_to_front(window):
+    u32 = ctypes.windll.user32
+    hwnd = window.GetHandle()
+    fg_hwnd = u32.GetForegroundWindow()
+    fg_tid = u32.GetWindowThreadProcessId(fg_hwnd, None)
+    our_tid = ctypes.windll.kernel32.GetCurrentThreadId()
+    if fg_tid != our_tid:
+        u32.AttachThreadInput(fg_tid, our_tid, True)
+    u32.BringWindowToTop(hwnd)
+    u32.SetForegroundWindow(hwnd)
+    if fg_tid != our_tid:
+        u32.AttachThreadInput(fg_tid, our_tid, False)
 
 '''
     This function searches for a hybrid body by name and return is.
@@ -90,8 +104,10 @@ if __name__ == "__main__":
     selectionSet = caa.active_document.selection                                                                #Create container for selection
     status = selectionSet.select_element3(object_filter, "Select geometric set to check for duplicate names", False, 2, False) #Runs an interactive selection command, exhaustive version.
     if status != "Normal":                                                                                      #Check if selection was succesful
-        wx.MessageDialog(None, "You must select a geometric set.", "Error",
-                wx.OK | wx.ICON_ERROR | wx.STAY_ON_TOP).ShowModal()                                             #Show error dialog
+        _dlg = wx.MessageDialog(None, "You must select a geometric set.", "Error", wx.OK | wx.ICON_ERROR)
+        wx.CallAfter(_bring_to_front, _dlg)
+        _dlg.ShowModal()
+        _dlg.Destroy()                                                                                          #Show error dialog
         exit()
 
     selected_item = selectionSet.item(1)                                                                        #Get selected item
@@ -109,8 +125,10 @@ if __name__ == "__main__":
 
     target_hb = searchHybridBody(geo_set_name, hybrid_bodies)                                                   #Find the selected geometric set
     if target_hb is None:                                                                                       #If not found
-        wx.MessageDialog(None, f"Error: Could not find geometric set '{geo_set_name}'.", "Error",
-                wx.OK | wx.ICON_ERROR | wx.STAY_ON_TOP).ShowModal()                                             #Show error dialog
+        _dlg = wx.MessageDialog(None, f"Error: Could not find geometric set '{geo_set_name}'.", "Error", wx.OK | wx.ICON_ERROR)
+        wx.CallAfter(_bring_to_front, _dlg)
+        _dlg.ShowModal()
+        _dlg.Destroy()                                                                                          #Show error dialog
         exit()
 
     all_names = []                                                                                              #List to store all (name, set) tuples
@@ -125,10 +143,12 @@ if __name__ == "__main__":
     duplicates = {name: sets for name, sets in name_counts.items() if len(sets) > 1}                           #Filter to only duplicates
 
     if len(duplicates) == 0:                                                                                    #If no duplicates
-        wx.MessageDialog(None,
+        _dlg = wx.MessageDialog(None,
                 f"No duplicate names found in '{geo_set_name}'.\n\n{len(all_names)} element(s) scanned.",
-                "Check Duplicate Names - No Duplicates Found",
-                wx.OK | wx.ICON_INFORMATION | wx.STAY_ON_TOP).ShowModal()                                       #Show result dialog
+                "Check Duplicate Names - No Duplicates Found", wx.OK | wx.ICON_INFORMATION)
+        wx.CallAfter(_bring_to_front, _dlg)
+        _dlg.ShowModal()
+        _dlg.Destroy()                                                                                          #Show result dialog
     else:                                                                                                       #If duplicates found
         report_lines = []                                                                                       #List to build report lines
         report_lines.append(f"Found {len(duplicates)} duplicate name(s) in '{geo_set_name}'.")
@@ -142,6 +162,9 @@ if __name__ == "__main__":
 
         report_text = "\n".join(report_lines)                                                                   #Join report lines into single string
 
-        wx.lib.dialogs.ScrolledMessageDialog(None, report_text,
+        _dlg = wx.lib.dialogs.ScrolledMessageDialog(None, report_text,
                 "Check Duplicate Names - Duplicates Found",
-                size=(500, 400)).ShowModal()                                                                     #Show scrollable report dialog
+                size=(500, 400))
+        wx.CallAfter(_bring_to_front, _dlg)
+        _dlg.ShowModal()
+        _dlg.Destroy()                                                                                          #Show scrollable report dialog

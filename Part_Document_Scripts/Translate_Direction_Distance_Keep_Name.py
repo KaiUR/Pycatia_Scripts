@@ -28,6 +28,20 @@
 from pycatia import catia
 from pycatia.mec_mod_interfaces.part_document import PartDocument
 import wx
+import ctypes
+
+def _bring_to_front(window):
+    u32 = ctypes.windll.user32
+    hwnd = window.GetHandle()
+    fg_hwnd = u32.GetForegroundWindow()
+    fg_tid = u32.GetWindowThreadProcessId(fg_hwnd, None)
+    our_tid = ctypes.windll.kernel32.GetCurrentThreadId()
+    if fg_tid != our_tid:
+        u32.AttachThreadInput(fg_tid, our_tid, True)
+    u32.BringWindowToTop(hwnd)
+    u32.SetForegroundWindow(hwnd)
+    if fg_tid != our_tid:
+        u32.AttachThreadInput(fg_tid, our_tid, False)
 
 def searchHybridBody(seachName, currentHybridBodies):
     try:                                                                                                        #Try at current level
@@ -130,7 +144,7 @@ if __name__ == "__main__":
     distance = 0.0                                                                                              #Initilize distance to 0
 
     dlg = wx.TextEntryDialog(None, "Enter distance to translate:", "Enter Distance", "0.0", wx.OK | wx.CANCEL | wx.CENTRE | wx.STAY_ON_TOP)
-
+    wx.CallAfter(_bring_to_front, dlg)
     if dlg.ShowModal() == wx.ID_OK:
         try:
             distance = float(dlg.GetValue())                                                                    #Get distance as float

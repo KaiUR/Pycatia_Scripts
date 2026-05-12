@@ -303,8 +303,22 @@ def coords_relative_to_axis(part, spa_workbench, axis_system, point, precision=6
 '''
 def get_path(wildcard):
     import wx
+    import ctypes
+    def _bring_to_front(window):
+        u32 = ctypes.windll.user32
+        hwnd = window.GetHandle()
+        fg_hwnd = u32.GetForegroundWindow()
+        fg_tid = u32.GetWindowThreadProcessId(fg_hwnd, None)
+        our_tid = ctypes.windll.kernel32.GetCurrentThreadId()
+        if fg_tid != our_tid:
+            u32.AttachThreadInput(fg_tid, our_tid, True)
+        u32.BringWindowToTop(hwnd)
+        u32.SetForegroundWindow(hwnd)
+        if fg_tid != our_tid:
+            u32.AttachThreadInput(fg_tid, our_tid, False)
     style = wx.FD_OPEN | wx.FD_FILE_MUST_EXIST                                                                 #Open dialog flags
     dialog = wx.FileDialog(None, 'Open', wildcard=wildcard, style=style)                                       #Create file dialog
+    wx.CallAfter(_bring_to_front, dialog)
     if dialog.ShowModal() == wx.ID_OK:                                                                         #Show dialog and wait for selection
         path = dialog.GetPath()                                                                                #Get selected path
     else:

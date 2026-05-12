@@ -29,6 +29,20 @@
 #Imports
 from pycatia import catia
 import wx
+import ctypes
+
+def _bring_to_front(window):
+    u32 = ctypes.windll.user32
+    hwnd = window.GetHandle()
+    fg_hwnd = u32.GetForegroundWindow()
+    fg_tid = u32.GetWindowThreadProcessId(fg_hwnd, None)
+    our_tid = ctypes.windll.kernel32.GetCurrentThreadId()
+    if fg_tid != our_tid:
+        u32.AttachThreadInput(fg_tid, our_tid, True)
+    u32.BringWindowToTop(hwnd)
+    u32.SetForegroundWindow(hwnd)
+    if fg_tid != our_tid:
+        u32.AttachThreadInput(fg_tid, our_tid, False)
 
 if __name__ == "__main__":
     #Anchoring relavent components
@@ -39,6 +53,7 @@ if __name__ == "__main__":
     dlg = wx.TextEntryDialog(None, "Enter name to search for:", "Find and Select By Name", "",
             wx.OK | wx.CANCEL | wx.CENTRE | wx.STAY_ON_TOP)                                                     #Create text entry dialog
 
+    wx.CallAfter(_bring_to_front, dlg)
     if dlg.ShowModal() == wx.ID_OK:                                                                             #If user clicked OK
         search_string = dlg.GetValue().strip()                                                                  #Get search string
     else:                                                                                                       #If user cancelled
