@@ -141,7 +141,7 @@ def process_hybrid_body(source_hb, target_hb, part, hybrid_shape_factory, axis_r
 
         rotate = hybrid_shape_factory.add_new_empty_rotate()                                                    #Create new rotate
         rotate.elem_to_rotate = shape_ref                                                                       #Add element to rotate
-        rotate.vector_type = 0                                                                                  #Set to axis, angle
+        rotate.rotation_type = 0                                                                                #Set to axis, angle
         rotate.axis = axis_ref                                                                                  #Add rotation axis
         rotate.angle_value = angle                                                                              #Add angle
         rotate.volume_result = False                                                                            #Disable volume result

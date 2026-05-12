@@ -136,7 +136,7 @@ if __name__ == "__main__":
     for index in range(hybridshapes_selected_count):                                                           #For each hybridshape
         rotate = hybrid_shape_factory.add_new_empty_rotate()                                                   #Create new rotate
         rotate.elem_to_rotate = hybridshapes_selected[index]                                                   #Add element to rotate
-        rotate.vector_type = 1                                                                                 #Set to three points
+        rotate.rotation_type = 2                                                                               #Set to three points
         rotate.first_point = center_ref                                                                        #Add center point
         rotate.second_point = start_ref                                                                        #Add start point
         rotate.third_point = end_ref                                                                           #Add end point

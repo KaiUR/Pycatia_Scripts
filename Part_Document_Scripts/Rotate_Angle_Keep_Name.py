@@ -154,7 +154,7 @@ if __name__ == "__main__":
     for index in range(hybridshapes_selected_count):                                                           #For each hybridshape
         rotate = hybrid_shape_factory.add_new_empty_rotate()                                                   #Create new rotate
         rotate.elem_to_rotate = hybridshapes_selected[index]                                                   #Add element to rotate
-        rotate.vector_type = 0                                                                                 #Set to axis, angle
+        rotate.rotation_type = 0                                                                               #Set to axis, angle
         rotate.axis = axis_ref                                                                                 #Add rotation axis
         rotate.angle_value = angle                                                                             #Add angle
         rotate.volume_result = False                                                                           #Disable volume result
