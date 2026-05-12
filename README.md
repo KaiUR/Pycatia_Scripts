@@ -55,6 +55,8 @@ Or use the **↓ Deps** button in CatiaMenuWin32 to install automatically.
 | `Measure_Curve_With_3_PTS_AS_CIRCLE.py` | Measure curve radius using a 3-point circle |
 | `Measure_Curve_With_3_PTS_AS_CIRCLE_Keep_Con.py` | Measure curve radius using a 3-point circle without removing construction elements |
 | `Measure_Radius_Surface.py` | Measure surface radius using intersection and 3-point circle without removing construction |
+| `Mirror_Keep_Name.py` | Mirror hybrid shapes about a plane keeping their original names |
+| `Mirror_Keep_Name_And_Structure.py` | Mirror all shapes in a geometric set about a plane, preserving names and structure |
 | `Publish_Hybrid_Shapes_In_Geometric_Set.py` | Publish all hybrid shapes in a selected geometric set |
 | `Reorder_Geometric_Set_Alphabetically.py` | Sort all elements inside a geometric set alphabetically by name |
 | `Translate_Direction_Distance_Keep_Name.py` | Translate hybrid shapes keeping their original names |
