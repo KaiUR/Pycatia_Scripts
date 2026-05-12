@@ -176,21 +176,21 @@ if __name__ == "__main__":
 
     object_filter = ("AnyObject",)                                                                             #Set user selection filter (AnyObject)
     selectionSet.clear()
-    status = selectionSet.select_element3(object_filter, "Select center point", False, 2, False)               #Runs an interactive selection command, exhaustive version.
-    if status != "Normal":                                                                                      #Check if selection was succesful
-        print("You must select a center point")
-        exit()
-
-    center_ref = part.create_reference_from_object(selectionSet.item(1).value)                                 #Create reference to center point
-
-    object_filter = ("AnyObject",)                                                                             #Set user selection filter (AnyObject)
-    selectionSet.clear()
     status = selectionSet.select_element3(object_filter, "Select start point", False, 2, False)                #Runs an interactive selection command, exhaustive version.
     if status != "Normal":                                                                                      #Check if selection was succesful
         print("You must select a start point")
         exit()
 
-    start_ref = part.create_reference_from_object(selectionSet.item(1).value)                                  #Create reference to start point
+    start_ref = selectionSet.item(1).reference                                                                 #Create reference to start point
+
+    object_filter = ("AnyObject",)                                                                             #Set user selection filter (AnyObject)
+    selectionSet.clear()
+    status = selectionSet.select_element3(object_filter, "Select center point", False, 2, False)               #Runs an interactive selection command, exhaustive version.
+    if status != "Normal":                                                                                      #Check if selection was succesful
+        print("You must select a center point")
+        exit()
+
+    center_ref = selectionSet.item(1).reference                                                                #Create reference to center point
 
     object_filter = ("AnyObject",)                                                                             #Set user selection filter (AnyObject)
     selectionSet.clear()
@@ -199,7 +199,7 @@ if __name__ == "__main__":
         print("You must select an end point")
         exit()
 
-    end_ref = part.create_reference_from_object(selectionSet.item(1).value)                                    #Create reference to end point
+    end_ref = selectionSet.item(1).reference                                                                   #Create reference to end point
 
     inwork_hb = searchHybridBody(part.in_work_object.name, hybrid_bodies)                                      #Look for the in work object geometric set
     if inwork_hb is None:                                                                                       #If not found
