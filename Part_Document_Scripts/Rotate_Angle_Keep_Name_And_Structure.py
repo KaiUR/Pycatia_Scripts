@@ -197,7 +197,7 @@ if __name__ == "__main__":
         print("You must select a rotation axis")
         exit()
 
-    axis_ref = part.create_reference_from_object(selectionSet.item(1).value)                                   #Create reference to rotation axis
+    axis_ref = selectionSet.item(1).reference                                                                 #Create reference to rotation axis
 
     app = wx.App(None)                                                                                         #Initilize wx application
     angle = 0.0                                                                                                #Initilize angle to 0
