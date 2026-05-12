@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Your_Script_Name.py
-    Version:        1.0
+    Version:        1.1
     Code:           Python3.10.4, Pycatia 0.9.5
     Release:        V5R32
     Purpose:        EDIT: One line summary shown on the script button.
@@ -19,7 +19,7 @@
                     Catia V5 / DELMIA running with an open CATProcess document.
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:
+    Change:         12.05.26 1.1: Dialogs raised to foreground of CATIA window.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''

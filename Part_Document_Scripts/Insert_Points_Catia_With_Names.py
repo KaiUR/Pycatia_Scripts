@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Insert_Points_Catia_With_Names.py
-    Version:        1.0
+    Version:        1.1
     Code:           Python3.10.4, Pycatia 0.8.3, wx 4.2.5
     Release:        V5R32
     Purpose:        Imports points into catia from file
@@ -25,8 +25,8 @@
                     This script needs an open part document.
     -----------------------------------------------------------------------------------------------------------------------
     
-    Change:
-    
+    Change:         12.05.26 1.1: File dialog raised to foreground of CATIA window.
+
     -----------------------------------------------------------------------------------------------------------------------
 '''
 

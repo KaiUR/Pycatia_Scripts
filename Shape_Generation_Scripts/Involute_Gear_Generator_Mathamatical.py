@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Involute_Gear_Generator_Mathamatical.py
-    Version:        1.1
+    Version:        1.2
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Create Involute Gear
@@ -22,6 +22,7 @@
     -----------------------------------------------------------------------------------------------------------------------
     
     Change:         10.05.26 1.1: Settings path moved to %APPDATA%\pycatia_scripts\<script_name>.
+                    12.05.26 1.2: Dialogs raised to foreground of CATIA window; removed unused import.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -29,7 +30,6 @@
 #Imports
 from pycatia import catia
 from pycatia.mec_mod_interfaces.part_document import PartDocument
-from pycatia.in_interfaces.setting_controllers import SettingControllers
 from pycatia import CatConstraintType
 from pycatia import CatConstraintMode
 from pycatia import CatPrismOrientation

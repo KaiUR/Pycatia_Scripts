@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    IGES_Export_Curve_AXIS.py
-    Version:        1.1
+    Version:        1.2
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Exports curve as IGES in 
@@ -22,13 +22,13 @@
     
     Change:         19.03.26
                     Modified script to work when there is a process or procuct open containing a part.
-    
+                    12.05.26 1.2: Dialog raised to foreground of CATIA window; removed unused import.
+
     -----------------------------------------------------------------------------------------------------------------------
 '''
 
 #Imports
 from pycatia import catia
-from pycatia.hybrid_shape_interfaces.hybrid_shape_axis_to_axis import HybridShapeAxisToAxis
 from pycatia.mec_mod_interfaces.part_document import PartDocument
 import wx
 import ctypes

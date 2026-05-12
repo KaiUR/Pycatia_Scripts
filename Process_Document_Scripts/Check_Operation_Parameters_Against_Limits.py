@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Check_Operation_Parameters_Against_Limits.py
-    Version:        1.3
+    Version:        1.4
     Code:           Python3.10.4, Pycatia 0.9.5
     Release:        V5R32
     Purpose:        Check all operation parameters against configurable min and max limits and flag any violations.
@@ -29,6 +29,7 @@
     Change:         06.05.26 1.1: Results now shown in wx dialog instead of console.
                     10.05.26 1.2: Limits are now configured via a dialog box with saved settings.
                     10.05.26 1.3: Settings path moved to %APPDATA%\pycatia_scripts\<script_name>.
+                    12.05.26 1.4: Dialogs raised to foreground of CATIA window.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''

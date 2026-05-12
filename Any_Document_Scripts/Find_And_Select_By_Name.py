@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Find_And_Select_By_Name.py
-    Version:        1.0
+    Version:        1.1
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Find and select all hybrid shapes whose names contain a search string.
@@ -21,7 +21,7 @@
                     This script needs an open part document, product document or process document.
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:
+    Change:         12.05.26 1.1: Dialog raised to foreground of CATIA window.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''

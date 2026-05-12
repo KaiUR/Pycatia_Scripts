@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Check_Duplicate_Names_In_Geometric_Set.py
-    Version:        1.1
+    Version:        1.2
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Scan a geometric set and report any elements that share a name.
@@ -23,6 +23,7 @@
     -----------------------------------------------------------------------------------------------------------------------
 
     Change:         06.05.26 1.1: Results now shown in wx dialog instead of console.
+                    12.05.26 1.2: Dialogs raised to foreground of CATIA window.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
