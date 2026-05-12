@@ -25,24 +25,8 @@
 
 #Imports
 from pycatia import catia
+from pycatia.mec_mod_interfaces.hybrid_body import HybridBody
 from pycatia.mec_mod_interfaces.part_document import PartDocument
-
-def searchHybridBody(seachName, currentHybridBodies):
-    try:                                                                                                        #Try at current level
-        currentSearch = currentHybridBodies.item(seachName)                                                     #Check if we can find it
-        if currentSearch is not None:                                                                           #If we found it
-            return currentSearch                                                                                #Return found Geometric set
-    except:
-        pass                                                                                                    #If no found move to recursion
-
-    for index in range(currentHybridBodies.count):                                                              #Loop through geometric sets of this level
-        if currentHybridBodies.item(index+1).hybrid_bodies.count > 0:
-            found = searchHybridBody(seachName, currentHybridBodies.item(index+1).hybrid_bodies)                #recursive call
-
-            if found is not None:                                                                               #If found
-                return found                                                                                     #Return found
-
-    return None                                                                                                 #Return not found
 
 def create_datum(hybrid_shape_factory, hybrid_shape, hybrid_body, name=None):
     geo_type = hybrid_shape_factory.get_geometrical_feature_type(hybrid_shape)
@@ -128,10 +112,22 @@ if __name__ == "__main__":
 
     end_ref = selectionSet.item(1).reference                                                                   #Create reference to end point
 
-    hb = searchHybridBody(part.in_work_object.name, hybrid_bodies)                                            #Look for the in work object geometric set
-    if hb == None:                                                                                             #If not found
-        hb = hybrid_bodies.add()                                                                               #Add new geometric set
-        hb.name = "Rotate_Three_Points_Keep_Name"                                                              #Rename geometric set
+    in_work = part.in_work_object                                                                               #Get in work object
+    hb = None
+    try:
+        hb = HybridBody(in_work.com_object)                                                                     #Try to use in_work_object directly as a HybridBody
+        hb.hybrid_shapes                                                                                        #Validate it is a HybridBody
+    except Exception:
+        hb = None
+    if hb is None:                                                                                              #If in_work_object is not a HybridBody (e.g. a feature)
+        try:
+            hb = HybridBody(in_work.com_object.Parent)                                                          #Try parent (the containing GS)
+            hb.hybrid_shapes                                                                                    #Validate it is a HybridBody
+        except Exception:
+            hb = None
+    if hb is None:                                                                                              #If still not found, create new GS
+        hb = hybrid_bodies.add()                                                                                #Add new geometric set
+        hb.name = "Rotate_Three_Points_Keep_Name"                                                               #Rename geometric set
 
     for index in range(hybridshapes_selected_count):                                                           #For each hybridshape
         rotate = hybrid_shape_factory.add_new_empty_rotate()                                                   #Create new rotate

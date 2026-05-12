@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Translate_Direction_Distance_Keep_Name_And_Structure.py
-    Version:        1.1
+    Version:        1.2
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Translates all hybrid shapes in a geometric set while keeping names and structure.
@@ -23,6 +23,7 @@
     -----------------------------------------------------------------------------------------------------------------------
 
     Change:         12.05.26 1.1: Dialog raised to foreground of CATIA window.
+                    13.05.26 1.2: Replace name-based HybridBody lookup with direct COM reference.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -47,33 +48,6 @@ def _bring_to_front(window):
     u32.SetForegroundWindow(hwnd)
     if fg_tid != our_tid:
         u32.AttachThreadInput(fg_tid, our_tid, False)
-
-'''
-    This function searches for a hybrid body by name and returns it.
-
-    Inputs:
-        searchName              The name of the geometric set that is being searched for.
-        currentHybridBodies     The current collection of geometric sets
-
-    output:
-        The geometric set that is found, or None if not found
-'''
-def searchHybridBody(seachName, currentHybridBodies):
-    try:                                                                                                        #Try at current level
-        currentSearch = currentHybridBodies.item(seachName)                                                     #Check if we can find it
-        if currentSearch is not None:                                                                           #If we found it
-            return currentSearch                                                                                #Return found Geometric set
-    except:
-        pass                                                                                                    #If no found move to recursion
-
-    for index in range(currentHybridBodies.count):                                                              #Loop through geometric sets of this level
-        if currentHybridBodies.item(index+1).hybrid_bodies.count > 0:
-            found = searchHybridBody(seachName, currentHybridBodies.item(index+1).hybrid_bodies)                #recursive call
-
-            if found is not None:                                                                               #If found
-                return found                                                                                     #Return found
-
-    return None                                                                                                 #Return not found
 
 '''
     This function creates a datum from a hybrid shape preserving its name, then removes the original.
@@ -187,10 +161,7 @@ if __name__ == "__main__":
     hybrid_bodies = part.hybrid_bodies                                                                          #Set off all top level geometric sets
     hybrid_shape_factory = part.hybrid_shape_factory                                                            #GSD workbench to create hybridshapes
 
-    source_hb = searchHybridBody(source_geo_set_name, hybrid_bodies)                                            #Find the selected source geometric set
-    if source_hb is None:                                                                                       #If not found
-        print(f"Error: Could not find geometric set '{source_geo_set_name}'")
-        exit()
+    source_hb = HybridBody(selected_item.value.com_object)                                                      #Get source geometric set directly from selection
 
     object_filter = ("AnyObject",)                                                                              #Set user selection filter (AnyObject)
     selectionSet.clear()
@@ -231,8 +202,20 @@ if __name__ == "__main__":
 
     dlg.Destroy()                                                                                               #Destroy dialog
 
-    inwork_hb = searchHybridBody(part.in_work_object.name, hybrid_bodies)                                       #Look for the in work object geometric set
-    if inwork_hb is None:                                                                                       #If not found
+    in_work = part.in_work_object                                                                               #Get in work object
+    inwork_hb = None
+    try:
+        inwork_hb = HybridBody(in_work.com_object)                                                              #Try to use in_work_object directly as a HybridBody
+        inwork_hb.hybrid_shapes                                                                                  #Validate it is a HybridBody
+    except Exception:
+        inwork_hb = None
+    if inwork_hb is None:                                                                                       #If in_work_object is not a HybridBody (e.g. a feature)
+        try:
+            inwork_hb = HybridBody(in_work.com_object.Parent)                                                   #Try parent (the containing GS)
+            inwork_hb.hybrid_shapes                                                                              #Validate it is a HybridBody
+        except Exception:
+            inwork_hb = None
+    if inwork_hb is None:                                                                                       #If still not found, create new GS
         inwork_hb = hybrid_bodies.add()                                                                         #Add new geometric set
         inwork_hb.name = "Translate_Keep_Name_And_Structure"                                                    #Rename geometric set
 

@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Reorder_Geometric_Set_Alphabetically.py
-    Version:        1.2
+    Version:        1.3
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Sort all elements inside a selected geometric set alphabetically by name.
@@ -23,40 +23,15 @@
     Change:         06.05.26 1.1: Attempted cut/paste approach - unreliable through API.
                     06.05.26 1.2: Replaced with datum recreation approach - creates sorted datums
                                   then removes originals, consistent with other scripts in collection.
+                    13.05.26 1.3: Replace name-based HybridBody lookup with direct COM reference.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
 
 #Imports
 from pycatia import catia
+from pycatia.mec_mod_interfaces.hybrid_body import HybridBody
 from pycatia.mec_mod_interfaces.part_document import PartDocument
-
-'''
-    This function searches for a hybrid body by name and return is.
-
-    Inputs:
-        searchName              The name of the geometric set that is being searched for.
-        currentHybridBodies     The current collection of geometric sets
-
-    output:
-        The geometric set that is found, or None if not found
-'''
-def searchHybridBody(seachName, currentHybridBodies):
-    try:                                                                                                        #Try at current level
-        currentSearch = currentHybridBodies.item(seachName)                                                     #Check if we can find it
-        if currentSearch is not None:                                                                           #If we found it
-            return currentSearch                                                                                #Return found Geometric set
-    except:
-        pass                                                                                                    #If no found move to recursion
-
-    for index in range(currentHybridBodies.count):                                                              #Loop through geometric sets of this level
-        if currentHybridBodies.item(index+1).hybrid_bodies.count > 0:
-            found = searchHybridBody(seachName, currentHybridBodies.item(index+1).hybrid_bodies)                #recursive call
-
-            if found is not None:                                                                               #If found
-                return found                                                                                     #Return found
-
-    return None                                                                                                 #Return not found
 
 '''
     This function creates a datum from a hybrid shape preserving its name, then removes the original.
@@ -125,10 +100,7 @@ if __name__ == "__main__":
     hybrid_bodies = part.hybrid_bodies                                                                          #Set off all top level geometric sets
     hybrid_shape_factory = part.hybrid_shape_factory                                                            #GSD workbench to create hybridshapes
 
-    target_hb = searchHybridBody(geo_set_name, hybrid_bodies)                                                   #Find the selected geometric set
-    if target_hb is None:                                                                                       #If not found
-        print(f"Error: Could not find geometric set '{geo_set_name}'")
-        exit()
+    target_hb = HybridBody(selected_item.value.com_object)                                                      #Get selected geometric set directly from selection
 
     hybrid_shapes = target_hb.hybrid_shapes                                                                     #Get all hybrid shapes in set
 

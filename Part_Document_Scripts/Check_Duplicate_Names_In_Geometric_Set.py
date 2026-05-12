@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Check_Duplicate_Names_In_Geometric_Set.py
-    Version:        1.2
+    Version:        1.3
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Scan a geometric set and report any elements that share a name.
@@ -24,12 +24,14 @@
 
     Change:         06.05.26 1.1: Results now shown in wx dialog instead of console.
                     12.05.26 1.2: Dialogs raised to foreground of CATIA window.
+                    13.05.26 1.3: Replace name-based HybridBody lookup with direct COM reference.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
 
 #Imports
 from pycatia import catia
+from pycatia.mec_mod_interfaces.hybrid_body import HybridBody
 from pycatia.mec_mod_interfaces.part_document import PartDocument
 import wx
 import wx.lib.dialogs
@@ -48,33 +50,6 @@ def _bring_to_front(window):
     u32.SetForegroundWindow(hwnd)
     if fg_tid != our_tid:
         u32.AttachThreadInput(fg_tid, our_tid, False)
-
-'''
-    This function searches for a hybrid body by name and return is.
-
-    Inputs:
-        searchName              The name of the geometric set that is being searched for.
-        currentHybridBodies     The current collection of geometric sets
-
-    output:
-        The geometric set that is found, or None if not found
-'''
-def searchHybridBody(seachName, currentHybridBodies):
-    try:                                                                                                        #Try at current level
-        currentSearch = currentHybridBodies.item(seachName)                                                     #Check if we can find it
-        if currentSearch is not None:                                                                           #If we found it
-            return currentSearch                                                                                #Return found Geometric set
-    except:
-        pass                                                                                                    #If no found move to recursion
-
-    for index in range(currentHybridBodies.count):                                                              #Loop through geometric sets of this level
-        if currentHybridBodies.item(index+1).hybrid_bodies.count > 0:
-            found = searchHybridBody(seachName, currentHybridBodies.item(index+1).hybrid_bodies)                #recursive call
-
-            if found is not None:                                                                               #If found
-                return found                                                                                     #Return found
-
-    return None                                                                                                 #Return not found
 
 '''
     This function recursively collects all shape names from a geometric set and its children.
@@ -125,13 +100,7 @@ if __name__ == "__main__":
 
     hybrid_bodies = part.hybrid_bodies                                                                          #Set off all top level geometric sets
 
-    target_hb = searchHybridBody(geo_set_name, hybrid_bodies)                                                   #Find the selected geometric set
-    if target_hb is None:                                                                                       #If not found
-        _dlg = wx.MessageDialog(None, f"Error: Could not find geometric set '{geo_set_name}'.", "Error", wx.OK | wx.ICON_ERROR)
-        wx.CallAfter(_bring_to_front, _dlg)
-        _dlg.ShowModal()
-        _dlg.Destroy()                                                                                          #Show error dialog
-        exit()
+    target_hb = HybridBody(selected_item.value.com_object)                                                      #Get selected geometric set directly from selection
 
     all_names = []                                                                                              #List to store all (name, set) tuples
     collect_all_names(target_hb, all_names)                                                                     #Collect all names recursively

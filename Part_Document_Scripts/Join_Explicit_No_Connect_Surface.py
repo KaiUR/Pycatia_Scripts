@@ -25,35 +25,8 @@
 
 #Imports
 from pycatia import catia
-from pycatia.hybrid_shape_interfaces.hybrid_shape_assemble import HybridShapeAssemble
+from pycatia.mec_mod_interfaces.hybrid_body import HybridBody
 from pycatia.mec_mod_interfaces.part_document import PartDocument
-
-'''
-    This function searches for a hybrid body by name and return is.
-    
-    Inputs:
-        searchName              The name of the geometric set that is being searched for.
-        currentHybridBodies     The current collection of geometric sets
-        
-    output:
-        The geometric set that is found, or None if not found
-'''    
-def searchHybridBody(seachName, currentHybridBodies):
-    try:                                                                                                        #Try at current level
-        currentSearch = currentHybridBodies.item(seachName)                                                     #Check if we can find it
-        if currentSearch is not None:                                                                           #If we found it
-            return currentSearch                                                                                #Return found Geometric set
-    except:
-        pass                                                                                                    #If no found move to recursion
-
-    for index in range(currentHybridBodies.count):                                                              #Loop through geometric sets of this level
-        if currentHybridBodies.item(index+1).hybrid_bodies.count > 0:
-            found = searchHybridBody(seachName, currentHybridBodies.item(index+1).hybrid_bodies)                #recursive call
-        
-            if found is not None:                                                                               #If found
-                return found                                                                                     #Return found
-
-    return None                                                                                                 #Return not found
 
 if __name__ == "__main__":
     #Anchoring relavent components
@@ -109,8 +82,20 @@ if __name__ == "__main__":
     join_hybrid_shapes.set_tangency_continuity(False)                                                           #No tangent cont
     join_hybrid_shapes.set_manifold(True)                                                                       #Check manifold
     
-    hb = searchHybridBody(part.in_work_object.name, hybrid_bodies)                                              #Look for the in work object geometric set
-    if hb == None:                                                                                              #If not found
+    in_work = part.in_work_object                                                                               #Get in work object
+    hb = None
+    try:
+        hb = HybridBody(in_work.com_object)                                                                     #Try to use in_work_object directly as a HybridBody
+        hb.hybrid_shapes                                                                                        #Validate it is a HybridBody
+    except Exception:
+        hb = None
+    if hb is None:                                                                                              #If in_work_object is not a HybridBody (e.g. a feature)
+        try:
+            hb = HybridBody(in_work.com_object.Parent)                                                          #Try parent (the containing GS)
+            hb.hybrid_shapes                                                                                    #Validate it is a HybridBody
+        except Exception:
+            hb = None
+    if hb is None:                                                                                              #If still not found, create new GS
         hb = hybrid_bodies.add()                                                                                #Add new geometric set
         hb.name = "New Join Explicit"                                                                           #Rename geometric set
         

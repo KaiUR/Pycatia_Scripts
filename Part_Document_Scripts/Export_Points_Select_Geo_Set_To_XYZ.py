@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Export_Points_Select_Geo_Set_To_XYZ.py
-    Version:        1.0
+    Version:        1.1
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Export points from any geometric set to an xyz file.
@@ -20,14 +20,15 @@
                     This script needs an open part document.
     -----------------------------------------------------------------------------------------------------------------------
     
-    Change:
-    
+    Change:         13.05.26 1.1: Replace name-based HybridBody lookup with direct COM reference.
+
     -----------------------------------------------------------------------------------------------------------------------
 '''
 
 #Imports
 from pycatia import catia
 from pycatia.hybrid_shape_interfaces.hybrid_shape_point_coord import HybridShapePointCoord
+from pycatia.mec_mod_interfaces.hybrid_body import HybridBody
 from pycatia.mec_mod_interfaces.part_document import PartDocument
 '''
     This function will return a points coordinates relative to an axis system.
@@ -109,33 +110,6 @@ def dot_product(vec1, vec2):
     #return dot product
     return vec1[0] * vec2[0] + vec1[1] * vec2[1] + vec1[2] * vec2[2]
 
-'''
-    This function searches for a hybrid body by name and return is.
-    
-    Inputs:
-        searchName              The name of the geometric set that is being searched for.
-        currentHybridBodies     The current collection of geometric sets
-        
-    output:
-        The geometric set that is found, or None if not found
-'''    
-def searchHybridBody(seachName, currentHybridBodies):
-    try:                                                                                                        #Try at current level
-        currentSearch = currentHybridBodies.item(seachName)                                                     #Check if we can find it
-        if currentSearch is not None:                                                                           #If we found it
-            return currentSearch                                                                                #Return found Geometric set
-    except:
-        pass                                                                                                    #If no found move to recursion
-
-    for index in range(currentHybridBodies.count):                                                              #Loop through geometric sets of this level
-        if currentHybridBodies.item(index+1).hybrid_bodies.count > 0:
-            found = searchHybridBody(seachName, currentHybridBodies.item(index+1).hybrid_bodies)                #recursive call
-        
-            if found is not None:                                                                               #If found
-                return found                                                                                     #Return found
-
-    return None                                                                                                 #Return not found
-
 if __name__ == "__main__":
     #Anchoring relavent components
     caa = catia()                                                                                               #Catia application instance
@@ -159,10 +133,7 @@ if __name__ == "__main__":
         exit(1);                                                                                                #Exit
 
     # Get points to measure
-    hb = searchHybridBody(part_document.selection.item(1).value.name, hybrid_bodies)                            #Get selected geometric set
-    if hb == None:                                                                                              #Could not get geometric set.
-        print("Error: could not find geometric set.")
-        exit(1);                                                                                                #Exit.
+    hb = HybridBody(part_document.selection.item(1).value.com_object)                                          #Get selected geometric set directly from selection
 
     hs = hb.hybrid_shapes                                                                                       #Get all hybrid shpaes in geometric set.
 

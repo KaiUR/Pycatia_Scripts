@@ -53,12 +53,10 @@ import math
             print("Not found")
 '''
 def searchHybridBody(seachName, currentHybridBodies):
-    try:                                                                                                        #Try at current level
-        currentSearch = currentHybridBodies.item(seachName)                                                    #Check if we can find it
-        if currentSearch is not None:                                                                          #If found
-            return currentSearch                                                                               #Return found geometric set
-    except:
-        pass                                                                                                   #Not found at this level — recurse
+    for index in range(currentHybridBodies.count):                                                             #Search at current level by explicit name comparison
+        hb = currentHybridBodies.item(index + 1)
+        if hb.name == seachName:                                                                               #Found at this level
+            return hb                                                                                          #Return found geometric set
 
     for index in range(currentHybridBodies.count):                                                             #Loop through geometric sets at this level
         if currentHybridBodies.item(index+1).hybrid_bodies.count > 0:
@@ -85,13 +83,11 @@ def searchHybridBody(seachName, currentHybridBodies):
         # path == "Parent_Set/Child_Set/My_Set"
 '''
 def searchHybridBodyWithPath(seachName, currentHybridBodies, currentPath=""):
-    try:                                                                                                        #Try at current level
-        currentSearch = currentHybridBodies.item(seachName)                                                    #Check if we can find it
-        if currentSearch is not None:                                                                          #If found
+    for index in range(currentHybridBodies.count):                                                             #Search at current level by explicit name comparison
+        hb = currentHybridBodies.item(index + 1)
+        if hb.name == seachName:                                                                               #Found at this level
             path = (currentPath + "/" if currentPath else "") + seachName                                      #Build path
-            return currentSearch, path                                                                         #Return found geometric set and path
-    except:
-        pass                                                                                                   #Not found at this level — recurse
+            return hb, path                                                                                    #Return found geometric set and path
 
     for index in range(currentHybridBodies.count):                                                             #Loop through geometric sets at this level
         hb = currentHybridBodies.item(index + 1)

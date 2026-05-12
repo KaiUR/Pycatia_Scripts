@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Publish_Hybrid_Shapes_In_Geometric_Set.py
-    Version:        1.0
+    Version:        1.1
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Publish all hybrid shapes in a selected geometric set.
@@ -24,13 +24,14 @@
                     This script needs an open part document.
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:
+    Change:         13.05.26 1.1: Replace name-based HybridBody lookup with direct COM reference.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
 
 #Imports
 from pycatia import catia
+from pycatia.mec_mod_interfaces.hybrid_body import HybridBody
 from pycatia.mec_mod_interfaces.part_document import PartDocument
 
 '''
@@ -47,13 +48,11 @@ from pycatia.mec_mod_interfaces.part_document import PartDocument
         Path is in the form "GeoSetName/ChildSetName" for nested sets.
 '''
 def searchHybridBodyWithPath(seachName, currentHybridBodies, currentPath=""):
-    try:                                                                                                        #Try at current level
-        currentSearch = currentHybridBodies.item(seachName)                                                     #Check if we can find it
-        if currentSearch is not None:                                                                           #If we found it
+    for index in range(currentHybridBodies.count):                                                              #Search at current level by explicit name comparison
+        hb = currentHybridBodies.item(index + 1)                                                                #Get geometric set
+        if hb.name == seachName:                                                                                #Found at this level
             path = (currentPath + "/" if currentPath else "") + seachName                                       #Build path
-            return currentSearch, path                                                                          #Return found geometric set and path
-    except:
-        pass                                                                                                    #If not found move to recursion
+            return hb, path                                                                                     #Return found geometric set and path
 
     for index in range(currentHybridBodies.count):                                                              #Loop through geometric sets of this level
         hb = currentHybridBodies.item(index + 1)                                                                #Get geometric set
@@ -89,9 +88,10 @@ if __name__ == "__main__":
     selected_item = selectionSet.item(1)                                                                        #Get selected item
     geo_set_name = selected_item.value.name                                                                     #Get name of selected geometric set
 
-    target_hb, hb_path = searchHybridBodyWithPath(geo_set_name, hybrid_bodies)                                  #Find the selected geometric set and its full path
-    if target_hb is None:                                                                                       #If not found
-        print(f"Error: Could not find geometric set '{geo_set_name}'")
+    target_hb = HybridBody(selected_item.value.com_object)                                                      #Get selected geometric set directly from selection
+    _, hb_path = searchHybridBodyWithPath(geo_set_name, hybrid_bodies)                                          #Build path for publication references
+    if hb_path is None:                                                                                         #If path could not be built
+        print(f"Error: Could not build path for geometric set '{geo_set_name}'")
         exit()
 
     hybrid_shapes = target_hb.hybrid_shapes                                                                     #Get all hybrid shapes in set

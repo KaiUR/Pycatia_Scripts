@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Your_Script_Name.py
-    Version:        1.1
+    Version:        1.2
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        EDIT: One line summary shown on the script button.
@@ -21,6 +21,7 @@
     -----------------------------------------------------------------------------------------------------------------------
 
     Change:         12.05.26 1.1: Dialogs raised to foreground of CATIA window.
+                    13.05.26 1.2: Fix searchHybridBody to use explicit name comparison.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -61,12 +62,10 @@ def _bring_to_front(window):
         The geometric set if found, or None if not found.
 '''
 def searchHybridBody(seachName, currentHybridBodies):
-    try:                                                                                                        #Try at current level
-        currentSearch = currentHybridBodies.item(seachName)                                                    #Check if we can find it
-        if currentSearch is not None:                                                                          #If found
-            return currentSearch                                                                               #Return found geometric set
-    except:
-        pass                                                                                                   #Not found at this level — recurse
+    for index in range(currentHybridBodies.count):                                                             #Search at current level by explicit name comparison
+        hb = currentHybridBodies.item(index + 1)
+        if hb.name == seachName:                                                                               #Found at this level
+            return hb                                                                                          #Return found geometric set
 
     for index in range(currentHybridBodies.count):                                                             #Loop through geometric sets at this level
         if currentHybridBodies.item(index+1).hybrid_bodies.count > 0:
