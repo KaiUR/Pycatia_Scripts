@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Translate_Direction_Distance_Keep_Name.py
-    Version:        1.2
+    Version:        1.3
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Moves hybrid shapes with translate while keeping the names.
@@ -21,6 +21,7 @@
     
     Change:         12.05.26 1.1: Dialog raised to foreground of CATIA window.
                     13.05.26 1.2: Replace name-based HybridBody lookup with direct COM reference.
+                    13.05.26 1.3: Recreate HybridShapeDirection inside loop — direction object is consumed on first assignment.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -113,18 +114,19 @@ if __name__ == "__main__":
         print("You must select a direction")
         exit()
 
+
     #Create new direction using brep
     ref_name = selectionSet.item(1).reference.name                                                              #Get Reference name
 
     try:
         brep_core = ref_name.replace("Selection_", "").split(");AxisSystem")[0]                                     #Remove selection_ from string
         brep_name = f"{brep_core});WithPermanentBody;WithoutBuildError;WithSelectingFeatureSupport;MFBRepVersion_CXR29)"#Build bref string to create reference
-        
-        direction_ref = part.create_reference_from_b_rep_name(brep_name, selectionSet.item(1).value)                #Create reference from selected direction, works with face or line of axis system
-        selected_direction_ref = hybrid_shape_factory.add_new_direction(direction_ref)                              #Create new direction object
+        direction_value = selectionSet.item(1).value                                                               #Store direction context object before loop
+        direction_ref = part.create_reference_from_b_rep_name(brep_name, direction_value)                          #Validate brep is parseable
     except:
         print("You must select a face or line of an axis system as direction")
-        exit()       
+        exit()
+    
     
     app = wx.App(None)
     distance = 0.0                                                                                              #Initilize distance to 0
@@ -162,6 +164,8 @@ if __name__ == "__main__":
         hb.name = "Translate_Keep_Name"                                                                         #Rename geometric set
     
     for index in range(hybridshapes_selected_count):                                                            #For each hybridshape
+        direction_ref = part.create_reference_from_b_rep_name(brep_name, direction_value)                      #Recreate brep reference — consumed after part.update()
+        selected_direction_ref = hybrid_shape_factory.add_new_direction(direction_ref)                         #Recreate direction — COM object is consumed on assignment to transform
         transform = hybrid_shape_factory.add_new_empty_translate()                                              #Create new translate
         transform.elem_to_translate = hybridshapes_selected[index]                                              #Add element to translate
         transform.vector_type = 0                                                                               #Set to direction, distance

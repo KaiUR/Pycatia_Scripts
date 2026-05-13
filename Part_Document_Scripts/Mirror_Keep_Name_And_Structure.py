@@ -21,6 +21,7 @@
     -----------------------------------------------------------------------------------------------------------------------
 
     Change:         13.05.26 1.1: Replace name-based HybridBody lookup with direct COM reference.
+                    13.05.26 1.2: Changes it to use of selection.reference so script works with generic planes too.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -143,16 +144,7 @@ if __name__ == "__main__":
         print("You must select a mirror plane")
         exit()
 
-    #Create mirror plane reference using brep
-    ref_name = selectionSet.item(1).reference.name                                                             #Get Reference name
-
-    try:
-        brep_core = ref_name.replace("Selection_", "").split(");AxisSystem")[0]                                #Remove selection_ from string
-        brep_name = f"{brep_core});WithPermanentBody;WithoutBuildError;WithSelectingFeatureSupport;MFBRepVersion_CXR29)" #Build brep string to create reference
-        mirror_ref = part.create_reference_from_b_rep_name(brep_name, selectionSet.item(1).value)             #Create reference from selected plane, works with face of axis system
-    except:
-        print("You must select a face of an axis system as mirror plane")
-        exit()
+    mirror_ref = selectionSet.item(1).reference
 
     in_work = part.in_work_object                                                                              #Get in work object
     inwork_hb = None

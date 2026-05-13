@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Translate_Direction_Distance_Keep_Name_And_Structure.py
-    Version:        1.2
+    Version:        1.3
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Translates all hybrid shapes in a geometric set while keeping names and structure.
@@ -24,6 +24,7 @@
 
     Change:         12.05.26 1.1: Dialog raised to foreground of CATIA window.
                     13.05.26 1.2: Replace name-based HybridBody lookup with direct COM reference.
+                    13.05.26 1.3: Recreate brep reference and HybridShapeDirection inside loop — both consumed after part.update().
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -99,13 +100,14 @@ def create_datum(hybrid_shape_factory, hybrid_shape, hybrid_body, name=None):
         target_hb               The target geometric set to recreate the structure in
         part                    The active part
         hybrid_shape_factory    The hybrid shape factory for the part
-        direction_ref           The brep direction reference — recreated fresh for each shape
+        brep_name               The brep string for the direction — used to recreate the reference each iteration
+        direction_value         The axis system COM object used as context for the brep reference
         distance                The distance to translate
 
     output:
         None
 '''
-def process_hybrid_body(source_hb, target_hb, part, hybrid_shape_factory, direction_ref, distance):
+def process_hybrid_body(source_hb, target_hb, part, hybrid_shape_factory, brep_name, direction_value, distance):
     hybrid_shapes = source_hb.hybrid_shapes                                                                     #Get all hybrid shapes in source set
 
     for index in range(hybrid_shapes.count):                                                                    #Loop through all shapes in source set
@@ -113,7 +115,8 @@ def process_hybrid_body(source_hb, target_hb, part, hybrid_shape_factory, direct
         shape_name = shape.name                                                                                  #Store shape name
         shape_ref = part.create_reference_from_object(shape)                                                    #Create reference to shape
 
-        fresh_direction = hybrid_shape_factory.add_new_direction(direction_ref)                                 #Recreate direction object fresh for each shape
+        direction_ref = part.create_reference_from_b_rep_name(brep_name, direction_value)                      #Recreate brep reference — consumed after part.update()
+        fresh_direction = hybrid_shape_factory.add_new_direction(direction_ref)                                 #Recreate direction object — consumed on assignment to transform
 
         transform = hybrid_shape_factory.add_new_empty_translate()                                              #Create new translate
         transform.elem_to_translate = shape_ref                                                                 #Add element to translate
@@ -133,7 +136,7 @@ def process_hybrid_body(source_hb, target_hb, part, hybrid_shape_factory, direct
         target_child_hb.name = source_child_hb.name                                                            #Name to match source child set
 
         process_hybrid_body(source_child_hb, target_child_hb, part,                                            #Recurse into child set
-                hybrid_shape_factory, direction_ref, distance)
+                hybrid_shape_factory, brep_name, direction_value, distance)
 
 if __name__ == "__main__":
     #Anchoring relavent components
@@ -176,8 +179,8 @@ if __name__ == "__main__":
     try:
         brep_core = ref_name.replace("Selection_", "").split(");AxisSystem")[0]                                 #Remove selection_ from string
         brep_name = f"{brep_core});WithPermanentBody;WithoutBuildError;WithSelectingFeatureSupport;MFBRepVersion_CXR29)" #Build brep string to create reference
-        direction_ref = part.create_reference_from_b_rep_name(brep_name, selectionSet.item(1).value)            #Create reference from selected direction, works with face or line of axis system
-        selected_direction_ref = hybrid_shape_factory.add_new_direction(direction_ref)                          #Create new direction object
+        direction_value = selectionSet.item(1).value                                                            #Store direction context object — stable across updates
+        part.create_reference_from_b_rep_name(brep_name, direction_value)                                      #Validate brep is parseable
     except:
         print("You must select a face or line of an axis system as direction")
         exit()
@@ -225,7 +228,7 @@ if __name__ == "__main__":
     print(f"\n Processing geometric set '{source_geo_set_name}'\n")
 
     process_hybrid_body(source_hb, output_hb, part,                                                            #Recursively process source geometric set
-            hybrid_shape_factory, direction_ref, distance)
+            hybrid_shape_factory, brep_name, direction_value, distance)
 
     part.update()                                                                                               #Final update
     print(f"\n\n Completed\n\n")
