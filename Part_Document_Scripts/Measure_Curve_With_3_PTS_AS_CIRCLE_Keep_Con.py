@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Measure_Curve_With_3_PTS_AS_CIRCLE_Keep_Con.py
-    Version:        1.1
+    Version:        1.2
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Measures curves by adding three points and gives a diamiter.
@@ -20,7 +20,11 @@
     
     Change:         19.03.26
                     Modified script to work when there is a process or procuct open containing a part.
-    
+
+                    16.05.26
+                    Added collinear check on datum points — notifies user and exits if curve is straight.
+                    Updated point creation to use a single extremum anchor with percentage points.
+
     -----------------------------------------------------------------------------------------------------------------------
 '''
 
@@ -112,6 +116,43 @@ def dot_product(vec1, vec2):
     return vec1[0] * vec2[0] + vec1[1] * vec2[1] + vec1[2] * vec2[2]
 
 '''
+    This function will return the cross product of two vectors
+
+    Inputs:
+        vec1    First vector
+        vec2    Second vector
+
+    output:
+        Cross product of two vectors
+'''
+def cross_product(a, b):
+    # a x b = [ay*bz - az*by, az*bx - ax*bz, ax*by - ay*bx]
+    return [
+        a[1]*b[2] - a[2]*b[1],
+        a[2]*b[0] - a[0]*b[2],
+        a[0]*b[1] - a[1]*b[0]
+    ]
+
+"""
+    Check if three points are collinear using the cross product method
+
+    Args:
+        p1, p2, p3: Tuples or lists representing the points, e.g., (x1, y1, z1).
+
+    Returns:
+        True if the points are collinear, False otherwise.
+"""
+def are_collinear(point_a, point_b, point_c):
+
+    vectorAB = point_b[0] - point_a[0], point_b[1] - point_a[1], point_b[2] - point_a[2]
+    vectorAC = point_c[0] - point_a[0], point_c[1] - point_a[1], point_c[2] - point_a[2]
+
+    cross_poduct_vectors = cross_product(vectorAB, vectorAC)
+
+    #Check if cross product magnitude squared is near zero
+    return cross_poduct_vectors[0]**2 + cross_poduct_vectors[1]**2 + cross_poduct_vectors[2]**2 < 0.000001
+
+'''
     This function searches for a hybrid body by name and return is.
     
     Inputs:
@@ -184,90 +225,101 @@ if __name__ == "__main__":
     part.update()                                                                                               #Update part document
     
     '''
-    We are creating the points as extremums becuase if you try to create points on a closed curve
-    the script will fail as the points on a closed curves are explicit, and can only be exposed using
-    boundary references. However creating extremums will not work on curves with big radii, in this case 
-    we will check for the failur of the extremum points( generally all three poinst are the same) and
-    we will instead create the point as a percentage along the curve.
+    Create points
     '''
-    dir_con_1 = hybrid_shape_factory.add_new_direction_by_coord(0, 0, 1)                                        #Create direction for extremum
-    dir_con_2 = hybrid_shape_factory.add_new_direction_by_coord(0, 1, 0)                                        #Create direction for extremum
-    dir_con_3 = hybrid_shape_factory.add_new_direction_by_coord(1, 0, 0)                                        #Create direction for extremum
+    direction_con = hybrid_shape_factory.add_new_direction_by_coord(1.0, 2.0, 3.0)
+
+    curve_extract_explicit_ref = part.create_reference_from_object(curve_extract_explicit)
+
+    curve_extremum = hybrid_shape_factory.add_new_extremum(curve_extract_explicit_ref, direction_con, 1)
+    hb.append_hybrid_shape(curve_extremum)
+    part.update()
+
+    curve_extremum_ref = part.create_reference_from_object(curve_extremum)
+    curve_extremum_datum = hybrid_shape_factory.add_new_point_datum(curve_extremum_ref)
+    hb.append_hybrid_shape(curve_extremum_datum)
+    part.update()
+
+    hybrid_shape_factory.delete_object_for_datum(curve_extremum_ref)
+
+    part.in_work_object = curve_extremum_datum
+
+    point_1 = hybrid_shape_factory.add_new_point_on_curve_from_percent(curve_extract_explicit_ref, 0.2, False)
+    point_1.point = curve_extremum_datum
+    point_2 = hybrid_shape_factory.add_new_point_on_curve_from_percent(curve_extract_explicit_ref, 0.5, False)
+    point_2.point = curve_extremum_datum
+    point_3 = hybrid_shape_factory.add_new_point_on_curve_from_percent(curve_extract_explicit_ref, 0.8, False)
+    point_3.point = curve_extremum_datum
+
+    hb.append_hybrid_shape(point_1)
+    hb.append_hybrid_shape(point_2)
+    hb.append_hybrid_shape(point_3)
+
+    part.update()
     
-    curve_ref = part.create_reference_from_object(hb.hybrid_shapes.item(1))                                     #Create a ref
-    extremum_point_1 = hybrid_shape_factory.add_new_extremum(curve_ref, dir_con_1, 1)                           #Create first extremum point
-    hb.append_hybrid_shape(extremum_point_1)                                                                    #Add point to set
-    
-    extremum_point_2 = hybrid_shape_factory.add_new_extremum(curve_ref, dir_con_2, 1)                           #Create first extremum point
-    hb.append_hybrid_shape(extremum_point_2)                                                                    #Add point to set
-    
-    extremum_point_3 = hybrid_shape_factory.add_new_extremum(curve_ref, dir_con_3, 1)                           #Create first extremum point
-    hb.append_hybrid_shape(extremum_point_3)                                                                    #Add point to set
-    
-    part.update()                                                                                               #Update part
-    
-    #Check points
-    coords_1 = coords_relative_to_axis(part.axis_systems.item(1), extremum_point_1)                             #Get the point coordinates
-    coords_2 = coords_relative_to_axis(part.axis_systems.item(1), extremum_point_2)                             #Get the point coordinates
-    coords_3 = coords_relative_to_axis(part.axis_systems.item(1), extremum_point_3)                             #Get the point coordinates
-    
-    '''
-    Here we replace points if the extremums didnt give a good result
-    '''
-    if len(set([coords_1, coords_2, coords_3])) == 1:                                                           #If points are equal
-        hybrid_shape_factory.delete_object_for_datum(hb.hybrid_shapes.item(2))                                  #Remove point
-        hybrid_shape_factory.delete_object_for_datum(hb.hybrid_shapes.item(2))                                  #Remove point
-        hybrid_shape_factory.delete_object_for_datum(hb.hybrid_shapes.item(2))                                  #Remove point
-        point_1 = hybrid_shape_factory.add_new_point_on_curve_from_percent(hb.hybrid_shapes.item(1), 0.2, 0)    #Create point on curve 20%
-        hb.append_hybrid_shape(point_1)                                                                         #Add point to set
-        point_2 = hybrid_shape_factory.add_new_point_on_curve_from_percent(hb.hybrid_shapes.item(1), 0.5, 0)    #Create point on curve 50%
-        hb.append_hybrid_shape(point_2)                                                                         #Add point to set
-        point_3 = hybrid_shape_factory.add_new_point_on_curve_from_percent(hb.hybrid_shapes.item(1), 0.8, 0)    #Create point on curve 80%
-        hb.append_hybrid_shape(point_3)                                                                         #Add point to set
-        part.update()                                                                                           #Part update
-    
+    curve_extremum_datum_ref = part.create_reference_from_object(curve_extremum_datum)
+    hybrid_shape_factory.delete_object_for_datum(curve_extremum_datum_ref)
+
+    point_1_ref = part.create_reference_from_object(point_1)
+    point_2_ref = part.create_reference_from_object(point_2)
+    point_3_ref = part.create_reference_from_object(point_3)
+
     #Create datum from points
-    point_1_datum = hybrid_shape_factory.add_new_point_datum(hb.hybrid_shapes.item(2))                          #Create datum from point
-    point_2_datum = hybrid_shape_factory.add_new_point_datum(hb.hybrid_shapes.item(3))                          #Create datum from point
-    point_3_datum = hybrid_shape_factory.add_new_point_datum(hb.hybrid_shapes.item(4))                          #Create datum from point
-    
+    point_1_datum = hybrid_shape_factory.add_new_point_datum(point_1_ref)                          #Create datum from point
+    point_2_datum = hybrid_shape_factory.add_new_point_datum(point_2_ref)                          #Create datum from point
+    point_3_datum = hybrid_shape_factory.add_new_point_datum(point_3_ref)                          #Create datum from point
+
     hb.append_hybrid_shape(point_1_datum)                                                                       #Add point to set
     hb.append_hybrid_shape(point_2_datum)                                                                       #Add point to set
     hb.append_hybrid_shape(point_3_datum)                                                                       #Add point to set
-    
-    hb.hybrid_shapes.item(5).name = "Point_Datum_1"                                                             #Rename point
-    hb.hybrid_shapes.item(6).name = "Point_datum_2"                                                             #Rename point
-    hb.hybrid_shapes.item(7).name = "Point_datum_3"                                                             #Rename point
-    
-    hybrid_shape_factory.delete_object_for_datum(hb.hybrid_shapes.item(2))                                      #Remove construction
-    hybrid_shape_factory.delete_object_for_datum(hb.hybrid_shapes.item(2))                                      #Remove construction
-    hybrid_shape_factory.delete_object_for_datum(hb.hybrid_shapes.item(2))                                      #Remove construction
-    
+
+    point_1_datum.name = "Point_datum_1"                                                             #Rename point
+    point_2_datum.name = "Point_datum_2"                                                             #Rename point
+    point_3_datum.name = "Point_datum_3"                                                             #Rename point
+
+    hybrid_shape_factory.delete_object_for_datum(point_1_ref)                                      #Remove construction
+    hybrid_shape_factory.delete_object_for_datum(point_2_ref)                                      #Remove construction
+    hybrid_shape_factory.delete_object_for_datum(point_3_ref)                                      #Remove construction
+
     part.update()                                                                                               #Update part
-    
+
+    coords_1 = spa_workbench.get_measurable(part.create_reference_from_object(point_1_datum)).get_point()    #Get the point coordinates
+    coords_2 = spa_workbench.get_measurable(part.create_reference_from_object(point_2_datum)).get_point()    #Get the point coordinates
+    coords_3 = spa_workbench.get_measurable(part.create_reference_from_object(point_3_datum)).get_point()    #Get the point coordinates
+
+    if are_collinear(coords_1, coords_2, coords_3):                                                     #Checks if points are colinear, 3point circle will fail in this case
+        result = catia().message_box(
+                "Radius: 0mm\nDiameter: 0mm\n\nCurve appears to be straight\nPoints are colinear",
+                buttons=32, title="Result")                                                             #Print result to message box.
+        exit()
+
+    point_1_datum_ref = part.create_reference_from_object(point_1_datum)
+    point_2_datum_ref = part.create_reference_from_object(point_2_datum)
+    point_3_datum_ref = part.create_reference_from_object(point_3_datum)
+
     #Create 3 Point circle
     circle_to_measure = hybrid_shape_factory.add_new_circle3_points(
-            hb.hybrid_shapes.item(2), hb.hybrid_shapes.item(3), hb.hybrid_shapes.item(4))                       #Create circle with 3 points
-    
+            point_1_datum_ref, point_2_datum_ref, point_3_datum_ref)                       #Create circle with 3 points
+
     circle_to_measure.set_limitation(1)                                                                         #Set limitation to 1, (Full circle)
     hb.append_hybrid_shape(circle_to_measure)                                                                   #Add circle to set
-    
+
     part.update()                                                                                               #Update part
-    
-    circle_to_measure_datum = hybrid_shape_factory.add_new_circle_datum(hb.hybrid_shapes.item(5))               #Create datum from circle
+
+    circle_to_measure_ref = part.create_reference_from_object(circle_to_measure)
+
+    circle_to_measure_datum = hybrid_shape_factory.add_new_circle_datum(circle_to_measure_ref)               #Create datum from circle
     hb.append_hybrid_shape(circle_to_measure_datum)                                                             #Add datum to set
-    hb.hybrid_shapes.item(6).name = "Circle_To_Measure_Datum"                                                   #Rename circle
-    
-    hybrid_shape_factory.delete_object_for_datum(hb.hybrid_shapes.item(5))                                      #Remove construction
-    
+    circle_to_measure_datum.name = "Circle_To_Measure_Datum"                                                   #Rename circle
+
+    hybrid_shape_factory.delete_object_for_datum(circle_to_measure_ref)                                      #Remove construction
+
     part.update()                                                                                               #Update part
-    
-    #Measure_Curve_With_3_PTS_AS_CIRCLE
-    
-    reference = part.create_reference_from_object(hb.hybrid_shapes.item(5))                                     #Create ref to measure
+
+    reference = part.create_reference_from_object(circle_to_measure_datum)                                     #Create ref to measure
     measurable = spa_workbench.get_measurable(reference)                                                        #Create measureable object from spa workbench
 
     radius =  round(measurable.radius, 2)                                                                       #Get radius, rounded to 2 decimal places
-    
+
     result = catia().message_box(
             "Radius: " + str(radius) + "mm\nDiameter: " + str(radius * 2) + "mm", buttons=32, title="Result")   #Print result to message box.

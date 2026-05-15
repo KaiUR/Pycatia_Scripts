@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Measure_Radius_Surface_Keep_Con.py
-    Version:        1.2
+    Version:        1.3
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Measures surface by adding curves and adding three points and gives a diamiter.
@@ -24,7 +24,11 @@
         
                     30.04.26
                     Fixed skript always saying something is colinear.
-    
+
+                    16.05.26
+                    Updated point creation to single extremum anchor approach. Collinear check now
+                    measures datum points directly without requiring a user axis system.
+
     -----------------------------------------------------------------------------------------------------------------------
 '''
 
@@ -248,68 +252,102 @@ if __name__ == "__main__":
 
     part.update()                                                                                               #Update part document
     
-    point_1 = hybrid_shape_factory.add_new_point_on_curve_from_percent(hb.hybrid_shapes.item(1), 0.2, 0)    #Create point on curve 20%
-    hb.append_hybrid_shape(point_1)                                                                         #Add point to set
-    point_2 = hybrid_shape_factory.add_new_point_on_curve_from_percent(hb.hybrid_shapes.item(1), 0.5, 0)    #Create point on curve 50%
-    hb.append_hybrid_shape(point_2)                                                                         #Add point to set
-    point_3 = hybrid_shape_factory.add_new_point_on_curve_from_percent(hb.hybrid_shapes.item(1), 0.8, 0)    #Create point on curve 80%
-    hb.append_hybrid_shape(point_3)                                                                         #Add point to set
-    part.update()                                                                                           #Part update
-        
-    coords_1 = coords_relative_to_axis(part.axis_systems.item(1), point_1)                             #Get the point coordinates
-    coords_2 = coords_relative_to_axis(part.axis_systems.item(1), point_2)                             #Get the point coordinates
-    coords_3 = coords_relative_to_axis(part.axis_systems.item(1), point_3)                             #Get the point coordinates
-        
-    if are_collinear(coords_1, coords_2, coords_3) == True:                                                     #Checks if points are colinear, 3point circle will fail in this case
-        radius = 0
-        result = catia().message_box(
-                "Radius: " + str(radius) + "mm\nDiameter: " + str(radius * 2) + 
-                "mm\n\nSurface is Planar in selected direction\nPoints are colinear", 
-                buttons=32, title="Result")                                                                     #Print result to message box.
-        exit()
-    
+    '''
+    Create points
+    '''
+    direction_con = hybrid_shape_factory.add_new_direction_by_coord(1.0, 2.0, 3.0)
+
+    curve_extract_explicit_ref = part.create_reference_from_object(curve_extract_explicit)
+
+    curve_extremum = hybrid_shape_factory.add_new_extremum(curve_extract_explicit_ref, direction_con, 1)
+    hb.append_hybrid_shape(curve_extremum)
+    part.update()
+
+    curve_extremum_ref = part.create_reference_from_object(curve_extremum)
+    curve_extremum_datum = hybrid_shape_factory.add_new_point_datum(curve_extremum_ref)
+    hb.append_hybrid_shape(curve_extremum_datum)
+    part.update()
+
+    hybrid_shape_factory.delete_object_for_datum(curve_extremum_ref)
+
+    part.in_work_object = curve_extremum_datum
+
+    point_1 = hybrid_shape_factory.add_new_point_on_curve_from_percent(curve_extract_explicit_ref, 0.2, False)
+    point_1.point = curve_extremum_datum
+    point_2 = hybrid_shape_factory.add_new_point_on_curve_from_percent(curve_extract_explicit_ref, 0.5, False)
+    point_2.point = curve_extremum_datum
+    point_3 = hybrid_shape_factory.add_new_point_on_curve_from_percent(curve_extract_explicit_ref, 0.8, False)
+    point_3.point = curve_extremum_datum
+
+    hb.append_hybrid_shape(point_1)
+    hb.append_hybrid_shape(point_2)
+    hb.append_hybrid_shape(point_3)
+
+    part.update()
+
+    curve_extremum_datum_ref = part.create_reference_from_object(curve_extremum_datum)
+    hybrid_shape_factory.delete_object_for_datum(curve_extremum_datum_ref)
+
+    point_1_ref = part.create_reference_from_object(point_1)
+    point_2_ref = part.create_reference_from_object(point_2)
+    point_3_ref = part.create_reference_from_object(point_3)
+
     #Create datum from points
-    point_1_datum = hybrid_shape_factory.add_new_point_datum(hb.hybrid_shapes.item(2))                          #Create datum from point
-    point_2_datum = hybrid_shape_factory.add_new_point_datum(hb.hybrid_shapes.item(3))                          #Create datum from point
-    point_3_datum = hybrid_shape_factory.add_new_point_datum(hb.hybrid_shapes.item(4))                          #Create datum from point
-    
+    point_1_datum = hybrid_shape_factory.add_new_point_datum(point_1_ref)                          #Create datum from point
+    point_2_datum = hybrid_shape_factory.add_new_point_datum(point_2_ref)                          #Create datum from point
+    point_3_datum = hybrid_shape_factory.add_new_point_datum(point_3_ref)                          #Create datum from point
+
     hb.append_hybrid_shape(point_1_datum)                                                                       #Add point to set
     hb.append_hybrid_shape(point_2_datum)                                                                       #Add point to set
     hb.append_hybrid_shape(point_3_datum)                                                                       #Add point to set
-    
-    hb.hybrid_shapes.item(5).name = "Point_Datum_1"                                                             #Rename point
-    hb.hybrid_shapes.item(6).name = "Point_datum_2"                                                             #Rename point
-    hb.hybrid_shapes.item(7).name = "Point_datum_3"                                                             #Rename point
-    
-    hybrid_shape_factory.delete_object_for_datum(hb.hybrid_shapes.item(2))                                      #Remove construction
-    hybrid_shape_factory.delete_object_for_datum(hb.hybrid_shapes.item(2))                                      #Remove construction
-    hybrid_shape_factory.delete_object_for_datum(hb.hybrid_shapes.item(2))                                      #Remove construction
-    
+
+    point_1_datum.name = "Point_datum_1"                                                             #Rename point
+    point_2_datum.name = "Point_datum_2"                                                             #Rename point
+    point_3_datum.name = "Point_datum_3"                                                             #Rename point
+
+    hybrid_shape_factory.delete_object_for_datum(point_1_ref)                                      #Remove construction
+    hybrid_shape_factory.delete_object_for_datum(point_2_ref)                                      #Remove construction
+    hybrid_shape_factory.delete_object_for_datum(point_3_ref)                                      #Remove construction
+
     part.update()                                                                                               #Update part
-    
+
+    coords_1 = spa_workbench.get_measurable(part.create_reference_from_object(point_1_datum)).get_point()    #Get the point coordinates
+    coords_2 = spa_workbench.get_measurable(part.create_reference_from_object(point_2_datum)).get_point()    #Get the point coordinates
+    coords_3 = spa_workbench.get_measurable(part.create_reference_from_object(point_3_datum)).get_point()    #Get the point coordinates
+
+    if are_collinear(coords_1, coords_2, coords_3):                                                     #Checks if points are colinear, 3point circle will fail in this case
+        result = catia().message_box(
+                "Radius: 0mm\nDiameter: 0mm\n\nSurface is Planar in selected direction\nPoints are colinear",
+                buttons=32, title="Result")                                                             #Print result to message box.
+        exit()
+
+    point_1_datum_ref = part.create_reference_from_object(point_1_datum)
+    point_2_datum_ref = part.create_reference_from_object(point_2_datum)
+    point_3_datum_ref = part.create_reference_from_object(point_3_datum)
+
     #Create 3 Point circle
     circle_to_measure = hybrid_shape_factory.add_new_circle3_points(
-            hb.hybrid_shapes.item(2), hb.hybrid_shapes.item(3), hb.hybrid_shapes.item(4))                       #Create circle with 3 points
-    
+            point_1_datum_ref, point_2_datum_ref, point_3_datum_ref)                       #Create circle with 3 points
+
     circle_to_measure.set_limitation(1)                                                                         #Set limitation to 1, (Full circle)
     hb.append_hybrid_shape(circle_to_measure)                                                                   #Add circle to set
-    
+
     part.update()                                                                                               #Update part
-    
-    circle_to_measure_datum = hybrid_shape_factory.add_new_circle_datum(hb.hybrid_shapes.item(5))               #Create datum from circle
+
+    circle_to_measure_ref = part.create_reference_from_object(circle_to_measure)
+
+    circle_to_measure_datum = hybrid_shape_factory.add_new_circle_datum(circle_to_measure_ref)               #Create datum from circle
     hb.append_hybrid_shape(circle_to_measure_datum)                                                             #Add datum to set
-    hb.hybrid_shapes.item(6).name = "Circle_To_Measure_Datum"                                                   #Rename circle
-    
-    hybrid_shape_factory.delete_object_for_datum(hb.hybrid_shapes.item(5))                                      #Remove construction
-    
+    circle_to_measure_datum.name = "Circle_To_Measure_Datum"                                                   #Rename circle
+
+    hybrid_shape_factory.delete_object_for_datum(circle_to_measure_ref)                                      #Remove construction
+
     part.update()                                                                                               #Update part
-    
-    #Measure_Curve_With_3_PTS_AS_CIRCLE
-    
-    reference = part.create_reference_from_object(hb.hybrid_shapes.item(5))                                     #Create ref to measure
+
+    reference = part.create_reference_from_object(circle_to_measure_datum)                                     #Create ref to measure
     measurable = spa_workbench.get_measurable(reference)                                                        #Create measureable object from spa workbench
 
     radius =  round(measurable.radius, 2)                                                                       #Get radius, rounded to 2 decimal places
-    
+
     result = catia().message_box(
             "Radius: " + str(radius) + "mm\nDiameter: " + str(radius * 2) + "mm", buttons=32, title="Result")   #Print result to message box.
