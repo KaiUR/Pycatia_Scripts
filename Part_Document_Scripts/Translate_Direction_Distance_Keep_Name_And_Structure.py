@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Translate_Direction_Distance_Keep_Name_And_Structure.py
-    Version:        1.3
+    Version:        1.4
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Translates all hybrid shapes in a geometric set while keeping names and structure.
@@ -25,6 +25,7 @@
     Change:         12.05.26 1.1: Dialog raised to foreground of CATIA window.
                     13.05.26 1.2: Replace name-based HybridBody lookup with direct COM reference.
                     13.05.26 1.3: Recreate brep reference and HybridShapeDirection inside loop — both consumed after part.update().
+                    16.05.26 1.4: Guard against in-work object being selected as source geometric set.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -35,6 +36,7 @@ from pycatia.mec_mod_interfaces.part_document import PartDocument
 from pycatia.mec_mod_interfaces.hybrid_body import HybridBody
 import wx
 import ctypes
+import pythoncom
 
 def _bring_to_front(window):
     u32 = ctypes.windll.user32
@@ -221,6 +223,16 @@ if __name__ == "__main__":
     if inwork_hb is None:                                                                                       #If still not found, create new GS
         inwork_hb = hybrid_bodies.add()                                                                         #Add new geometric set
         inwork_hb.name = "Translate_Keep_Name_And_Structure"                                                    #Rename geometric set
+
+    try:                                                                                                        #Guard: source must not be the in-work object
+        src_unk = source_hb.com_object._oleobj_.QueryInterface(pythoncom.IID_IUnknown)                          #IUnknown is the reliable COM identity check
+        inw_unk = inwork_hb.com_object._oleobj_.QueryInterface(pythoncom.IID_IUnknown)
+        same_object = (src_unk == inw_unk)
+    except Exception:
+        same_object = (source_hb.name == inwork_hb.name)                                                        #Fallback to name comparison
+    if same_object:
+        print("Error: The selected geometric set is the current in-work object. Please select a different geometric set or change the in-work object.")
+        exit()
 
     output_hb = inwork_hb.hybrid_bodies.add()                                                                   #Create new child geometric set inside in-work object
     output_hb.name = source_geo_set_name                                                                        #Name to match source geometric set

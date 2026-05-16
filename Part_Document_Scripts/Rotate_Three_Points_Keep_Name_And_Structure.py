@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Rotate_Three_Points_Keep_Name_And_Structure.py
-    Version:        1.1
+    Version:        1.2
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Rotates all hybrid shapes in a geometric set using three points while keeping names and structure.
@@ -21,6 +21,7 @@
     -----------------------------------------------------------------------------------------------------------------------
 
     Change:         13.05.26 1.1: Replace name-based HybridBody lookup with direct COM reference.
+                    16.05.26 1.2: Guard against in-work object being selected as source geometric set.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -29,6 +30,7 @@
 from pycatia import catia
 from pycatia.mec_mod_interfaces.part_document import PartDocument
 from pycatia.mec_mod_interfaces.hybrid_body import HybridBody
+import pythoncom
 
 '''
     This function creates a datum from a hybrid shape preserving its name, then removes the original.
@@ -187,6 +189,16 @@ if __name__ == "__main__":
     if inwork_hb is None:                                                                                      #If still not found, create new GS
         inwork_hb = hybrid_bodies.add()                                                                         #Add new geometric set
         inwork_hb.name = "Rotate_Three_Points_Keep_Name_And_Structure"                                          #Rename geometric set
+
+    try:                                                                                                        #Guard: source must not be the in-work object
+        src_unk = source_hb.com_object._oleobj_.QueryInterface(pythoncom.IID_IUnknown)                          #IUnknown is the reliable COM identity check
+        inw_unk = inwork_hb.com_object._oleobj_.QueryInterface(pythoncom.IID_IUnknown)
+        same_object = (src_unk == inw_unk)
+    except Exception:
+        same_object = (source_hb.name == inwork_hb.name)                                                        #Fallback to name comparison
+    if same_object:
+        print("Error: The selected geometric set is the current in-work object. Please select a different geometric set or change the in-work object.")
+        exit()
 
     output_hb = inwork_hb.hybrid_bodies.add()                                                                   #Create new child geometric set inside in-work object
     output_hb.name = source_geo_set_name                                                                        #Name to match source geometric set
