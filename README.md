@@ -23,8 +23,9 @@ Or use the **↓ Deps** button in CatiaMenuWin32 to install automatically.
 
 | Script | Description |
 |--------|-------------|
-| `Hide_Planes_And_Axis_Systems.py` | Hides all planes and axis systems in a Part or Product document |
+| `Batch_CATDrawing_To_PDF.py` | Export all CATDrawing files in a selected folder to PDF |
 | `Find_And_Select_By_Name.py` | Find and select all hybrid shapes whose names contain a search string |
+| `Hide_Planes_And_Axis_Systems.py` | Hides all planes and axis systems in a Part or Product document |
 | `Rename_Hybrid_Shapes.py` | Rename hybrid shapes interactively via message box |
 | `Replace_Name_Hybrid_Shapes.py` | Search and replace any hybrid shape name |
 | `Toggle_Show_Hide_Geometric_Set.py` | Toggle the visibility of a selected geometric set and all its children |
@@ -38,9 +39,13 @@ Or use the **↓ Deps** button in CatiaMenuWin32 to install automatically.
 | `Batch_Isolate_Geometric_Set.py` | Isolate every element in a geometric set as a datum in one operation |
 | `Check_Duplicate_Names_In_Geometric_Set.py` | Scan a geometric set and report any elements that share a name |
 | `Copy_Geometric_Set_To_New_Part.py` | Copy a selected geometric set and all its contents into a new blank CATPart |
+| `Create_Construction_Planes.py` | Create a series of offset planes from a reference plane at a user-defined step and count |
 | `Create_ISM_OSM_STEP_Files.py` | Select two faces/surfaces, extract in tangency and export as ISM and OSM STEP files |
+| `Delete_Deactivated_Features.py` | Delete all deactivated hybrid shapes inside a selected geometric set |
 | `Export_All_Parameters_To_CSV.py` | Export all parameters from the active part to CSV |
+| `Export_Curve_Lengths_Surface_Areas_To_CSV.py` | Export curve lengths and surface areas from a geometric set to CSV |
 | `Export_Geometric_Set_Structure_To_CSV.py` | Export the full geometric set tree and its contents to CSV |
+| `Export_Mass_CoG_Inertia_To_CSV.py` | Export mass, centre of gravity and inertia tensor from all solid bodies to CSV |
 | `Export_Points_Select_Axis_and_Geo_Set_To_CSV.py` | Export points from a geometric set relative to a selected axis system to CSV |
 | `Export_Points_Select_Axis_and_Geo_Set_To_XYZ.py` | Export points from a geometric set relative to a selected axis system to XYZ (PCDimms format) |
 | `Export_Points_Select_Geo_Set_To_CSV.py` | Export points from a geometric set relative to absolute axis to CSV |
@@ -55,6 +60,7 @@ Or use the **↓ Deps** button in CatiaMenuWin32 to install automatically.
 | `Measure_Curve_With_3_PTS_AS_CIRCLE.py` | Measure curve radius using a 3-point circle |
 | `Measure_Curve_With_3_PTS_AS_CIRCLE_Keep_Con.py` | Measure curve radius using a 3-point circle without removing construction elements |
 | `Measure_Radius_Surface.py` | Measure surface radius using intersection and 3-point circle without removing construction |
+| `Measure_Radius_Surface_Keep_Con.py` | Measure surface radius using intersection and 3-point circle, keeping all construction elements |
 | `Mirror_Keep_Name.py` | Mirror hybrid shapes about a plane keeping their original names |
 | `Mirror_Keep_Name_And_Structure.py` | Mirror all shapes in a geometric set about a plane, preserving names and structure |
 | `Publish_Hybrid_Shapes_In_Geometric_Set.py` | Publish all hybrid shapes in a selected geometric set |
@@ -63,6 +69,9 @@ Or use the **↓ Deps** button in CatiaMenuWin32 to install automatically.
 | `Rotate_Angle_Keep_Name_And_Structure.py` | Rotate all shapes in a geometric set by an angle, preserving names and structure |
 | `Rotate_Three_Points_Keep_Name.py` | Rotate hybrid shapes using three points definition keeping their original names |
 | `Rotate_Three_Points_Keep_Name_And_Structure.py` | Rotate all shapes in a geometric set using three points, preserving names and structure |
+| `Scale_Keep_Name.py` | Scale hybrid shapes about a center point while keeping their original names |
+| `Scale_Keep_Name_And_Structure.py` | Scale all shapes in a geometric set about a center point, preserving names and structure |
+| `Spline_Through_Points_In_Geometric_Set.py` | Create a spline through all points in a selected geometric set |
 | `Translate_Direction_Distance_Keep_Name.py` | Translate hybrid shapes keeping their original names |
 | `Translate_Direction_Distance_Keep_Name_And_Structure.py` | Translate all shapes in a geometric set by direction and distance, preserving names and structure |
 
@@ -87,6 +96,9 @@ Or use the **↓ Deps** button in CatiaMenuWin32 to install automatically.
 
 | Script | Description |
 |--------|-------------|
+| `Batch_Instance_Name_Equal_Part_Number.py` | Set every instance name in the active product tree to match its part number |
+| `BOM_Export_To_CSV.py` | Export a bill of materials from the active product to a CSV file |
+| `Export_Assembly_As_STEP.py` | Export the active product assembly as a single STEP file |
 | `Save_Child_Parts_To_STEP.py` | Save all parts in a product to separate STEP files |
 
 ---
