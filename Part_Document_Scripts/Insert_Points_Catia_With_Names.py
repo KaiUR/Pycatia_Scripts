@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Insert_Points_Catia_With_Names.py
-    Version:        1.1
+    Version:        1.2
     Code:           Python3.10.4, Pycatia 0.8.3, wx 4.2.5
     Release:        V5R32
     Purpose:        Imports points into catia from file
@@ -26,6 +26,7 @@
     -----------------------------------------------------------------------------------------------------------------------
     
     Change:         12.05.26 1.1: File dialog raised to foreground of CATIA window.
+                    16.05.26 1.2: Convert inserted points to datums.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -109,7 +110,11 @@ if __name__ == "__main__":
 
             point = hybrid_shape_factory.add_new_point_coord(
                     coords[1], coords[2], coords[3])                            #Create new point
-            point.name = coords[0]                                              #Set name for point
             hb.append_hybrid_shape(point)                                       #Add point to geometric shape
+            part.update()                                                       #Resolve point before datum conversion
+            datum = hybrid_shape_factory.add_new_point_datum(point)             #Convert to datum
+            datum.name = coords[0]                                              #Set name for datum
+            hb.append_hybrid_shape(datum)
+            hybrid_shape_factory.delete_object_for_datum(point)                 #Remove original parametric point
 
     part.update()                                                               #Update part document

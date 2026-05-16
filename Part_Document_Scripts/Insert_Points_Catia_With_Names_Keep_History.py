@@ -1,22 +1,23 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
-    Script name:    insert_points_catia.py
-    Version:        1.2
+    Script name:    Insert_Points_Catia_With_Names_Keep_History.py
+    Version:        1.0
     Code:           Python3.10.4, Pycatia 0.8.3, wx 4.2.5
     Release:        V5R32
-    Purpose:        Imports points into catia from file
+    Purpose:        Insert named points into active part from file, preserving parametric history.
     Author:         Kai-Uwe Rathjen
-    Date:           03.03.26
-    Description:    This script allow the user to import points from a text file or a csv file. This script does not
+    Date:           16.05.26
+    Description:    This script allow the user to import points from a text file or a csv file. This script does
                     support names for the points. The points should be written in the file in the following format:
-                        Text File:  x y z
-                        Csv File: x,y,z,
-                        
+                        Text File:  name x y z
+                        Csv File: name,x,y,z,
+
                     Text file points are space seperated, csv file points are comma seperated.
                     If the user has only two entires for a point like x,y the script will set z to zero.
                     If the user only has on entry it will skip the line. There is no other error correction in this script.
+                    Points are created as live parametric features rather than datums.
     dependencies = [
-                    "pycatia", 
+                    "pycatia",
                     "wxPython",
                     ]
     requirements:   Python >= 3.10
@@ -24,9 +25,8 @@
                     Catia V5 running wtih an open part. A CVS or Text file containing the points.
                     This script needs an open part document.
     -----------------------------------------------------------------------------------------------------------------------
-    
-    Change:         12.05.26 1.1: File dialog raised to foreground of CATIA window; removed unused import.
-                    16.05.26 1.2: Convert inserted points to datums.
+
+    Change:
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -50,18 +50,6 @@ def _bring_to_front(window):
     if fg_tid != our_tid:
         u32.AttachThreadInput(fg_tid, our_tid, False)
 
-'''
-    This function will open an open file dialog for the user to select a file.
-    
-    Inputs:
-        wildcard        This is the filter for what files the user can select.
-                        In this example: '*.txt;*.csv' The user can select text files and csv files.
-        
-    output:
-        The path to a file that the user has selected. 
-        The path will be None if no valid selecttion was made of if the user closes the dialog
-        without selecting anything.
-'''
 def get_path(wildcard):
     app = wx.App(None)                                                      #bootstrap the wxPython system
     style = wx.FD_OPEN | wx.FD_FILE_MUST_EXIST                              #Add conditions
@@ -70,13 +58,13 @@ def get_path(wildcard):
     if dialog.ShowModal() == wx.ID_OK:                                      #Show dialog and wait for ok
         path = dialog.GetPath()                                             #Get path that user selected
     else:                                                                   #Something whent wrong or user canceled
-        path = None                                                         #Set path to none                                 
+        path = None                                                         #Set path to none
     dialog.Destroy()                                                        #Close dialog
     return path                                                             #Return path
 
 
 if __name__ == "__main__":
-    #Anchoring relavent components
+
     caa = catia()                                                               #Catia application instance
     part_document: PartDocument = caa.active_document                           #Current open document
     part = part_document.part                                                   #Current part
@@ -102,17 +90,14 @@ if __name__ == "__main__":
             current_line = line.rstrip()                                        #get current line
             coords = current_line.split(delimiter)                              #get seperate components
 
-            if len(coords) < 2:                                                 #Skip if only one or none
+            if len(coords) < 3:                                                 #Skip if only one or none
                 continue
-            elif len(coords) == 2:                                              #Add zero if Z is left blank
+            elif len(coords) == 3:                                              #Add zero if Z is left blank
                 coords.append(0)
 
             point = hybrid_shape_factory.add_new_point_coord(
-                    coords[0], coords[1], coords[2])                            #Create new point
+                    coords[1], coords[2], coords[3])                            #Create new point
+            point.name = coords[0]                                              #Set name for point
             hb.append_hybrid_shape(point)                                       #Add point to geometric shape
-            part.update()                                                       #Resolve point before datum conversion
-            datum = hybrid_shape_factory.add_new_point_datum(point)             #Convert to datum
-            hb.append_hybrid_shape(datum)
-            hybrid_shape_factory.delete_object_for_datum(point)                 #Remove original parametric point
 
     part.update()                                                               #Update part document

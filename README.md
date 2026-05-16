@@ -54,8 +54,10 @@ Or use the **↓ Deps** button in CatiaMenuWin32 to install automatically.
 | `Export_Points_Select_Geo_Set_To_XYZ.py` | Export points from a geometric set relative to absolute axis to XYZ (PCDimms format) |
 | `Extract_Boundary_Curves.py` | Extract boundary edges of a selected surface as datum curves |
 | `IGES_Export_Curve_AXIS.py` | Export curve to IGES after moving from a reference axis system to absolute |
-| `Insert_Points_Catia.py` | Insert points into active part from tab-separated or CSV file |
-| `Insert_Points_Catia_With_Names.py` | Insert named points into active part from tab-separated or CSV file |
+| `Insert_Points_Catia.py` | Insert points into active part from tab-separated or CSV file as datums |
+| `Insert_Points_Catia_Keep_History.py` | Insert points into active part from tab-separated or CSV file, preserving parametric history |
+| `Insert_Points_Catia_With_Names.py` | Insert named points into active part from tab-separated or CSV file as datums |
+| `Insert_Points_Catia_With_Names_Keep_History.py` | Insert named points into active part from tab-separated or CSV file, preserving parametric history |
 | `Join_Explicit_No_Connect.py` | Join curves or surfaces without connex check, as datum |
 | `Join_Explicit_No_Connect_Curve.py` | Join curves without connex check, as datum |
 | `Join_Explicit_No_Connect_Surface.py` | Join surfaces without connex check, as datum |
