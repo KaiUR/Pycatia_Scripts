@@ -1,6 +1,6 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
-    Script name:    Export_Process_Table_Parameters.py
+    Script name:    Export_ResourceList.py
     Version:        1.0
     Code:           Python3.10.4, Pycatia 0.9.5
     Release:        V5R32
