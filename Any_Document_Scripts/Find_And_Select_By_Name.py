@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Find_And_Select_By_Name.py
-    Version:        1.1
+    Version:        1.2
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Find and select all hybrid shapes whose names contain a search string.
@@ -22,6 +22,7 @@
     -----------------------------------------------------------------------------------------------------------------------
 
     Change:         12.05.26 1.1: Dialog raised to foreground of CATIA window.
+                    16.05.26 1.2: Center spec tree on first search result via StartCommand("Center graph").
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -82,3 +83,10 @@ if __name__ == "__main__":
         print(f"Found and selected {found_count} element(s) containing: '{search_string}'")
         for index in range(found_count):                                                                        #Print each found element name
             print(f"  [{index + 1}] {selectionSet.item(index + 1).value.name}")
+
+        first_item = selectionSet.item(1).value                                                                 #Center spec tree on first result
+        selectionSet.clear()
+        selectionSet.add(first_item)
+        caa.start_command("Center graph")
+        selectionSet.clear()
+        selectionSet.search(search_query)                                                                       #Restore full selection
