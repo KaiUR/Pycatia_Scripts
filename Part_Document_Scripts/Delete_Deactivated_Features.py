@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Delete_Deactivated_Features.py
-    Version:        1.0
+    Version:        1.1
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Delete all deactivated hybrid shapes inside a selected geometric set.
@@ -22,7 +22,7 @@
                     This script needs an open part document.
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:
+    Change:         16.05.26 1.1: Fix deactivation check — use part.is_inactive() instead of com_object.Activity.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -48,19 +48,15 @@ def _bring_to_front(window):
     if fg_tid != our_tid:
         u32.AttachThreadInput(fg_tid, our_tid, False)
 
-def collect_deactivated(hb, deactivated):
+def collect_deactivated(hb, deactivated, part):
     shapes = hb.hybrid_shapes
     for i in range(shapes.count):
         shape = shapes.item(i + 1)
-        try:
-            if not shape.com_object.Activity:                                                                     #Activity = False means deactivated
-                deactivated.append(shape)
-                print(f"  Found deactivated: {shape.name}")
-        except Exception:
-            pass                                                                                                   #Skip if Activity cannot be read
+        if part.is_inactive(shape):
+            deactivated.append(shape)
+            print(f"  Found deactivated: {shape.name}")
     for i in range(hb.hybrid_bodies.count):                                                                      #Recurse into child sets
-        child_hb = HybridBody(hb.hybrid_bodies.item(i + 1).com_object)
-        collect_deactivated(child_hb, deactivated)
+        collect_deactivated(hb.hybrid_bodies.item(i + 1), deactivated, part)
 
 if __name__ == "__main__":
     caa = catia()
@@ -88,7 +84,7 @@ if __name__ == "__main__":
     print(f"\n Scanning '{source_hb.name}' for deactivated features...\n")
 
     deactivated = []
-    collect_deactivated(source_hb, deactivated)                                                                   #Collect all deactivated shapes
+    collect_deactivated(source_hb, deactivated, part)                                                             #Collect all deactivated shapes
 
     if not deactivated:
         print("\n No deactivated features found.\n")

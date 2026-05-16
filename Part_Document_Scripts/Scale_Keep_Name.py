@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Scale_Keep_Name.py
-    Version:        1.0
+    Version:        1.1
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Scales hybrid shapes while keeping the names.
@@ -21,7 +21,7 @@
                     This script needs an open part document.
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:
+    Change:         16.05.26 1.1: Fix scale creation — use hybrid_shape_factory.add_new_hybrid_scaling() instead of com_object.AddNewScaling().
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -29,7 +29,6 @@
 #Imports
 from pycatia import catia
 from pycatia.mec_mod_interfaces.hybrid_body import HybridBody
-from pycatia.mec_mod_interfaces.hybrid_shape import HybridShape
 from pycatia.mec_mod_interfaces.part_document import PartDocument
 import wx
 import ctypes
@@ -156,15 +155,14 @@ if __name__ == "__main__":
         hb.name = "Scale_Keep_Name"
 
     for index in range(shapes_count):
-        scale_com = hybrid_shape_factory.com_object.AddNewScaling(                                                #Create scale via COM
-                shapes_selected[index].com_object,
-                center_ref.com_object)
-        scale_com.Ratio.Value = ratio                                                                              #Set scale ratio
-        scale_com.Name = shapes_selected_name[index]
-        hb.com_object.AppendHybridShape(scale_com)
+        scale = hybrid_shape_factory.add_new_hybrid_scaling(
+                shapes_selected[index],
+                center_ref,
+                ratio)
+        scale.name = shapes_selected_name[index]
+        hb.append_hybrid_shape(scale)
         part.update()
 
-        scale = HybridShape(scale_com)                                                                             #Wrap for datum creation
         create_datum(hybrid_shape_factory, scale, hb, shapes_selected_name[index])
 
     part.update()

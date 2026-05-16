@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Export_Curve_Lengths_Surface_Areas_To_CSV.py
-    Version:        1.0
+    Version:        1.1
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Export curve lengths and surface areas from a geometric set to a CSV file.
@@ -20,7 +20,7 @@
                     This script needs an open part document.
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:
+    Change:         16.05.26 1.1: Fix SPA workbench setup and measurable call — use SPAWorkbench wrapper and pycatia methods.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -29,6 +29,7 @@
 from pycatia import catia
 from pycatia.mec_mod_interfaces.part_document import PartDocument
 from pycatia.mec_mod_interfaces.hybrid_body import HybridBody
+from pycatia.space_analyses_interfaces.spa_workbench import SPAWorkbench
 from pathlib import Path
 
 GEO_TYPE_NAMES = {1: 'Point', 2: 'Curve', 3: 'Line', 4: 'Circle', 5: 'Surface'}
@@ -46,7 +47,7 @@ def measure_shapes(hb, part, hybrid_shape_factory, spa, rows, geo_set_path):
 
         try:
             shape_ref = part.create_reference_from_object(shape)
-            meas = spa.GetMeasurable(shape_ref.com_object)
+            meas = spa.get_measurable(shape_ref)
 
             if geo_type in (2, 3, 4):                                                                             #Curve, Line, Circle — measure length
                 length = round(meas.Length, 6)
@@ -64,7 +65,7 @@ def measure_shapes(hb, part, hybrid_shape_factory, spa, rows, geo_set_path):
         })
 
     for i in range(hb.hybrid_bodies.count):                                                                       #Recurse into child sets
-        child_hb = HybridBody(hb.hybrid_bodies.item(i + 1).com_object)
+        child_hb = hb.hybrid_bodies.item(i + 1)
         child_path = f"{geo_set_path}/{child_hb.name}"
         measure_shapes(child_hb, part, hybrid_shape_factory, spa, rows, child_path)
 
@@ -101,7 +102,7 @@ if __name__ == "__main__":
     else:
         output_path = Path(doc_path_str).parent / (doc_name + f"_{source_name}_Measurements.csv")
 
-    spa = active_doc.com_object.GetWorkbench("SPAWorkbench")                                                      #SPA workbench for measurement
+    spa = SPAWorkbench(active_doc.com_object)                                                                      #SPA workbench for measurement
 
     print(f"\n Measuring shapes in '{source_name}'...\n")
 

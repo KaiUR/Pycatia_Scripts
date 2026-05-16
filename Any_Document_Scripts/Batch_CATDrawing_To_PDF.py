@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Batch_CATDrawing_To_PDF.py
-    Version:        1.0
+    Version:        1.1
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Export all CATDrawing files in a selected folder to PDF.
@@ -21,7 +21,7 @@
                     Catia V5 running (no specific open document required).
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:
+    Change:         16.05.26 1.1: Fix export format string — use lowercase "pdf" to match pycatia's case-sensitive endswith check.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -84,7 +84,7 @@ if __name__ == "__main__":
 
         try:
             doc = caa.documents.open(str(drawing_path))                                                           #Open the drawing
-            caa.active_document.export_data(str(pdf_path), "PDF", overwrite=True)                                 #Export as PDF
+            caa.active_document.export_data(str(pdf_path), "pdf", overwrite=True)                                 #Export as PDF
             caa.active_document.close()                                                                           #Close the drawing
             print(f"    Saved: {pdf_path.name}")
             success += 1

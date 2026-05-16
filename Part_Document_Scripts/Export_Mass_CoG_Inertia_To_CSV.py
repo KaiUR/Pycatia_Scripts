@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Export_Mass_CoG_Inertia_To_CSV.py
-    Version:        1.0
+    Version:        1.1
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Export mass, centre of gravity and inertia tensor from all solid bodies to CSV.
@@ -21,7 +21,7 @@
                     This script needs an open part document.
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:
+    Change:         16.05.26 1.1: Fix SPA workbench, bodies collection, and reference creation — use pycatia wrappers.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -29,6 +29,7 @@
 #Imports
 from pycatia import catia
 from pycatia.mec_mod_interfaces.part_document import PartDocument
+from pycatia.space_analyses_interfaces.spa_workbench import SPAWorkbench
 from pathlib import Path
 
 if __name__ == "__main__":
@@ -50,10 +51,10 @@ if __name__ == "__main__":
     else:
         output_path = Path(doc_path_str).parent / (doc_name + "_MassProperties.csv")
 
-    spa = active_doc.com_object.GetWorkbench("SPAWorkbench")                                                      #SPA workbench for measurement
+    spa = SPAWorkbench(active_doc.com_object)                                                                      #SPA workbench for measurement
 
-    bodies_com = part.com_object.Bodies                                                                           #All solid bodies in part
-    body_count = bodies_com.Count
+    bodies = part.bodies                                                                                           #All solid bodies in part
+    body_count = bodies.count
 
     if body_count == 0:
         print("No solid bodies found in this part document.")
@@ -64,8 +65,8 @@ if __name__ == "__main__":
     rows = []
 
     for i in range(body_count):
-        body_com = bodies_com.Item(i + 1)
-        body_name = body_com.Name
+        body = bodies.item(i + 1)
+        body_name = body.name
         print(f"  Processing: {body_name}")
 
         row = {'Body': body_name, 'Mass_kg': 'N/A', 'Volume_mm3': 'N/A',
@@ -75,8 +76,8 @@ if __name__ == "__main__":
                'Izx': 'N/A', 'Izy': 'N/A', 'Izz': 'N/A'}
 
         try:
-            body_ref = part.com_object.CreateReferenceFromObject(body_com)
-            meas = spa.GetMeasurable(body_ref)
+            body_ref = part.create_reference_from_object(body)
+            meas = spa.get_measurable(body_ref)
 
             row['Volume_mm3'] = round(meas.Volume, 6)
             row['Area_mm2']   = round(meas.Area * 1e6, 3)                                                        #SPA returns m², convert to mm²

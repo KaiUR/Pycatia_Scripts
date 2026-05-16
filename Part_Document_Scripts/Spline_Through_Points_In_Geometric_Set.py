@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Spline_Through_Points_In_Geometric_Set.py
-    Version:        1.0
+    Version:        1.1
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Create a spline through all points in a selected geometric set.
@@ -21,7 +21,7 @@
                     This script needs an open part document.
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:
+    Change:         16.05.26 1.1: Fix spline creation — use pycatia factory/append methods instead of com_object patterns.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -90,13 +90,13 @@ if __name__ == "__main__":
         hb = hybrid_bodies.add()
         hb.name = "Spline_Through_Points"
 
-    spline_com = hybrid_shape_factory.com_object.AddNewSpline()                                                   #Create spline via COM
+    spline = hybrid_shape_factory.add_new_spline()
     for ref in point_refs:
-        spline_com.AddPoint(ref.com_object)                                                                       #Add each point to spline
+        spline.add_point(ref)
 
     spline_name = f"Spline_{source_hb.name}"
-    spline_com.Name = spline_name
-    hb.com_object.AppendHybridShape(spline_com)
+    spline.name = spline_name
+    hb.append_hybrid_shape(spline)
     part.update()
 
     print(f"\n\n Completed - created '{spline_name}' through {len(point_refs)} point(s)\n\n")

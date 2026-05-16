@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Scale_Keep_Name_And_Structure.py
-    Version:        1.0
+    Version:        1.1
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Scales all hybrid shapes in a geometric set while keeping names and structure.
@@ -22,7 +22,7 @@
                     This script needs an open part document.
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:
+    Change:         16.05.26 1.1: Fix scale creation — use hybrid_shape_factory.add_new_hybrid_scaling() instead of com_object.AddNewScaling().
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -31,7 +31,6 @@
 from pycatia import catia
 from pycatia.mec_mod_interfaces.part_document import PartDocument
 from pycatia.mec_mod_interfaces.hybrid_body import HybridBody
-from pycatia.mec_mod_interfaces.hybrid_shape import HybridShape
 import wx
 import ctypes
 import pythoncom
@@ -87,20 +86,19 @@ def process_hybrid_body(source_hb, target_hb, part, hybrid_shape_factory, center
         shape_name = shape.name
         shape_ref = part.create_reference_from_object(shape)
 
-        scale_com = hybrid_shape_factory.com_object.AddNewScaling(                                                #Create scale via COM
-                shape_ref.com_object,
-                center_ref.com_object)
-        scale_com.Ratio.Value = ratio                                                                              #Set ratio
-        scale_com.Name = shape_name
-        target_hb.com_object.AppendHybridShape(scale_com)
+        scale = hybrid_shape_factory.add_new_hybrid_scaling(
+                shape_ref,
+                center_ref,
+                ratio)
+        scale.name = shape_name
+        target_hb.append_hybrid_shape(scale)
         part.update()
 
-        scale = HybridShape(scale_com)                                                                             #Wrap for datum creation
         create_datum(hybrid_shape_factory, scale, target_hb, shape_name)
 
     for child_index in range(source_hb.hybrid_bodies.count):                                                      #Loop through child sets
-        source_child_hb = HybridBody(source_hb.hybrid_bodies.item(child_index + 1).com_object)
-        target_child_hb = HybridBody(target_hb.hybrid_bodies.add().com_object)
+        source_child_hb = source_hb.hybrid_bodies.item(child_index + 1)
+        target_child_hb = target_hb.hybrid_bodies.add()
         target_child_hb.name = source_child_hb.name
 
         process_hybrid_body(source_child_hb, target_child_hb, part,                                              #Recurse

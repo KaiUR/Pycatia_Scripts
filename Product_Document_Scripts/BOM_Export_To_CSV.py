@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    BOM_Export_To_CSV.py
-    Version:        1.0
+    Version:        1.1
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Export a bill of materials from the active product to a CSV file.
@@ -20,7 +20,7 @@
                     This script needs an open CATProduct document.
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:
+    Change:         16.05.26 1.1: Fix product attribute access — use product.reference_product and pycatia properties.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -32,11 +32,11 @@ from pathlib import Path
 
 def _ref_attr(child, attr):
     try:
-        val = getattr(child.com_object.ReferenceProduct, attr)                                                    #Read from reference product (where PN/description live)
+        val = getattr(child.reference_product, attr)                                                              #Read from reference product (where PN/description live)
         return val if val else ""
     except Exception:
         try:
-            return getattr(child.com_object, attr) or ""                                                          #Fallback to instance level
+            return getattr(child, attr) or ""                                                                     #Fallback to instance level
         except Exception:
             return ""
 
@@ -46,10 +46,10 @@ def collect_bom(product, level, rows):
         child = children.item(i + 1)                                                                              #Get child product
         rows.append({                                                                                              #Append row
             'Level':         level,
-            'Part Number':   _ref_attr(child, 'PartNumber'),
+            'Part Number':   _ref_attr(child, 'part_number'),
             'Instance Name': child.name,
-            'Description':   _ref_attr(child, 'Definition'),
-            'Nomenclature':  _ref_attr(child, 'Nomenclature'),
+            'Description':   _ref_attr(child, 'definition'),
+            'Nomenclature':  _ref_attr(child, 'nomenclature'),
             'File Name':     child.file_name,
         })
         if child.products.count > 0:                                                                              #Recurse into sub-assemblies

@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Create_Construction_Planes.py
-    Version:        1.0
+    Version:        1.1
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Create a series of evenly spaced offset planes from a reference plane.
@@ -23,7 +23,7 @@
                     This script needs an open part document.
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:
+    Change:         16.05.26 1.1: Fix plane and body creation — use pycatia factory/append methods instead of com_object patterns.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -127,7 +127,7 @@ if __name__ == "__main__":
         inwork_hb = hybrid_bodies.add()
         inwork_hb.name = "Construction_Planes"
 
-    sections_hb = HybridBody(inwork_hb.hybrid_bodies.add().com_object)                                           #New child set for the planes
+    sections_hb = inwork_hb.hybrid_bodies.add()                                                                   #New child set for the planes
     sections_hb.name = "Sections"
 
     print(f"\n Creating {count} plane(s) with step {step} mm\n")
@@ -136,12 +136,9 @@ if __name__ == "__main__":
         offset = step * (i + 1)                                                                                   #Cumulative offset from reference
         plane_name = f"Section_{str(i + 1).zfill(3)}"
 
-        plane_com = hybrid_shape_factory.com_object.AddNewPlaneOffset(                                            #Create offset plane via COM
-                ref_plane.com_object,
-                offset,
-                False)                                                                                            #False = same orientation as reference
-        plane_com.Name = plane_name
-        sections_hb.com_object.AppendHybridShape(plane_com)
+        plane = hybrid_shape_factory.add_new_plane_offset(ref_plane, offset, False)
+        plane.name = plane_name
+        sections_hb.append_hybrid_shape(plane)
         part.update()
 
         print(f"  Created: {plane_name} at offset {offset} mm")
