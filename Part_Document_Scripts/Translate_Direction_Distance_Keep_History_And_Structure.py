@@ -1,0 +1,201 @@
+'''
+    -----------------------------------------------------------------------------------------------------------------------
+    Script name:    Translate_Direction_Distance_Keep_History_And_Structure.py
+    Version:        1.0
+    Code:           Python3.10.4, Pycatia 0.8.3
+    Release:        V5R32
+    Purpose:        Translates all hybrid shapes in a geometric set while keeping names, structure and parametric history.
+    Author:         Kai-Uwe Rathjen
+    Date:           16.05.26
+    Description:    This script will ask the user to select a geometric set, a direction and a distance.
+                    The script will recreate the full geometric set structure inside the current in-work object,
+                    perform a translation on every hybrid shape recursively through all child sets, and preserve
+                    the original names of all shapes and geometric sets. Results are left as live parametric
+                    features rather than converted to datums.
+    dependencies = [
+                    "pycatia",
+                    "wxPython",
+                    ]
+    requirements:   Python >= 3.10
+                    pycatia
+                    wxPython
+                    Catia V5 running wtih an open part containing a geometric set and an axis system.
+                    This script needs an open part document.
+    -----------------------------------------------------------------------------------------------------------------------
+
+    Change:
+
+    -----------------------------------------------------------------------------------------------------------------------
+'''
+
+#Imports
+from pycatia import catia
+from pycatia.mec_mod_interfaces.part_document import PartDocument
+from pycatia.mec_mod_interfaces.hybrid_body import HybridBody
+import wx
+import ctypes
+import pythoncom
+
+def _bring_to_front(window):
+    u32 = ctypes.windll.user32
+    hwnd = window.GetHandle()
+    fg_hwnd = u32.GetForegroundWindow()
+    fg_tid = u32.GetWindowThreadProcessId(fg_hwnd, None)
+    our_tid = ctypes.windll.kernel32.GetCurrentThreadId()
+    if fg_tid != our_tid:
+        u32.AttachThreadInput(fg_tid, our_tid, True)
+    u32.SetWindowLongW(hwnd, -20, u32.GetWindowLongW(hwnd, -20) | 0x0008)
+    u32.BringWindowToTop(hwnd)
+    u32.SetForegroundWindow(hwnd)
+    if fg_tid != our_tid:
+        u32.AttachThreadInput(fg_tid, our_tid, False)
+
+'''
+    This function recursively processes a source geometric set, recreating its structure in the target
+    geometric set and performing a translation on every hybrid shape.
+
+    Inputs:
+        source_hb               The source geometric set to process
+        target_hb               The target geometric set to recreate the structure in
+        part                    The active part
+        hybrid_shape_factory    The hybrid shape factory for the part
+        brep_name               The brep string for the direction — used to recreate the reference each iteration
+        direction_value         The axis system COM object used as context for the brep reference
+        distance                The distance to translate
+
+    output:
+        None
+'''
+def process_hybrid_body(source_hb, target_hb, part, hybrid_shape_factory, brep_name, direction_value, distance):
+    hybrid_shapes = source_hb.hybrid_shapes                                                                     #Get all hybrid shapes in source set
+
+    for index in range(hybrid_shapes.count):                                                                    #Loop through all shapes in source set
+        shape = hybrid_shapes.item(index + 1)                                                                   #Get shape
+        shape_name = shape.name                                                                                  #Store shape name
+        shape_ref = part.create_reference_from_object(shape)                                                    #Create reference to shape
+
+        direction_ref = part.create_reference_from_b_rep_name(brep_name, direction_value)                      #Recreate brep reference — consumed after part.update()
+        fresh_direction = hybrid_shape_factory.add_new_direction(direction_ref)                                 #Recreate direction object — consumed on assignment to transform
+
+        transform = hybrid_shape_factory.add_new_empty_translate()                                              #Create new translate
+        transform.elem_to_translate = shape_ref                                                                 #Add element to translate
+        transform.vector_type = 0                                                                               #Set to direction, distance
+        transform.direction = fresh_direction                                                                   #Add fresh direction
+        transform.distance_value = distance                                                                     #Add distance
+        transform.volume_result = False                                                                         #Disable volume result
+        transform.name = shape_name                                                                             #Set name to match source shape
+        target_hb.append_hybrid_shape(transform)                                                                #Add to target geometric set
+        part.update()                                                                                           #Update part
+
+    for child_index in range(source_hb.hybrid_bodies.count):                                                    #Loop through child geometric sets in source
+        source_child_hb = source_hb.hybrid_bodies.item(child_index + 1)                                        #Get source child geometric set
+        target_child_hb = target_hb.hybrid_bodies.add()                                                        #Create new child geometric set in target
+        target_child_hb.name = source_child_hb.name                                                            #Name to match source child set
+
+        process_hybrid_body(source_child_hb, target_child_hb, part,                                            #Recurse into child set
+                hybrid_shape_factory, brep_name, direction_value, distance)
+
+if __name__ == "__main__":
+    #Anchoring relavent components
+    caa = catia()                                                                                               #Catia application instance
+    active_doc = caa.active_document                                                                            #Current Document
+
+    object_filter = ("HybridBody",)                                                                             #Set user selection filter (Geometric Set)
+    selectionSet = caa.active_document.selection                                                                #Create container for selection
+    status = selectionSet.select_element3(object_filter, "Select geometric set to translate", False, 2, False)  #Runs an interactive selection command, exhaustive version.
+    if status != "Normal":                                                                                      #Check if selection was succesful
+        print("You must select a geometric set")
+        exit()
+
+    selected_item = selectionSet.item(1)                                                                        #Get selected item
+    source_geo_set_name = selected_item.value.name                                                              #Store source geometric set name
+
+    if type(active_doc) is PartDocument:                                                                        #If document is part document
+        part = active_doc.part
+        part_document: PartDocument = active_doc
+    else:                                                                                                       #Else get part from product structure
+        leaf_product = selected_item.com_object.LeafProduct                                                     #Get leaf product
+        part_document = PartDocument(leaf_product.ReferenceProduct.Parent)                                      #Get part document
+        part = part_document.part                                                                               #Get new part object
+
+    hybrid_bodies = part.hybrid_bodies                                                                          #Set off all top level geometric sets
+    hybrid_shape_factory = part.hybrid_shape_factory                                                            #GSD workbench to create hybridshapes
+
+    source_hb = HybridBody(selected_item.value.com_object)                                                      #Get source geometric set directly from selection
+
+    object_filter = ("AnyObject",)                                                                              #Set user selection filter (AnyObject)
+    selectionSet.clear()
+    status = selectionSet.select_element3(object_filter, "Select a Direction", False, 2, False)                 #Runs an interactive selection command, exhaustive version.
+    if status != "Normal":                                                                                      #Check if selection was succesful
+        print("You must select a direction")
+        exit()
+
+    #Create new direction using brep
+    ref_name = selectionSet.item(1).reference.name                                                              #Get Reference name
+
+    try:
+        brep_core = ref_name.replace("Selection_", "").split(");AxisSystem")[0]                                 #Remove selection_ from string
+        brep_name = f"{brep_core});WithPermanentBody;WithoutBuildError;WithSelectingFeatureSupport;MFBRepVersion_CXR29)" #Build brep string to create reference
+        direction_value = selectionSet.item(1).value                                                            #Store direction context object — stable across updates
+        part.create_reference_from_b_rep_name(brep_name, direction_value)                                      #Validate brep is parseable
+    except:
+        print("You must select a face or line of an axis system as direction")
+        exit()
+
+    app = wx.App(None)                                                                                          #Initilize wx application
+    distance = 0.0                                                                                              #Initilize distance to 0
+
+    dlg = wx.TextEntryDialog(None, "Enter distance to translate:", "Enter Distance", "0.0",
+            wx.OK | wx.CANCEL | wx.CENTRE | wx.STAY_ON_TOP)                                                     #Create text entry dialog
+
+    wx.CallAfter(_bring_to_front, dlg)
+    if dlg.ShowModal() == wx.ID_OK:                                                                             #If user clicked OK
+        try:
+            distance = float(dlg.GetValue())                                                                    #Get distance as float
+        except ValueError:
+            print("You must enter a valid number")
+            exit()
+    else:
+        dlg.Destroy()
+        print("You must enter a distance")
+        exit()
+
+    dlg.Destroy()                                                                                               #Destroy dialog
+
+    in_work = part.in_work_object                                                                               #Get in work object
+    inwork_hb = None
+    try:
+        inwork_hb = HybridBody(in_work.com_object)                                                              #Try to use in_work_object directly as a HybridBody
+        inwork_hb.hybrid_shapes                                                                                  #Validate it is a HybridBody
+    except Exception:
+        inwork_hb = None
+    if inwork_hb is None:                                                                                       #If in_work_object is not a HybridBody (e.g. a feature)
+        try:
+            inwork_hb = HybridBody(in_work.com_object.Parent)                                                   #Try parent (the containing GS)
+            inwork_hb.hybrid_shapes                                                                              #Validate it is a HybridBody
+        except Exception:
+            inwork_hb = None
+    if inwork_hb is None:                                                                                       #If still not found, create new GS
+        inwork_hb = hybrid_bodies.add()                                                                         #Add new geometric set
+        inwork_hb.name = "Translate_Keep_History_And_Structure"                                                 #Rename geometric set
+
+    try:                                                                                                        #Guard: source must not be the in-work object
+        src_unk = source_hb.com_object._oleobj_.QueryInterface(pythoncom.IID_IUnknown)                          #IUnknown is the reliable COM identity check
+        inw_unk = inwork_hb.com_object._oleobj_.QueryInterface(pythoncom.IID_IUnknown)
+        same_object = (src_unk == inw_unk)
+    except Exception:
+        same_object = (source_hb.name == inwork_hb.name)                                                        #Fallback to name comparison
+    if same_object:
+        print("Error: The selected geometric set is the current in-work object. Please select a different geometric set or change the in-work object.")
+        exit()
+
+    output_hb = inwork_hb.hybrid_bodies.add()                                                                   #Create new child geometric set inside in-work object
+    output_hb.name = source_geo_set_name                                                                        #Name to match source geometric set
+
+    print(f"\n Processing geometric set '{source_geo_set_name}'\n")
+
+    process_hybrid_body(source_hb, output_hb, part,                                                            #Recursively process source geometric set
+            hybrid_shape_factory, brep_name, direction_value, distance)
+
+    part.update()                                                                                               #Final update
+    print(f"\n\n Completed\n\n")

@@ -1,28 +1,27 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
-    Script name:    Translate_Direction_Distance_Keep_Name.py
-    Version:        1.4
+    Script name:    Translate_Direction_Distance_Keep_History.py
+    Version:        1.0
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
-    Purpose:        Moves hybrid shapes with translate while keeping the names.
+    Purpose:        Moves hybrid shapes with translate while keeping the names and parametric history.
     Author:         Kai-Uwe Rathjen
-    Date:           23.04.26
+    Date:           16.05.26
     Description:    This script will ask the user to select hybrid shapes, a direction and a distance. Script
-                    will translate shapes and then use the same name as source shape.
+                    will translate shapes, use the same name as source shape, and leave the result as a live
+                    parametric feature rather than converting it to a datum.
     dependencies = [
                     "pycatia",
                     "wxPython",
                     ]
     requirements:   Python >= 3.10
                     pycatia
-                    Catia V5 running wtih an open part containing hybridshapes and two axis systems.
+                    wxPython
+                    Catia V5 running wtih an open part containing hybridshapes and an axis system.
                     This script needs an open part document.
     -----------------------------------------------------------------------------------------------------------------------
-    
-    Change:         12.05.26 1.1: Dialog raised to foreground of CATIA window.
-                    13.05.26 1.2: Replace name-based HybridBody lookup with direct COM reference.
-                    13.05.26 1.3: Recreate HybridShapeDirection inside loop — direction object is consumed on first assignment.
-                    16.05.26 1.4: Fix selection prompt text; remove stale inline comment.
+
+    Change:
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -48,73 +47,43 @@ def _bring_to_front(window):
     if fg_tid != our_tid:
         u32.AttachThreadInput(fg_tid, our_tid, False)
 
-def create_datum(hybrid_shape_factory, hybrid_shape, hybrid_body, name=None):
-    geo_type = hybrid_shape_factory.get_geometrical_feature_type(hybrid_shape)
-    
-    if geo_type == 1:
-        datum_point = hybrid_shape_factory.add_new_point_datum(hybrid_shape)
-        if name: datum_point.name = name
-        hybrid_body.append_hybrid_shape(datum_point)
-    elif geo_type == 2:
-        datum_curve = hybrid_shape_factory.add_new_curve_datum(hybrid_shape)
-        if name: datum_curve.name = name
-        hybrid_body.append_hybrid_shape(datum_curve)
-    elif geo_type == 3:
-        datum_line = hybrid_shape_factory.add_new_line_datum(hybrid_shape)
-        if name: datum_line.name = name
-        hybrid_body.append_hybrid_shape(datum_line)
-    elif geo_type == 4:
-        datum_circle = hybrid_shape_factory.add_new_circle_datum(hybrid_shape)
-        if name: datum_circle.name = name
-        hybrid_body.append_hybrid_shape(datum_circle)
-    elif geo_type == 5:
-        datum_surface = hybrid_shape_factory.add_new_surface_datum(hybrid_shape)
-        if name: datum_surface.name = name
-        hybrid_body.append_hybrid_shape(datum_surface)
-    
-    hybrid_shape_factory.delete_object_for_datum(hybrid_shape)
-
 if __name__ == "__main__":
     caa = catia()                                                                                               #Catia application instance
     active_doc = caa.active_document                                                                            #Current Document
 
-    object_filter = ("HybridShape",)                                                                            #Set user selection filter (AnyObject)                             
+    object_filter = ("HybridShape",)                                                                            #Set user selection filter (AnyObject)
     selectionSet = caa.active_document.selection                                                                #Create container for selection
-    status = selectionSet.select_element3(object_filter,"Select Hybridshapes to translate" , False , 2 , False)                  #Runs an interactive selection command, exhaustive version. 
+    status = selectionSet.select_element3(object_filter,"Select Hybridshapes to translate" , False , 2 , False)                  #Runs an interactive selection command, exhaustive version.
     if status != "Normal":                                                                                      #Check if selection was succesful
         print("You must select a hybridshape")
         exit()
-        
-    selected_item = selectionSet.item(1) 
+
+    selected_item = selectionSet.item(1)
 
     if type(active_doc) is PartDocument:
         part = active_doc.part                                                                                  #If document is part document
         part_document : PartDocument = active_doc
     else:                                                                                                       #Else get part from product structure
-        # We are in a Product or Process; find the Part via the selection
-        # We use .com_object to access the LeafProduct property
         leaf_product = selected_item.com_object.LeafProduct
         part_document = PartDocument(leaf_product.ReferenceProduct.Parent)
-        # Navigation: LeafProduct -> ReferenceProduct -> Parent (PartDocument) -> Part
         part = part_document.part                                                                               #Get new part object
 
     hybrid_bodies = part.hybrid_bodies                                                                          #Set off all top level geometric sets
     hybrid_shape_factory = part.hybrid_shape_factory                                                            #GSD workbentch to create hybridshapes
-    
+
     hybridshapes_selected = [None] * selectionSet.count                                                         #Create array to store hybridshapes
-    hybridshapes_selected_name = [None] * selectionSet.count 
+    hybridshapes_selected_name = [None] * selectionSet.count
     hybridshapes_selected_count = selectionSet.count                                                            #Store number of shapes
     for index in range(selectionSet.count):                                                                     #Loop through selection
         hybridshapes_selected[index] = selectionSet.item(index + 1).reference                                   #Store selected shapes as reference
         hybridshapes_selected_name[index] = selectionSet.item(index + 1).value.name                             #Store Names
-        
-    object_filter = ("AnyObject",)                                                                              #Set user selection filter (AnyObject)                             
+
+    object_filter = ("AnyObject",)                                                                              #Set user selection filter (AnyObject)
     selectionSet.clear()
-    status = selectionSet.select_element3(object_filter,"Select a Direction" , False , 2 , False)               #Runs an interactive selection command, exhaustive version. 
+    status = selectionSet.select_element3(object_filter,"Select a Direction" , False , 2 , False)               #Runs an interactive selection command, exhaustive version.
     if status != "Normal":                                                                                      #Check if selection was succesful
         print("You must select a direction")
         exit()
-
 
     #Create new direction using brep
     ref_name = selectionSet.item(1).reference.name                                                              #Get Reference name
@@ -127,8 +96,8 @@ if __name__ == "__main__":
     except:
         print("You must select a face or line of an axis system as direction")
         exit()
-    
-    
+
+
     app = wx.App(None)
     distance = 0.0                                                                                              #Initilize distance to 0
 
@@ -146,7 +115,7 @@ if __name__ == "__main__":
         exit()
 
     dlg.Destroy()
-    
+
     in_work = part.in_work_object                                                                               #Get in work object
     hb = None
     try:
@@ -162,8 +131,8 @@ if __name__ == "__main__":
             hb = None
     if hb is None:                                                                                              #If still not found, create new GS
         hb = hybrid_bodies.add()                                                                                #Add new geometric set
-        hb.name = "Translate_Keep_Name"                                                                         #Rename geometric set
-    
+        hb.name = "Translate_Keep_History"                                                                      #Rename geometric set
+
     for index in range(hybridshapes_selected_count):                                                            #For each hybridshape
         direction_ref = part.create_reference_from_b_rep_name(brep_name, direction_value)                      #Recreate brep reference — consumed after part.update()
         selected_direction_ref = hybrid_shape_factory.add_new_direction(direction_ref)                         #Recreate direction — COM object is consumed on assignment to transform
@@ -175,9 +144,7 @@ if __name__ == "__main__":
         transform.volume_result = False                                                                         #Disable volume result
         transform.name = hybridshapes_selected_name[index]                                                      #Set name
         hb.append_hybrid_shape(transform)                                                                       #Add result to geometric set
-        
+
         part.update()
-        
-        create_datum(hybrid_shape_factory, transform, hb, hybridshapes_selected_name[index])                    #Create datum
-        
+
     part.update()

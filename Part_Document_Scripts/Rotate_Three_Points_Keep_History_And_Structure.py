@@ -1,0 +1,169 @@
+'''
+    -----------------------------------------------------------------------------------------------------------------------
+    Script name:    Rotate_Three_Points_Keep_History_And_Structure.py
+    Version:        1.0
+    Code:           Python3.10.4, Pycatia 0.8.3
+    Release:        V5R32
+    Purpose:        Rotates all hybrid shapes in a geometric set using three points while keeping names, structure and parametric history.
+    Author:         Kai-Uwe Rathjen
+    Date:           16.05.26
+    Description:    This script will ask the user to select a geometric set, a center point, a start point and
+                    an end point. The script will recreate the full geometric set structure inside the current
+                    in-work object, perform a three-point rotation on every hybrid shape recursively through all
+                    child sets, and preserve the original names of all shapes and geometric sets. Results are
+                    left as live parametric features rather than converted to datums.
+    dependencies = [
+                    "pycatia",
+                    ]
+    requirements:   Python >= 3.10
+                    pycatia
+                    Catia V5 running with an open part containing a geometric set and three points.
+                    This script needs an open part document.
+    -----------------------------------------------------------------------------------------------------------------------
+
+    Change:
+
+    -----------------------------------------------------------------------------------------------------------------------
+'''
+
+#Imports
+from pycatia import catia
+from pycatia.mec_mod_interfaces.part_document import PartDocument
+from pycatia.mec_mod_interfaces.hybrid_body import HybridBody
+import pythoncom
+
+'''
+    This function recursively processes a source geometric set, recreating its structure in the target
+    geometric set and performing a three-point rotation on every hybrid shape.
+
+    Inputs:
+        source_hb               The source geometric set to process
+        target_hb               The target geometric set to recreate the structure in
+        part                    The active part
+        hybrid_shape_factory    The hybrid shape factory for the part
+        center_ref              Reference to the center point
+        start_ref               Reference to the start point
+        end_ref                 Reference to the end point
+
+    output:
+        None
+'''
+def process_hybrid_body(source_hb, target_hb, part, hybrid_shape_factory, center_ref, start_ref, end_ref):
+    hybrid_shapes = source_hb.hybrid_shapes                                                                     #Get all hybrid shapes in source set
+
+    for index in range(hybrid_shapes.count):                                                                    #Loop through all shapes in source set
+        shape = hybrid_shapes.item(index + 1)                                                                   #Get shape
+        shape_name = shape.name                                                                                  #Store shape name
+        shape_ref = part.create_reference_from_object(shape)                                                    #Create reference to shape
+
+        rotate = hybrid_shape_factory.add_new_empty_rotate()                                                    #Create new rotate
+        rotate.elem_to_rotate = shape_ref                                                                       #Add element to rotate
+        rotate.rotation_type = 2                                                                                #Set to three points
+        rotate.first_point = start_ref                                                                          #Add start point
+        rotate.second_point = center_ref                                                                        #Add center point
+        rotate.third_point = end_ref                                                                            #Add end point
+        rotate.volume_result = False                                                                            #Disable volume result
+        rotate.name = shape_name                                                                                #Set name to match source shape
+        target_hb.append_hybrid_shape(rotate)                                                                   #Add to target geometric set
+        part.update()                                                                                           #Update part
+
+    for child_index in range(source_hb.hybrid_bodies.count):                                                    #Loop through child geometric sets in source
+        source_child_hb = source_hb.hybrid_bodies.item(child_index + 1)                                        #Get source child geometric set
+        target_child_hb = target_hb.hybrid_bodies.add()                                                        #Create new child geometric set in target
+        target_child_hb.name = source_child_hb.name                                                            #Name to match source child set
+
+        process_hybrid_body(source_child_hb, target_child_hb, part,                                            #Recurse into child set
+                hybrid_shape_factory, center_ref, start_ref, end_ref)
+
+if __name__ == "__main__":
+    #Anchoring relavent components
+    caa = catia()                                                                                               #Catia application instance
+    active_doc = caa.active_document                                                                            #Current Document
+
+    object_filter = ("HybridBody",)                                                                            #Set user selection filter (Geometric Set)
+    selectionSet = caa.active_document.selection                                                               #Create container for selection
+    status = selectionSet.select_element3(object_filter, "Select geometric set to rotate", False, 2, False)    #Runs an interactive selection command, exhaustive version.
+    if status != "Normal":                                                                                      #Check if selection was succesful
+        print("You must select a geometric set")
+        exit()
+
+    selected_item = selectionSet.item(1)                                                                       #Get selected item
+    source_geo_set_name = selected_item.value.name                                                             #Store source geometric set name
+
+    if type(active_doc) is PartDocument:                                                                       #If document is part document
+        part = active_doc.part
+        part_document: PartDocument = active_doc
+    else:                                                                                                       #Else get part from product structure
+        leaf_product = selected_item.com_object.LeafProduct                                                    #Get leaf product
+        part_document = PartDocument(leaf_product.ReferenceProduct.Parent)                                     #Get part document
+        part = part_document.part                                                                               #Get new part object
+
+    hybrid_bodies = part.hybrid_bodies                                                                         #Set off all top level geometric sets
+    hybrid_shape_factory = part.hybrid_shape_factory                                                           #GSD workbench to create hybridshapes
+
+    source_hb = HybridBody(selected_item.value.com_object)                                                     #Get source geometric set directly from selection
+
+    object_filter = ("AnyObject",)                                                                             #Set user selection filter (AnyObject)
+    selectionSet.clear()
+    status = selectionSet.select_element3(object_filter, "Select start point", False, 2, False)                #Runs an interactive selection command, exhaustive version.
+    if status != "Normal":                                                                                      #Check if selection was succesful
+        print("You must select a start point")
+        exit()
+
+    start_ref = selectionSet.item(1).reference                                                                 #Create reference to start point
+
+    object_filter = ("AnyObject",)                                                                             #Set user selection filter (AnyObject)
+    selectionSet.clear()
+    status = selectionSet.select_element3(object_filter, "Select center point", False, 2, False)               #Runs an interactive selection command, exhaustive version.
+    if status != "Normal":                                                                                      #Check if selection was succesful
+        print("You must select a center point")
+        exit()
+
+    center_ref = selectionSet.item(1).reference                                                                #Create reference to center point
+
+    object_filter = ("AnyObject",)                                                                             #Set user selection filter (AnyObject)
+    selectionSet.clear()
+    status = selectionSet.select_element3(object_filter, "Select end point", False, 2, False)                  #Runs an interactive selection command, exhaustive version.
+    if status != "Normal":                                                                                      #Check if selection was succesful
+        print("You must select an end point")
+        exit()
+
+    end_ref = selectionSet.item(1).reference                                                                   #Create reference to end point
+
+    in_work = part.in_work_object                                                                              #Get in work object
+    inwork_hb = None
+    try:
+        inwork_hb = HybridBody(in_work.com_object)                                                             #Try to use in_work_object directly as a HybridBody
+        inwork_hb.hybrid_shapes                                                                                 #Validate it is a HybridBody
+    except Exception:
+        inwork_hb = None
+    if inwork_hb is None:                                                                                      #If in_work_object is not a HybridBody (e.g. a feature)
+        try:
+            inwork_hb = HybridBody(in_work.com_object.Parent)                                                  #Try parent (the containing GS)
+            inwork_hb.hybrid_shapes                                                                             #Validate it is a HybridBody
+        except Exception:
+            inwork_hb = None
+    if inwork_hb is None:                                                                                      #If still not found, create new GS
+        inwork_hb = hybrid_bodies.add()                                                                         #Add new geometric set
+        inwork_hb.name = "Rotate_Three_Points_Keep_History_And_Structure"                                       #Rename geometric set
+
+    try:                                                                                                        #Guard: source must not be the in-work object
+        src_unk = source_hb.com_object._oleobj_.QueryInterface(pythoncom.IID_IUnknown)                          #IUnknown is the reliable COM identity check
+        inw_unk = inwork_hb.com_object._oleobj_.QueryInterface(pythoncom.IID_IUnknown)
+        same_object = (src_unk == inw_unk)
+    except Exception:
+        same_object = (source_hb.name == inwork_hb.name)                                                        #Fallback to name comparison
+    if same_object:
+        print("Error: The selected geometric set is the current in-work object. Please select a different geometric set or change the in-work object.")
+        exit()
+
+    output_hb = inwork_hb.hybrid_bodies.add()                                                                   #Create new child geometric set inside in-work object
+    output_hb.name = source_geo_set_name                                                                        #Name to match source geometric set
+
+    print(f"\n Processing geometric set '{source_geo_set_name}'\n")
+
+    process_hybrid_body(source_hb, output_hb, part,                                                            #Recursively process source geometric set
+            hybrid_shape_factory, center_ref, start_ref, end_ref)
+
+    part.update()                                                                                               #Final update
+    print(f"\n\n Completed\n\n")

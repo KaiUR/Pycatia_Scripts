@@ -34,6 +34,8 @@ Or use the **↓ Deps** button in CatiaMenuWin32 to install automatically.
 
 | Script | Description |
 |--------|-------------|
+| `Axis_To_Axis_Keep_History.py` | Axis-to-axis transformation keeping the original hybrid shape name and parametric history |
+| `Axis_To_Axis_Keep_History_And_Structure.py` | Axis-to-axis transformation on all shapes in a geometric set, preserving names, structure and parametric history |
 | `Axis_To_Axis_Keep_Name.py` | Axis-to-axis transformation keeping the original hybrid shape name |
 | `Axis_To_Axis_Keep_Name_And_Structure.py` | Axis-to-axis transformation on all shapes in a geometric set, preserving names and structure |
 | `Batch_Isolate_Geometric_Set.py` | Isolate every element in a geometric set as a datum in one operation |
@@ -61,17 +63,27 @@ Or use the **↓ Deps** button in CatiaMenuWin32 to install automatically.
 | `Measure_Curve_With_3_PTS_AS_CIRCLE_Keep_Con.py` | Measure curve radius using a 3-point circle without removing construction elements |
 | `Measure_Radius_Surface.py` | Measure surface radius using intersection and 3-point circle without removing construction |
 | `Measure_Radius_Surface_Keep_Con.py` | Measure surface radius using intersection and 3-point circle, keeping all construction elements |
+| `Mirror_Keep_History.py` | Mirror hybrid shapes about a plane keeping their original names and parametric history |
+| `Mirror_Keep_History_And_Structure.py` | Mirror all shapes in a geometric set about a plane, preserving names, structure and parametric history |
 | `Mirror_Keep_Name.py` | Mirror hybrid shapes about a plane keeping their original names |
 | `Mirror_Keep_Name_And_Structure.py` | Mirror all shapes in a geometric set about a plane, preserving names and structure |
 | `Publish_Hybrid_Shapes_In_Geometric_Set.py` | Publish all hybrid shapes in a selected geometric set |
 | `Reorder_Geometric_Set_Alphabetically.py` | Sort all elements inside a geometric set alphabetically by name |
+| `Rotate_Angle_Keep_History.py` | Rotate hybrid shapes by an angle around an axis keeping their original names and parametric history |
+| `Rotate_Angle_Keep_History_And_Structure.py` | Rotate all shapes in a geometric set by an angle, preserving names, structure and parametric history |
 | `Rotate_Angle_Keep_Name.py` | Rotate hybrid shapes by an angle around an axis keeping their original names |
 | `Rotate_Angle_Keep_Name_And_Structure.py` | Rotate all shapes in a geometric set by an angle, preserving names and structure |
+| `Rotate_Three_Points_Keep_History.py` | Rotate hybrid shapes using three points definition keeping their original names and parametric history |
+| `Rotate_Three_Points_Keep_History_And_Structure.py` | Rotate all shapes in a geometric set using three points, preserving names, structure and parametric history |
 | `Rotate_Three_Points_Keep_Name.py` | Rotate hybrid shapes using three points definition keeping their original names |
 | `Rotate_Three_Points_Keep_Name_And_Structure.py` | Rotate all shapes in a geometric set using three points, preserving names and structure |
+| `Scale_Keep_History.py` | Scale hybrid shapes about a center point while keeping their original names and parametric history |
+| `Scale_Keep_History_And_Structure.py` | Scale all shapes in a geometric set about a center point, preserving names, structure and parametric history |
 | `Scale_Keep_Name.py` | Scale hybrid shapes about a center point while keeping their original names |
 | `Scale_Keep_Name_And_Structure.py` | Scale all shapes in a geometric set about a center point, preserving names and structure |
 | `Spline_Through_Points_In_Geometric_Set.py` | Create a spline through all points in a selected geometric set |
+| `Translate_Direction_Distance_Keep_History.py` | Translate hybrid shapes keeping their original names and parametric history |
+| `Translate_Direction_Distance_Keep_History_And_Structure.py` | Translate all shapes in a geometric set by direction and distance, preserving names, structure and parametric history |
 | `Translate_Direction_Distance_Keep_Name.py` | Translate hybrid shapes keeping their original names |
 | `Translate_Direction_Distance_Keep_Name_And_Structure.py` | Translate all shapes in a geometric set by direction and distance, preserving names and structure |
 
