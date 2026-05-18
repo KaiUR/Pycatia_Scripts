@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Measure_Radius_Surface_Keep_Con.py
-    Version:        1.3
+    Version:        1.4
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Measures surface by adding curves and adding three points and gives a diamiter.
@@ -28,6 +28,9 @@
                     16.05.26
                     Updated point creation to single extremum anchor approach. Collinear check now
                     measures datum points directly without requiring a user axis system.
+                    
+                    18.05.26
+                    Refactor and added proper delete of con elements for straight lines. Changed how plane is created.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -204,30 +207,40 @@ if __name__ == "__main__":
     hb_con = hybrid_bodies.add()
     hb_con.name = "CURVE CON"
     
-    try:
-        mid_point = hybrid_shape_factory.add_new_point_on_curve_from_percent(edge_ref, 0.5, 0)
-        plane_normal = hybrid_shape_factory.add_new_plane_normal(edge_ref, mid_point)
-        hb_con.append_hybrid_shape(plane_normal)
-        part.update()
-    except:
-        selectionSet.clear()
-        selectionSet.add(hb_con)
-        selectionSet.delete()
-        result = catia().message_box(
-        "You cannot select a closed curve as an edge for this macro", 
-        buttons=32, title="Error")  
-        exit()
-    
-    intersect_curve = hybrid_shape_factory.add_new_intersection(hb_con.hybrid_shapes.item(1), surface_ref)
+    direction_con_edge = hybrid_shape_factory.add_new_direction_by_coord(1.0, 2.0, 3.0)
+
+    edge_extremum = hybrid_shape_factory.add_new_extremum(edge_ref, direction_con_edge, 1)
+    hb_con.append_hybrid_shape(edge_extremum)
+    part.update()
+
+    edge_extremum_ref = part.create_reference_from_object(edge_extremum)
+    edge_extremum_datum = hybrid_shape_factory.add_new_point_datum(edge_extremum_ref)
+    hb_con.append_hybrid_shape(edge_extremum_datum)
+    part.update()
+
+    hybrid_shape_factory.delete_object_for_datum(edge_extremum_ref)
+
+    part.in_work_object = edge_extremum_datum
+
+    mid_point = hybrid_shape_factory.add_new_point_on_curve_from_percent(edge_ref, 0.5, False)
+    mid_point.point = edge_extremum_datum
+    hb_con.append_hybrid_shape(mid_point)
+    part.update()
+
+    plane_normal = hybrid_shape_factory.add_new_plane_normal(edge_ref, mid_point)
+    hb_con.append_hybrid_shape(plane_normal)
+    part.update()
+
+    intersect_curve = hybrid_shape_factory.add_new_intersection(plane_normal, surface_ref)
     hb_con.append_hybrid_shape(intersect_curve)
     part.update()
-    
+
     #create extract from selection
     hb = hybrid_bodies.add()                                                                                    #Add new geometric set
     hb.name = "MEASURE SURFACE CURVE AS CIRCLE"                                                                 #Set name for new geometric set
     part.in_work_object = hb                                                                                    #Make new geometric set inwork object
 
-    curve_extract = hybrid_shape_factory.add_new_extract(hb_con.hybrid_shapes.item(2))                                           #Create new extract
+    curve_extract = hybrid_shape_factory.add_new_extract(intersect_curve)                                           #Create new extract
 
     curve_extract.propagation_type = 1                                                                          #Set Propagation type
     curve_extract.complementary_extract = False                                                                 #Set Comp extract to false
@@ -270,14 +283,11 @@ if __name__ == "__main__":
 
     hybrid_shape_factory.delete_object_for_datum(curve_extremum_ref)
 
-    part.in_work_object = curve_extremum_datum
+    curve_extremum_datum_ref = part.create_reference_from_object(curve_extremum_datum)
 
-    point_1 = hybrid_shape_factory.add_new_point_on_curve_from_percent(curve_extract_explicit_ref, 0.2, False)
-    point_1.point = curve_extremum_datum
-    point_2 = hybrid_shape_factory.add_new_point_on_curve_from_percent(curve_extract_explicit_ref, 0.5, False)
-    point_2.point = curve_extremum_datum
-    point_3 = hybrid_shape_factory.add_new_point_on_curve_from_percent(curve_extract_explicit_ref, 0.8, False)
-    point_3.point = curve_extremum_datum
+    point_1 = hybrid_shape_factory.add_new_point_on_curve_with_reference_from_percent(curve_extract_explicit_ref, curve_extremum_datum_ref, 0.2, False)
+    point_2 = hybrid_shape_factory.add_new_point_on_curve_with_reference_from_percent(curve_extract_explicit_ref, curve_extremum_datum_ref, 0.5, False)
+    point_3 = hybrid_shape_factory.add_new_point_on_curve_with_reference_from_percent(curve_extract_explicit_ref, curve_extremum_datum_ref, 0.8, False)
 
     hb.append_hybrid_shape(point_1)
     hb.append_hybrid_shape(point_2)
@@ -285,7 +295,6 @@ if __name__ == "__main__":
 
     part.update()
 
-    curve_extremum_datum_ref = part.create_reference_from_object(curve_extremum_datum)
     hybrid_shape_factory.delete_object_for_datum(curve_extremum_datum_ref)
 
     point_1_ref = part.create_reference_from_object(point_1)
@@ -319,6 +328,9 @@ if __name__ == "__main__":
         result = catia().message_box(
                 "Radius: 0mm\nDiameter: 0mm\n\nSurface is Planar in selected direction\nPoints are colinear",
                 buttons=32, title="Result")                                                             #Print result to message box.
+        selectionSet.clear()
+        selectionSet.add(hb)
+        selectionSet.delete()
         exit()
 
     point_1_datum_ref = part.create_reference_from_object(point_1_datum)

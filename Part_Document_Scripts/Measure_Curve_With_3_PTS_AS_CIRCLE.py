@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Measure_Curve_With_3_PTS_AS_CIRCLE.py
-    Version:        1.2
+    Version:        1.3
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Measures curves by adding three points and gives a diamiter.
@@ -24,6 +24,9 @@
                     16.05.26
                     Added collinear check on datum points — notifies user and exits if curve is straight.
                     Updated point creation to use a single extremum anchor with percentage points.
+                    
+                    18.05.26
+                    Refactor and added proper delete of con elements for straight lines.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -241,41 +244,37 @@ if __name__ == "__main__":
     
     hybrid_shape_factory.delete_object_for_datum(curve_extremum_ref)
     
-    part.in_work_object = curve_extremum_datum
-    
-    point_1 = hybrid_shape_factory.add_new_point_on_curve_from_percent(curve_extract_explicit_ref, 0.2, False)
-    point_1.point = curve_extremum_datum
-    point_2 = hybrid_shape_factory.add_new_point_on_curve_from_percent(curve_extract_explicit_ref, 0.5, False)
-    point_2.point = curve_extremum_datum
-    point_3 = hybrid_shape_factory.add_new_point_on_curve_from_percent(curve_extract_explicit_ref, 0.8, False)
-    point_3.point = curve_extremum_datum
-    
+    curve_extremum_datum_ref = part.create_reference_from_object(curve_extremum_datum)
+
+    point_1 = hybrid_shape_factory.add_new_point_on_curve_with_reference_from_percent(curve_extract_explicit_ref, curve_extremum_datum_ref, 0.2, False)
+    point_2 = hybrid_shape_factory.add_new_point_on_curve_with_reference_from_percent(curve_extract_explicit_ref, curve_extremum_datum_ref, 0.5, False)
+    point_3 = hybrid_shape_factory.add_new_point_on_curve_with_reference_from_percent(curve_extract_explicit_ref, curve_extremum_datum_ref, 0.8, False)
+
     hb.append_hybrid_shape(point_1)
     hb.append_hybrid_shape(point_2)
     hb.append_hybrid_shape(point_3)
-    
+
     part.update()
-    
-    curve_extremum_datum_ref = part.create_reference_from_object(curve_extremum_datum)
+
     hybrid_shape_factory.delete_object_for_datum(curve_extremum_datum_ref)
 
     point_1_ref = part.create_reference_from_object(point_1)
     point_2_ref = part.create_reference_from_object(point_2)
     point_3_ref = part.create_reference_from_object(point_3)
-    
+
     #Create datum from points
     point_1_datum = hybrid_shape_factory.add_new_point_datum(point_1_ref)                          #Create datum from point
     point_2_datum = hybrid_shape_factory.add_new_point_datum(point_2_ref)                          #Create datum from point
     point_3_datum = hybrid_shape_factory.add_new_point_datum(point_3_ref)                          #Create datum from point
-    
+
     hb.append_hybrid_shape(point_1_datum)                                                                       #Add point to set
     hb.append_hybrid_shape(point_2_datum)                                                                       #Add point to set
     hb.append_hybrid_shape(point_3_datum)                                                                       #Add point to set
-    
+
     point_1_datum.name = "Point_datum_1"                                                             #Rename point
     point_2_datum.name = "Point_datum_2"                                                             #Rename point
     point_3_datum.name = "Point_datum_3"                                                             #Rename point
-    
+
     hybrid_shape_factory.delete_object_for_datum(point_1_ref)                                      #Remove construction
     hybrid_shape_factory.delete_object_for_datum(point_2_ref)                                      #Remove construction
     hybrid_shape_factory.delete_object_for_datum(point_3_ref)                                      #Remove construction
@@ -290,6 +289,9 @@ if __name__ == "__main__":
         result = catia().message_box(
                 "Radius: 0mm\nDiameter: 0mm\n\nCurve appears to be straight\nPoints are colinear",
                 buttons=32, title="Result")                                                             #Print result to message box.
+        selectionSet.clear()
+        selectionSet.add(hb)
+        selectionSet.delete()
         exit()
 
     point_1_datum_ref = part.create_reference_from_object(point_1_datum)
