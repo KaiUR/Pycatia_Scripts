@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Measure_Curve_With_3_PTS_AS_CIRCLE.py
-    Version:        1.3
+    Version:        1.4
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Measures curves by adding three points and gives a diamiter.
@@ -27,6 +27,9 @@
                     
                     18.05.26
                     Refactor and added proper delete of con elements for straight lines.
+
+                    18.05.26
+                    Fix collinear check: normalise cross product by vector magnitudes so the test is scale-independent.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -152,8 +155,14 @@ def are_collinear(point_a, point_b, point_c):
 
     cross_poduct_vectors = cross_product(vectorAB, vectorAC)
 
-    #Check if cross product magnitude squared is near zero
-    return cross_poduct_vectors[0]**2 + cross_poduct_vectors[1]**2 + cross_poduct_vectors[2]**2 < 0.000001
+    cross_mag_sq = cross_poduct_vectors[0]**2 + cross_poduct_vectors[1]**2 + cross_poduct_vectors[2]**2
+    ab_mag_sq = vectorAB[0]**2 + vectorAB[1]**2 + vectorAB[2]**2
+    ac_mag_sq = vectorAC[0]**2 + vectorAC[1]**2 + vectorAC[2]**2
+
+    if ab_mag_sq == 0 or ac_mag_sq == 0:
+        return True
+
+    return cross_mag_sq / (ab_mag_sq * ac_mag_sq) < 1e-6
 
 '''
     This function searches for a hybrid body by name and return is.
