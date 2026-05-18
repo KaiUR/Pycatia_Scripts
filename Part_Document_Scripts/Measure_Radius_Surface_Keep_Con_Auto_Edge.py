@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Measure_Radius_Surface_Keep_Con_Auto_Edge.py
-    Version:        1.1
+    Version:        1.2
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Measures the radius of all border edges of a selected surface face.
@@ -24,6 +24,10 @@
 
     Change:         18.05.26
                     Fix collinear check: normalise cross product by vector magnitudes so the test is scale-independent.
+
+                    18.05.26
+                    Replace extremum-anchor point placement with add_new_point_on_curve_from_percent — fixes points
+                    collapsing to one location on edges where the extremum landed at the curve end.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
