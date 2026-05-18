@@ -65,6 +65,7 @@ Or use the **↓ Deps** button in CatiaMenuWin32 to install automatically.
 | `Measure_Curve_With_3_PTS_AS_CIRCLE_Keep_Con.py` | Measure curve radius using a 3-point circle without removing construction elements |
 | `Measure_Radius_Surface.py` | Measure surface radius using intersection and 3-point circle without removing construction |
 | `Measure_Radius_Surface_Keep_Con.py` | Measure surface radius using intersection and 3-point circle, keeping all construction elements |
+| `Measure_Radius_Surface_Keep_Con_Auto_Edge.py` | Measure radius of all border edges of a surface automatically via intersection and 3-point circle, keeping construction geometry |
 | `Mirror_Keep_History.py` | Mirror hybrid shapes about a plane keeping their original names and parametric history |
 | `Mirror_Keep_History_And_Structure.py` | Mirror all shapes in a geometric set about a plane, preserving names, structure and parametric history |
 | `Mirror_Keep_Name.py` | Mirror hybrid shapes about a plane keeping their original names |
