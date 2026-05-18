@@ -283,31 +283,16 @@ if __name__ == "__main__":
         part.update()
 
         #Create points
-        direction_con = hybrid_shape_factory.add_new_direction_by_coord(1.0, 2.0, 3.0)
         curve_extract_explicit_ref = part.create_reference_from_object(curve_extract_explicit)
 
-        curve_extremum = hybrid_shape_factory.add_new_extremum(curve_extract_explicit_ref, direction_con, 1)
-        hb.append_hybrid_shape(curve_extremum)
-        part.update()
-
-        curve_extremum_ref = part.create_reference_from_object(curve_extremum)
-        curve_extremum_datum = hybrid_shape_factory.add_new_point_datum(curve_extremum_ref)
-        hb.append_hybrid_shape(curve_extremum_datum)
-        part.update()
-
-        hybrid_shape_factory.delete_object_for_datum(curve_extremum_ref)
-        curve_extremum_datum_ref = part.create_reference_from_object(curve_extremum_datum)
-
-        point_1 = hybrid_shape_factory.add_new_point_on_curve_with_reference_from_percent(curve_extract_explicit_ref, curve_extremum_datum_ref, 0.2, False)
-        point_2 = hybrid_shape_factory.add_new_point_on_curve_with_reference_from_percent(curve_extract_explicit_ref, curve_extremum_datum_ref, 0.5, False)
-        point_3 = hybrid_shape_factory.add_new_point_on_curve_with_reference_from_percent(curve_extract_explicit_ref, curve_extremum_datum_ref, 0.8, False)
+        point_1 = hybrid_shape_factory.add_new_point_on_curve_from_percent(curve_extract_explicit_ref, 0.2, False)
+        point_2 = hybrid_shape_factory.add_new_point_on_curve_from_percent(curve_extract_explicit_ref, 0.5, False)
+        point_3 = hybrid_shape_factory.add_new_point_on_curve_from_percent(curve_extract_explicit_ref, 0.8, False)
 
         hb.append_hybrid_shape(point_1)
         hb.append_hybrid_shape(point_2)
         hb.append_hybrid_shape(point_3)
         part.update()
-
-        hybrid_shape_factory.delete_object_for_datum(curve_extremum_datum_ref)
 
         point_1_ref = part.create_reference_from_object(point_1)
         point_2_ref = part.create_reference_from_object(point_2)
