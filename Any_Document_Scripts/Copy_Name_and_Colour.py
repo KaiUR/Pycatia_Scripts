@@ -1,16 +1,16 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Copy_Name_and_Colour.py
-    Version:        1.0
+    Version:        1.1
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
-    Purpose:        Copies the name, colour, line weight and line type from one element to a selection of elements.
+    Purpose:        Copies the name, colour, line weight, line type, opacity and point symbol from one element to a selection of elements.
     Author:         Kai-Uwe Rathjen
     Date:           20.05.26
     Description:    This script asks the user to select one or more target elements, then select a single source
-                    element. The name, colour, line weight, line type and opacity of the source are applied to all
-                    targets. Properties that do not apply to a given target (e.g. line weight on an unsupported
-                    element type) are skipped silently.
+                    element. The name, colour, line weight, line type, opacity and point symbol type of the source
+                    are applied to all targets. Properties that do not apply to a given target (e.g. line weight on
+                    an unsupported element type) are skipped silently.
 
                     Curves selected as targets and a surface as source (or vice versa): name and colour are always
                     copied; line weight/type are attempted and silently skipped if CATIA rejects them for the
@@ -66,6 +66,7 @@ if __name__ == "__main__":
     width     = vis_src.get_real_width()       # Returns (status, width_index)  – index range 1–63
     line_type = vis_src.get_real_line_type()   # Returns (status, line_type_index)
     opacity   = vis_src.get_real_opacity()     # Returns (status, opacity)      – 0 (transparent) to 255 (opaque)
+    symbol    = vis_src.get_symbol_type()      # Returns (status, symbol_index) – applies to point elements only
 
     # --- Step 3: apply name and visual properties to each target ---
     for target_obj in targets:
@@ -96,6 +97,12 @@ if __name__ == "__main__":
         if opacity[0] == CAT_VIS_PROPERTY_DEFINED:
             try:
                 vis_tgt.set_real_opacity(opacity[1], 0)
+            except Exception:
+                pass
+
+        if symbol[0] == CAT_VIS_PROPERTY_DEFINED:
+            try:
+                vis_tgt.set_symbol_type(symbol[1])                                                                   # No inheritance flag – symbols have no inheritance in CATIA
             except Exception:
                 pass
 
