@@ -29,6 +29,8 @@ Or use the **↓ Deps** button in CatiaMenuWin32 to install automatically.
 | `Hide_Planes_And_Axis_Systems.py` | Hides all planes and axis systems in a Part or Product document |
 | `Rename_Hybrid_Shapes.py` | Rename hybrid shapes interactively via message box |
 | `Replace_Name_Hybrid_Shapes.py` | Search and replace any hybrid shape name |
+| `Reset_Visual_Properties.py` | Reset colour, line weight, line type and opacity of selected elements to CATIA defaults |
+| `Swap_Names.py` | Swap the names of two selected elements |
 | `Toggle_Show_Hide_Geometric_Set.py` | Toggle the visibility of a selected geometric set and all its children |
 
 ### Part Document Scripts
@@ -41,6 +43,7 @@ Or use the **↓ Deps** button in CatiaMenuWin32 to install automatically.
 | `Axis_To_Axis_Keep_Name_And_Structure.py` | Axis-to-axis transformation on all shapes in a geometric set, preserving names and structure |
 | `Batch_Isolate_Geometric_Set.py` | Isolate every element in a geometric set as a datum in one operation |
 | `Check_Duplicate_Names_In_Geometric_Set.py` | Scan a geometric set and report any elements that share a name |
+| `Colour_Code_By_Geometric_Set.py` | Assign a unique colour from an HSV palette to every shape in each child geometric set |
 | `Copy_Geometric_Set_To_New_Part.py` | Copy a selected geometric set and all its contents into a new blank CATPart |
 | `Create_Construction_Planes.py` | Create a series of offset planes from a reference plane at a user-defined step and count |
 | `Create_ISM_OSM_STEP_Files.py` | Select two faces/surfaces, extract in tangency and export as ISM and OSM STEP files |
@@ -62,6 +65,8 @@ Or use the **↓ Deps** button in CatiaMenuWin32 to install automatically.
 | `Join_Explicit_No_Connect.py` | Join curves or surfaces without connex check, as datum |
 | `Join_Explicit_No_Connect_Curve.py` | Join curves without connex check, as datum |
 | `Join_Explicit_No_Connect_Surface.py` | Join surfaces without connex check, as datum |
+| `List_Properties_To_CSV.py` | Export name, type, colour, line weight, line type and opacity for all shapes in a geometric set to CSV |
+| `Match_Properties_In_Geometric_Set.py` | Apply the visual properties of a source element to all shapes in a selected geometric set |
 | `Measure_Curve_With_3_PTS_AS_CIRCLE.py` | Measure curve radius using a 3-point circle |
 | `Measure_Curve_With_3_PTS_AS_CIRCLE_Keep_Con.py` | Measure curve radius using a 3-point circle without removing construction elements |
 | `Measure_Radius_Surface.py` | Measure surface radius using intersection and 3-point circle without removing construction |
@@ -85,6 +90,7 @@ Or use the **↓ Deps** button in CatiaMenuWin32 to install automatically.
 | `Scale_Keep_History_And_Structure.py` | Scale all shapes in a geometric set about a center point, preserving names, structure and parametric history |
 | `Scale_Keep_Name.py` | Scale hybrid shapes about a center point while keeping their original names |
 | `Scale_Keep_Name_And_Structure.py` | Scale all shapes in a geometric set about a center point, preserving names and structure |
+| `Select_By_Colour.py` | Select all shapes in a geometric set whose colour matches a chosen source element |
 | `Spline_Through_Points_In_Geometric_Set.py` | Create a spline through all points in a selected geometric set |
 | `Translate_Direction_Distance_Keep_History.py` | Translate hybrid shapes keeping their original names and parametric history |
 | `Translate_Direction_Distance_Keep_History_And_Structure.py` | Translate all shapes in a geometric set by direction and distance, preserving names, structure and parametric history |
