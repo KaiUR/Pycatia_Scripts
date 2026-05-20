@@ -24,6 +24,7 @@ Or use the **↓ Deps** button in CatiaMenuWin32 to install automatically.
 | Script | Description |
 |--------|-------------|
 | `Batch_CATDrawing_To_PDF.py` | Export all CATDrawing files in a selected folder to PDF |
+| `Copy_Name_and_Colour.py` | Copy the name, colour, line weight and line type from one element to a selection of elements |
 | `Find_And_Select_By_Name.py` | Find and select all hybrid shapes whose names contain a search string |
 | `Hide_Planes_And_Axis_Systems.py` | Hides all planes and axis systems in a Part or Product document |
 | `Rename_Hybrid_Shapes.py` | Rename hybrid shapes interactively via message box |
