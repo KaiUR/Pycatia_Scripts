@@ -22,6 +22,10 @@
                     pycatia
                     Catia V5 running with an open part, product or process.
     -----------------------------------------------------------------------------------------------------------------------
+
+    Change:         20.05.26 1.1: Added point symbol type (set_symbol_type) to copied properties.
+
+    -----------------------------------------------------------------------------------------------------------------------
 '''
 
 from pycatia import catia
