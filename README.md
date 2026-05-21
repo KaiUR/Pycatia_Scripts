@@ -23,10 +23,7 @@ Or use the **↓ Deps** button in CatiaMenuWin32 to install automatically.
 
 | Script | Description |
 |--------|-------------|
-| `Batch_CATDrawing_To_DXF.py` | Export all CATDrawing files in a selected folder to DXF |
-| `Batch_CATDrawing_To_PDF.py` | Export all CATDrawing files in a selected folder to PDF |
 | `Copy_Name_and_Colour.py` | Copy the name, colour, line weight and line type from one element to a selection of elements |
-| `Export_Drawing_Dimensions_To_CSV.py` | Export all dimensions from the active CATDrawing to CSV |
 | `Export_Properties_To_CSV.py` | Export standard and user-defined document properties to CSV |
 | `Find_And_Select_By_Name.py` | Find and select all hybrid shapes whose names contain a search string |
 | `Hide_Planes_And_Axis_Systems.py` | Hides all planes and axis systems in a Part or Product document |
@@ -36,6 +33,14 @@ Or use the **↓ Deps** button in CatiaMenuWin32 to install automatically.
 | `Screenshot_White_Background.py` | Capture a white-background screenshot of the active 3D view to PNG |
 | `Swap_Names.py` | Swap the names of two selected elements |
 | `Toggle_Show_Hide_Geometric_Set.py` | Toggle the visibility of a selected geometric set and all its children |
+
+### Drawing Document Scripts
+
+| Script | Description |
+|--------|-------------|
+| `Batch_CATDrawing_To_DXF.py` | Export all CATDrawing files in a selected folder to DXF |
+| `Batch_CATDrawing_To_PDF.py` | Export all CATDrawing files in a selected folder to PDF |
+| `Export_Drawing_Dimensions_To_CSV.py` | Export all dimensions from the active CATDrawing to CSV |
 | `Update_Title_Block_From_Properties.py` | Map document properties to drawing title block text fields via a GUI dialog |
 
 ### Part Document Scripts
