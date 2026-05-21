@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Update_Title_Block_From_Properties.py
-    Version:        1.0
+    Version:        1.1
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Update title block text items from the linked model's properties.
@@ -24,7 +24,8 @@
                     Catia V5 running with an open CATDrawing document.
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:
+    Change:         21.05.26 1.1: Replaced property dropdown with editable ComboBox to allow custom text input.
+                              Heading labels (texts ending with ':') are now excluded — only value fields are shown.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -115,7 +116,6 @@ class MappingDialog(wx.Dialog):
 
         self.texts = texts
         self.props = props
-        self.mapping = {}
 
         prop_choices = ["(leave unchanged)"] + sorted(props.keys())
         text_names   = sorted(texts.keys())
@@ -124,42 +124,44 @@ class MappingDialog(wx.Dialog):
         vbox  = wx.BoxSizer(wx.VERTICAL)
 
         info = wx.StaticText(panel, label=f"Found {len(texts)} text item(s) and {len(props)} model property(ies).\n"
-                                          "Use the dropdowns to map each text to a property. Unmapped texts are skipped.")
+                                          "Select a property from the dropdown, or type any custom text directly.")
         vbox.Add(info, flag=wx.ALL, border=10)
 
         scroll = wx.ScrolledWindow(panel, style=wx.VSCROLL)
         scroll.SetScrollRate(0, 10)
-        sgrid = wx.FlexGridSizer(len(text_names), 4, 6, 8)
+        sgrid = wx.FlexGridSizer(len(text_names), 3, 6, 8)
         sgrid.AddGrowableCol(1, 1)
-        sgrid.AddGrowableCol(3, 1)
+        sgrid.AddGrowableCol(2, 2)
 
         self.combos = {}
         for name in text_names:
             current_val = texts[name]
-            sgrid.Add(wx.StaticText(scroll, label=name + ":"),  flag=wx.ALIGN_CENTER_VERTICAL)
+            sgrid.Add(wx.StaticText(scroll, label=name + ":"), flag=wx.ALIGN_CENTER_VERTICAL)
             sgrid.Add(wx.StaticText(scroll, label=f'"{current_val[:40]}"'), flag=wx.ALIGN_CENTER_VERTICAL)
-            combo = wx.Choice(scroll, choices=prop_choices)
+            combo = wx.ComboBox(scroll, choices=prop_choices, style=wx.CB_DROPDOWN)
             combo.SetSelection(0)
             sgrid.Add(combo, flag=wx.EXPAND | wx.ALIGN_CENTER_VERTICAL)
-            sgrid.Add(wx.StaticText(scroll, label=""), flag=wx.ALIGN_CENTER_VERTICAL)
             self.combos[name] = combo
 
         scroll.SetSizer(sgrid)
         vbox.Add(scroll, proportion=1, flag=wx.EXPAND | wx.LEFT | wx.RIGHT, border=10)
-        vbox.Add(self.CreateButtonSizer(wx.OK | wx.CANCEL), flag=wx.ALIGN_CENTER | wx.ALL, border=10)
         panel.SetSizer(vbox)
 
         main_sizer = wx.BoxSizer(wx.VERTICAL)
         main_sizer.Add(panel, proportion=1, flag=wx.EXPAND)
+        main_sizer.Add(self.CreateButtonSizer(wx.OK | wx.CANCEL), flag=wx.ALIGN_CENTER | wx.ALL, border=10)
         self.SetSizer(main_sizer)
 
     def get_mapping(self):
         result = {}
         for name, combo in self.combos.items():
-            sel = combo.GetSelection()
-            if sel > 0:
-                prop_label = combo.GetString(sel)
-                result[name] = self.props[prop_label]
+            val = combo.GetValue().strip()
+            if not val or val == "(leave unchanged)":
+                continue
+            if val in self.props:
+                result[name] = self.props[val]                                                                       #Property label selected — use its value
+            else:
+                result[name] = val                                                                                   #Custom text typed directly
         return result
 
 
@@ -206,16 +208,23 @@ if __name__ == "__main__":
         print("No text items found in the active drawing sheet.")
         exit()
 
+    #Exclude heading labels (e.g. "DRAWN BY:", "TITLE:") — only offer the named value fields
+    value_texts = {name: val for name, val in all_texts.items() if not val.strip().endswith(":")}
+
+    if not value_texts:
+        print("No value fields found in the active drawing sheet.")
+        exit()
+
     model_props = _get_model_properties(caa)
 
     if not model_props:
         print("No linked CATPart or CATProduct found with readable properties.")
         exit()
 
-    print(f"\n Found {len(all_texts)} text item(s) and {len(model_props)} model property(ies)\n")
+    print(f"\n Found {len(value_texts)} value field(s) and {len(model_props)} model property(ies)\n")
 
     app = wx.App(None)
-    dlg = MappingDialog(None, all_texts, model_props)
+    dlg = MappingDialog(None, value_texts, model_props)
     wx.CallAfter(_bring_to_front, dlg)
 
     if dlg.ShowModal() != wx.ID_OK:

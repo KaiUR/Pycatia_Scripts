@@ -38,10 +38,15 @@ Or use the **↓ Deps** button in CatiaMenuWin32 to install automatically.
 
 | Script | Description |
 |--------|-------------|
+| `Add_Border_And_Title_Block.py` | Add an ISO 5457 border and title block to the active sheet of an open CATDrawing |
+| `Add_Border_And_Title_Block_With_Values.py` | Add an ISO 5457 border and title block to the active sheet, with a dialog to enter field values |
 | `Batch_CATDrawing_To_DXF.py` | Export all CATDrawing files in a selected folder to DXF |
 | `Batch_CATDrawing_To_PDF.py` | Export all CATDrawing files in a selected folder to PDF |
+| `Create_Drawing_Border_And_Title_Block.py` | Create a new CATDrawing with an ISO 5457 border and ISO 7200-style title block for A0–A4 paper sizes |
+| `Create_Drawing_Border_And_Title_Block_With_Values.py` | Create a new CATDrawing with an ISO 5457 border and title block, with a dialog to enter field values |
 | `Export_Drawing_Dimensions_To_CSV.py` | Export all dimensions from the active CATDrawing to CSV |
 | `Update_Title_Block_From_Properties.py` | Map document properties to drawing title block text fields via a GUI dialog |
+| `Update_Title_Block_Headings.py` | Edit the heading labels in the title block of the active CATDrawing sheet |
 
 ### Part Document Scripts
 
