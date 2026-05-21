@@ -23,15 +23,20 @@ Or use the **↓ Deps** button in CatiaMenuWin32 to install automatically.
 
 | Script | Description |
 |--------|-------------|
+| `Batch_CATDrawing_To_DXF.py` | Export all CATDrawing files in a selected folder to DXF |
 | `Batch_CATDrawing_To_PDF.py` | Export all CATDrawing files in a selected folder to PDF |
 | `Copy_Name_and_Colour.py` | Copy the name, colour, line weight and line type from one element to a selection of elements |
+| `Export_Drawing_Dimensions_To_CSV.py` | Export all dimensions from the active CATDrawing to CSV |
+| `Export_Properties_To_CSV.py` | Export standard and user-defined document properties to CSV |
 | `Find_And_Select_By_Name.py` | Find and select all hybrid shapes whose names contain a search string |
 | `Hide_Planes_And_Axis_Systems.py` | Hides all planes and axis systems in a Part or Product document |
 | `Rename_Hybrid_Shapes.py` | Rename hybrid shapes interactively via message box |
 | `Replace_Name_Hybrid_Shapes.py` | Search and replace any hybrid shape name |
 | `Reset_Visual_Properties.py` | Reset colour, line weight, line type and opacity of selected elements to CATIA defaults |
+| `Screenshot_White_Background.py` | Capture a white-background screenshot of the active 3D view to PNG |
 | `Swap_Names.py` | Swap the names of two selected elements |
 | `Toggle_Show_Hide_Geometric_Set.py` | Toggle the visibility of a selected geometric set and all its children |
+| `Update_Title_Block_From_Properties.py` | Map document properties to drawing title block text fields via a GUI dialog |
 
 ### Part Document Scripts
 
@@ -48,7 +53,11 @@ Or use the **↓ Deps** button in CatiaMenuWin32 to install automatically.
 | `Create_Construction_Planes.py` | Create a series of offset planes from a reference plane at a user-defined step and count |
 | `Create_ISM_OSM_STEP_Files.py` | Select two faces/surfaces, extract in tangency and export as ISM and OSM STEP files |
 | `Delete_Deactivated_Features.py` | Delete all deactivated hybrid shapes inside a selected geometric set |
+| `Check_Open_Bodies.py` | Check all solid bodies in the active part for open (zero-volume) geometry |
+| `Copy_Parameters_Between_Parts.py` | Copy selected parameters from one open CATPart to another via a GUI dialog |
+| `Export_3D_Annotations_To_CSV.py` | Export all FTA 3D annotations from the active part to CSV |
 | `Export_All_Parameters_To_CSV.py` | Export all parameters from the active part to CSV |
+| `Export_Holes_To_CSV.py` | Export all holes from the active part with type, diameter, depth, thread, and position to CSV |
 | `Export_Curve_Lengths_Surface_Areas_To_CSV.py` | Export curve lengths and surface areas from a geometric set to CSV |
 | `Export_Geometric_Set_Structure_To_CSV.py` | Export the full geometric set tree and its contents to CSV |
 | `Export_Mass_CoG_Inertia_To_CSV.py` | Export mass, centre of gravity and inertia tensor from all solid bodies to CSV |
@@ -102,6 +111,7 @@ Or use the **↓ Deps** button in CatiaMenuWin32 to install automatically.
 | Script | Description |
 |--------|-------------|
 | `Involute_Gear_Generator_Mathamatical.py` | Generate an involute gear profile from user-defined parameters |
+| `Spring_Generator.py` | Generate a parametric helical spring solid from wire diameter, coil diameter, free length, and coil count |
 
 ### Process Document Scripts
 
@@ -119,8 +129,13 @@ Or use the **↓ Deps** button in CatiaMenuWin32 to install automatically.
 | Script | Description |
 |--------|-------------|
 | `Batch_Instance_Name_Equal_Part_Number.py` | Set every instance name in the active product tree to match its part number |
+| `Batch_Rename_Instances.py` | Batch rename all first-level instances in the active product with a configurable prefix, number, and suffix |
 | `BOM_Export_To_CSV.py` | Export a bill of materials from the active product to a CSV file |
+| `BOM_Export_With_Materials.py` | Export a bill of materials enriched with material name and mass from the active product to CSV |
+| `Check_Missing_Files.py` | Check all component file references in the assembly for missing or broken links |
+| `Clash_Detection_Export.py` | Run interference/clash detection on the active assembly and export results to CSV |
 | `Export_Assembly_As_STEP.py` | Export the active product assembly as a single STEP file |
+| `Export_Component_Positions_To_CSV.py` | Export the position matrix and translation of every component in the active assembly to CSV |
 | `Save_Child_Parts_To_STEP.py` | Save all parts in a product to separate STEP files |
 
 ---
