@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Export_Drawing_Dimensions_To_CSV.py
-    Version:        1.0
+    Version:        1.1
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Export all dimensions from a CATDrawing to a CSV file.
@@ -19,7 +19,8 @@
                     Catia V5 running with an open CATDrawing document.
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:
+    Change:         1.1 - Replaced hardcoded DIM_TYPES dict with CatDimType enum lookup (pycatia.enumeration.enums).
+                        Fixes incorrect type labels for indices 3-9 and adds coverage for all 21 enum values (0-20).
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -27,20 +28,17 @@
 #Imports
 from pycatia import catia
 from pycatia.drafting_interfaces.drawing_document import DrawingDocument
+from pycatia.enumeration.enums import CatDimType
 from pathlib import Path
+import re
 
-DIM_TYPES = {                                                                                                      #CatDimType enum to human-readable string
-    0:  "Distance",
-    1:  "Distance Offset",
-    2:  "Length",
-    3:  "Angle",
-    4:  "Radius",
-    5:  "Diameter",
-    6:  "Chamfer",
-    7:  "Slope",
-    8:  "Curvilinear Length",
-    9:  "Thread",
-}
+def _dim_type_name(type_int):                                                                                      #Convert CatDimType int to readable string via enum
+    try:
+        raw = CatDimType(type_int).name                                                                            #e.g. "catDimRadiusTangent"
+        label = raw[6:]                                                                                            #strip "catDim" prefix
+        return re.sub(r'(?<=[a-z])(?=[A-Z])', ' ', label)                                                         #insert space before each capital run: "Radius Tangent"
+    except ValueError:
+        return f"Type {type_int}"
 
 def _dim_value(dim_com):
     try:
@@ -91,7 +89,7 @@ if __name__ == "__main__":
                 dim_com = dim.com_object
 
                 dim_name  = dim.name
-                dim_type  = DIM_TYPES.get(dim.dim_type, f"Type {dim.dim_type}")
+                dim_type  = _dim_type_name(dim.dim_type)
                 dim_value = _dim_value(dim_com)
 
                 rows.append({

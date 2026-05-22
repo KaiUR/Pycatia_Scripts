@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Copy_Parameters_Between_Parts.py
-    Version:        1.0
+    Version:        1.1
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Copy selected parameters from one open CATPart to another.
@@ -22,7 +22,9 @@
                     Catia V5 running with at least two open CATPart documents.
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:
+    Change:         1.1 - Fixed AddMany tuple syntax (positional flags, not keyword args).
+                          Moved CreateButtonSizer to dialog-level sizer so buttons are
+                          correctly parented to the dialog.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -80,9 +82,9 @@ class CopyParamsDialog(wx.Dialog):
         self.dest_combo.SetSelection(min(1, len(part_names) - 1))
 
         top_grid.AddMany([
-            (wx.StaticText(panel, label="Source part:"),      flag=wx.ALIGN_CENTER_VERTICAL),
+            (wx.StaticText(panel, label="Source part:"),      0, wx.ALIGN_CENTER_VERTICAL),
             (self.src_combo,  1, wx.EXPAND),
-            (wx.StaticText(panel, label="Destination part:"), flag=wx.ALIGN_CENTER_VERTICAL),
+            (wx.StaticText(panel, label="Destination part:"), 0, wx.ALIGN_CENTER_VERTICAL),
             (self.dest_combo, 1, wx.EXPAND),
         ])
         vbox.Add(top_grid, flag=wx.ALL | wx.EXPAND, border=10)
@@ -99,11 +101,11 @@ class CopyParamsDialog(wx.Dialog):
         btn_row.Add(sel_all_btn,   flag=wx.RIGHT, border=5)
         btn_row.Add(desel_all_btn, flag=wx.RIGHT, border=5)
         vbox.Add(btn_row, flag=wx.LEFT | wx.TOP | wx.BOTTOM, border=10)
-        vbox.Add(self.CreateButtonSizer(wx.OK | wx.CANCEL), flag=wx.ALIGN_CENTER | wx.BOTTOM, border=10)
 
         panel.SetSizer(vbox)
         main_sizer = wx.BoxSizer(wx.VERTICAL)
         main_sizer.Add(panel, proportion=1, flag=wx.EXPAND)
+        main_sizer.Add(self.CreateButtonSizer(wx.OK | wx.CANCEL), flag=wx.ALIGN_CENTER | wx.BOTTOM, border=10)
         self.SetSizer(main_sizer)
 
         self.param_data = []

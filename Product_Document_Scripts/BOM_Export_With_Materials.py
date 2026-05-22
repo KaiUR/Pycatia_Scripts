@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    BOM_Export_With_Materials.py
-    Version:        1.0
+    Version:        1.1
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Export a bill of materials with material information from the active product.
@@ -21,7 +21,9 @@
                     Catia V5 running with an open CATProduct document.
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:
+    Change:         1.1 - Replaced non-existent analyze.material_name with MaterialManager
+                          via part.get_item("CATMatManagerVBExt"). Checks part-level material
+                          first then main body; labels result "(Part)" or "(Body)".
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -29,6 +31,8 @@
 #Imports
 from pycatia import catia, CatWorkModeType
 from pycatia.product_structure_interfaces.product_document import ProductDocument
+from pycatia.mec_mod_interfaces.part_document import PartDocument
+from pycatia.cat_mat_interfaces.material_manager import MaterialManager
 from pathlib import Path
 
 def _ref_attr(child, attr):
@@ -51,23 +55,25 @@ def _get_mass(child):
 
 def _get_material_name(child):
     try:
-        return child.analyze.material_name
-    except AttributeError:
-        pass
-    try:
-        mat_com = child.com_object.Analyze.MaterialName
-        return str(mat_com) if mat_com else "N/A"
-    except Exception:
-        pass
-    try:
-        ref_prod = child.reference_product
-        doc_com  = ref_prod.com_object.Parent
-        part_com = doc_com.Part
-        bodies   = part_com.Bodies
-        if bodies.Count > 0:
-            body       = bodies.Item(1)
-            mat_family = body.com_object.GetItem("CATMaterial")
-            return str(mat_family.Name)
+        ref      = child.reference_product
+        part_doc = PartDocument(ref.parent.com_object)                                                             #Parent of reference product is the PartDocument
+        part     = part_doc.part
+        mm       = MaterialManager(part.get_item("CATMatManagerVBExt").com_object)
+
+        try:
+            name = mm.get_material_on_part(part).name                                                             #Material applied at part level
+            if name:
+                return f"{name} (Part)"
+        except Exception:
+            pass
+
+        try:
+            name = mm.get_material_on_body(part.main_body).name                                                   #Material applied to PartBody
+            if name:
+                return f"{name} (Body)"
+        except Exception:
+            pass
+
     except Exception:
         pass
     return "N/A"

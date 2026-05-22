@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Export_3D_Annotations_To_CSV.py
-    Version:        1.0
+    Version:        1.1
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Export all 3D annotations (FTA) from the active part to a CSV file.
@@ -21,7 +21,8 @@
                     CATIA FTA (3D Tolerancing & Annotation) workbench licence recommended.
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:
+    Change:         1.1 - Use pycatia Annotation wrapper throughout: annotation.type for type string,
+                          annotation.text().text for text content. Replaced raw COM guesswork.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -50,58 +51,38 @@ if __name__ == "__main__":
     else:
         output_path = Path(doc_path_str).parent / (doc_name + "_3DAnnotations.csv")
 
-    part_com = part.com_object                                                                                     #Part COM object for FTA access
-
     rows = []
 
     try:
-        annotation_sets = part_com.AnnotationSets                                                                  #FTA annotation sets collection
-        set_count = annotation_sets.Count
+        annotation_sets = part.annotation_sets                                                                     #pycatia AnnotationSets wrapper
+        set_count = annotation_sets.count
         print(f"\n Found {set_count} annotation set(s)\n")
 
         for si in range(set_count):
-            ann_set     = annotation_sets.Item(si + 1)
-            set_name    = ""
-            try:
-                set_name = ann_set.Name
-            except Exception:
-                set_name = f"Set {si + 1}"
+            ann_set  = annotation_sets.item(si + 1)                                                               #pycatia AnnotationSet wrapper
+            set_name = ann_set.name
 
             print(f"  Processing set: {set_name}")
 
             try:
-                annotations = ann_set.Annotations
-                ann_count   = annotations.Count
+                annotations = ann_set.annotations                                                                  #pycatia Annotations wrapper
+                ann_count   = annotations.count
 
                 for ai in range(ann_count):
-                    ann      = annotations.Item(ai + 1)
-                    ann_name = ""
+                    ann      = annotations.item(ai + 1)                                                            #pycatia Annotation wrapper
+                    ann_name = ann.name
                     ann_type = ""
                     ann_text = ""
 
                     try:
-                        ann_name = ann.Name
-                    except Exception:
-                        ann_name = f"Ann {ai + 1}"
-
-                    try:
-                        ann_type = str(type(ann).__name__)
+                        ann_type = ann.type                                                                        #e.g. "FTA_Text", "FTA_Flatness"
                     except Exception:
                         pass
 
                     try:
-                        ann_type = ann.com_object.GetType().Name
+                        ann_text = ann.text().text                                                                 #Text interface → text string
                     except Exception:
                         pass
-
-                    for text_attr in ["Text", "TextString", "Value", "Content"]:                                   #Try common text attribute names
-                        try:
-                            val = getattr(ann.com_object, text_attr)
-                            if val:
-                                ann_text = str(val)
-                                break
-                        except Exception:
-                            continue
 
                     rows.append({
                         "Set":  set_name,

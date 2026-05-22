@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Batch_Rename_Instances.py
-    Version:        1.0
+    Version:        1.1
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Batch rename all first-level instances in the active product with a pattern.
@@ -22,7 +22,8 @@
                     Catia V5 running with an open CATProduct document.
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:
+    Change:         1.1 - Moved CreateButtonSizer to dialog-level sizer so buttons are
+                          correctly parented to the dialog (wx assertion fix).
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -87,10 +88,10 @@ class RenameDialog(wx.Dialog):
         self.preview_list.InsertColumn(1, "New Name",     width=200)
         vbox.Add(self.preview_list, proportion=1, flag=wx.EXPAND | wx.LEFT | wx.RIGHT, border=10)
 
-        vbox.Add(self.CreateButtonSizer(wx.OK | wx.CANCEL), flag=wx.ALIGN_CENTER | wx.ALL, border=10)
         panel.SetSizer(vbox)
         main_sizer = wx.BoxSizer(wx.VERTICAL)
         main_sizer.Add(panel, proportion=1, flag=wx.EXPAND)
+        main_sizer.Add(self.CreateButtonSizer(wx.OK | wx.CANCEL), flag=wx.ALIGN_CENTER | wx.ALL, border=10)
         self.SetSizer(main_sizer)
 
         preview_btn.Bind(wx.EVT_BUTTON, self.on_preview)

@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    List_Properties_To_CSV.py
-    Version:        1.0
+    Version:        1.1
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Export name, type and visual properties of all elements in a geometric set to a CSV file.
@@ -20,15 +20,20 @@
                     pycatia
                     Catia V5 running with an open part document containing a geometric set.
     -----------------------------------------------------------------------------------------------------------------------
+
+    Change:         1.1 - Replaced hardcoded CAT_VIS_PROPERTY_DEFINED constant with
+                          CatVisPropertyStatus.catVisPropertyDefined enum. Replaced
+                          GEO_TYPE_NAMES dict with GeometricalFeatureType enum lookup
+                          (adds Plane and Solid Volume coverage, unknown types handled).
+
+    -----------------------------------------------------------------------------------------------------------------------
 '''
 
 from pathlib import Path
 from pycatia import catia
 from pycatia.mec_mod_interfaces.hybrid_body import HybridBody
 from pycatia.mec_mod_interfaces.part_document import PartDocument
-
-CAT_VIS_PROPERTY_DEFINED = 0                                                                                     # catVisPropertyDefined
-GEO_TYPE_NAMES = {1: 'Point', 2: 'Curve', 3: 'Line', 4: 'Circle', 5: 'Surface'}
+from pycatia.enumeration.enums import CatVisPropertyStatus, GeometricalFeatureType
 
 LINE_WEIGHT_MAP = {1: '0.13mm', 2: '0.35mm', 3: '0.7mm', 4: '1.0mm',
                    5: '1.4mm',  6: '2.0mm',  7: '2.3mm', 8: '2.6mm'}                                           # Indices 9-55 are custom slots that default to 0.13mm
@@ -56,7 +61,10 @@ def collect_rows(hb, rows, sel, factory, geo_set_path):
     for i in range(shapes.count):
         shape     = shapes.item(i + 1)
         geo_type  = factory.get_geometrical_feature_type(shape)
-        type_name = GEO_TYPE_NAMES.get(geo_type, f'Unknown({geo_type})')
+        try:
+            type_name = GeometricalFeatureType(geo_type).name.replace('_', ' ')
+        except ValueError:
+            type_name = f'Unknown({geo_type})'
 
         sel.clear()
         sel.add(shape)
@@ -71,12 +79,12 @@ def collect_rows(hb, rows, sel, factory, geo_set_path):
             'Geometric Set': geo_set_path,
             'Name':          shape.name,
             'Type':          type_name,
-            'R':             colour[1]    if colour[0]    == CAT_VIS_PROPERTY_DEFINED else 'N/A',
-            'G':             colour[2]    if colour[0]    == CAT_VIS_PROPERTY_DEFINED else 'N/A',
-            'B':             colour[3]    if colour[0]    == CAT_VIS_PROPERTY_DEFINED else 'N/A',
-            'Line Weight':   map_line_weight(width[1])   if width[0]     == CAT_VIS_PROPERTY_DEFINED else 'N/A',
-            'Line Type':     map_line_type(line_type[1]) if line_type[0] == CAT_VIS_PROPERTY_DEFINED else 'N/A',
-            'Opacity':       map_opacity(opacity[1])    if opacity[0]   == CAT_VIS_PROPERTY_DEFINED else 'N/A',
+            'R':             colour[1]    if colour[0]    == CatVisPropertyStatus.catVisPropertyDefined else 'N/A',
+            'G':             colour[2]    if colour[0]    == CatVisPropertyStatus.catVisPropertyDefined else 'N/A',
+            'B':             colour[3]    if colour[0]    == CatVisPropertyStatus.catVisPropertyDefined else 'N/A',
+            'Line Weight':   map_line_weight(width[1])   if width[0]     == CatVisPropertyStatus.catVisPropertyDefined else 'N/A',
+            'Line Type':     map_line_type(line_type[1]) if line_type[0] == CatVisPropertyStatus.catVisPropertyDefined else 'N/A',
+            'Opacity':       map_opacity(opacity[1])    if opacity[0]   == CatVisPropertyStatus.catVisPropertyDefined else 'N/A',
         })
 
     for i in range(hb.hybrid_bodies.count):                                                                      # Recurse into child sets
