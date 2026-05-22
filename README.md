@@ -121,7 +121,7 @@ Or use the **↓ Deps** button in CatiaMenuWin32 to install automatically.
 | Script | Description |
 |--------|-------------|
 | `Involute_Gear_Generator_Mathamatical.py` | Generate an involute gear profile from user-defined parameters |
-| `Spring_Generator.py` | Generate a parametric helical spring solid from wire diameter, coil diameter, free length, and coil count |
+| `Spring_Generator.py` | Generate a parametric helical spring solid from wire diameter, coil diameter, free length, and coil count; optional closed (compressed) ends |
 
 ### Process Document Scripts
 

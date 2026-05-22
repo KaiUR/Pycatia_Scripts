@@ -1,17 +1,24 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Spring_Generator.py
-    Version:        1.0
+    Version:        1.1
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Generate a parametric helical spring in the active CATPart.
     Author:         Kai-Uwe Rathjen
     Date:           21.05.26
     Description:    This script creates a parametric compression spring using CATIA GSD and Part Design.
-                    A helix is created along the Z-axis with the specified pitch and height. A circular
-                    wire cross-section sketch is placed on a plane normal to the helix at its start
-                    point, then swept along the helix using a Rib (Part Design). The resulting body is
-                    named with the key parameters. User parameters are persisted between runs.
+                    A helix is created along the Z-axis with the specified pitch and height.
+                    For open ends, a circular wire cross-section sketch is swept along the helix
+                    using a Rib (Part Design).
+                    For closed ends, three helices are joined (bottom dead coil, active body, top
+                    dead coil) and the solid is built via GSD: the bottom cap circle is swept
+                    explicitly along the joined spine (HybridShapeSweepExplicit), end caps are
+                    filled (HybridShapeFill), the three surfaces are joined, then converted to a
+                    solid (CloseSurface).
+                    The resulting body is named with the key parameters. User parameters are
+                    persisted between runs. The construction geometric set is placed inside the
+                    spring body and hidden after generation.
                     Note: Hybrid design mode is temporarily disabled if active.
     dependencies = [
                     "pycatia",
@@ -24,7 +31,13 @@
                     Hybrid design mode should be disabled (the script handles this automatically).
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:
+    Change:         1.1 - Construction geo set now created inside the spring body (not at part level).
+                          Construction geometry is hidden at the end of generation.
+                          Added Closed ends option: three helices joined into a single spine;
+                          solid built via GSD explicit sweep (HybridShapeSweepExplicit) + fill
+                          caps (HybridShapeFill) + CloseSurface — avoids Rib failure on non-C1
+                          joined spine.
+                          Dialog widened to 520 px so all buttons are fully visible.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -34,6 +47,7 @@ from pycatia import catia
 from pycatia import CatConstraintType, CatConstraintMode
 from pycatia.mec_mod_interfaces.part_document import PartDocument
 from pycatia.hybrid_shape_interfaces.hybrid_shape_factory import HybridShapeFactory
+from pycatia.enumeration.enums import CatVisPropertyShow
 import math
 import wx
 import wx.lib.dialogs as dialogs
@@ -58,11 +72,12 @@ def _bring_to_front(window):
 
 class SpringDialog(wx.Dialog):
     HARDCODED_DEFAULTS = {
-        "wire_d":       "3.0",
-        "coil_d":       "25.0",
-        "free_length":  "80.0",
-        "num_coils":    "8.0",
-        "clockwise":    True,
+        "wire_d":      "3.0",
+        "coil_d":      "25.0",
+        "free_length": "80.0",
+        "num_coils":   "8.0",
+        "clockwise":   True,
+        "closed_ends": False,
     }
 
     def __init__(self, parent):
@@ -74,11 +89,11 @@ class SpringDialog(wx.Dialog):
             except Exception:
                 pass
 
-        super().__init__(parent, title="Spring Generator", size=(420, 340),
+        super().__init__(parent, title="Spring Generator", size=(520, 380),
                          style=wx.DEFAULT_DIALOG_STYLE | wx.STAY_ON_TOP)
 
         vbox = wx.BoxSizer(wx.VERTICAL)
-        grid = wx.FlexGridSizer(6, 3, 10, 10)
+        grid = wx.FlexGridSizer(7, 3, 10, 10)
         grid.AddGrowableCol(1, 1)
 
         self.wire_d_ctrl      = wx.TextCtrl(self, value=str(defaults["wire_d"]))
@@ -87,22 +102,30 @@ class SpringDialog(wx.Dialog):
         self.num_coils_ctrl   = wx.TextCtrl(self, value=str(defaults["num_coils"]))
         self.clockwise_ctrl   = wx.CheckBox(self, label="Clockwise winding")
         self.clockwise_ctrl.SetValue(defaults["clockwise"])
+        self.closed_ends_ctrl = wx.CheckBox(self, label="Closed (compressed) ends")
+        self.closed_ends_ctrl.SetValue(defaults["closed_ends"])
 
         self.wire_d_ctrl.SetToolTip("Diameter of the wire (cross-section).")
         self.coil_d_ctrl.SetToolTip("Mean coil diameter (centre of wire to centre of wire across the coil).")
         self.free_len_ctrl.SetToolTip("Free (unloaded) length of the spring.")
-        self.num_coils_ctrl.SetToolTip("Number of active coils.")
+        self.num_coils_ctrl.SetToolTip("Number of active coils. Does not include the dead end coils.")
         self.clockwise_ctrl.SetToolTip("If checked, the helix winds clockwise when viewed from above.")
+        self.closed_ends_ctrl.SetToolTip(
+            "Adds one dead coil (pitch = wire diameter, coils touching) at each end. "
+            "Three helices are joined: bottom end coil, active body, top end coil. "
+            "Free length includes both dead coils."
+        )
 
         grid.AddMany([
-            (wx.StaticText(self, label="Wire diameter:")),   (self.wire_d_ctrl,    1, wx.EXPAND), (wx.StaticText(self, label="mm")),
-            (wx.StaticText(self, label="Mean coil diameter:")),(self.coil_d_ctrl,  1, wx.EXPAND), (wx.StaticText(self, label="mm")),
-            (wx.StaticText(self, label="Free length:")),     (self.free_len_ctrl,  1, wx.EXPAND), (wx.StaticText(self, label="mm")),
-            (wx.StaticText(self, label="Active coils:")),    (self.num_coils_ctrl, 1, wx.EXPAND), (wx.StaticText(self, label="")),
-            (wx.StaticText(self, label="Winding:")),         (self.clockwise_ctrl, 0),            (wx.StaticText(self, label="")),
-            (wx.StaticText(self, label="")),                 (wx.StaticText(self, label="")),     (wx.StaticText(self, label="")),
+            (wx.StaticText(self, label="Wire diameter:")),    (self.wire_d_ctrl,      1, wx.EXPAND), (wx.StaticText(self, label="mm")),
+            (wx.StaticText(self, label="Mean coil diameter:")),(self.coil_d_ctrl,      1, wx.EXPAND), (wx.StaticText(self, label="mm")),
+            (wx.StaticText(self, label="Free length:")),      (self.free_len_ctrl,    1, wx.EXPAND), (wx.StaticText(self, label="mm")),
+            (wx.StaticText(self, label="Active coils:")),     (self.num_coils_ctrl,   1, wx.EXPAND), (wx.StaticText(self, label="")),
+            (wx.StaticText(self, label="Winding:")),          (self.clockwise_ctrl,   0),            (wx.StaticText(self, label="")),
+            (wx.StaticText(self, label="Ends:")),             (self.closed_ends_ctrl, 0),            (wx.StaticText(self, label="")),
+            (wx.StaticText(self, label="")),                  (wx.StaticText(self, label="")),       (wx.StaticText(self, label="")),
         ])
-        grid.AddGrowableRow(5, 1)
+        grid.AddGrowableRow(6, 1)
         vbox.Add(grid, proportion=0, flag=wx.ALL | wx.EXPAND, border=15)
 
         btn_row   = wx.BoxSizer(wx.HORIZONTAL)
@@ -128,6 +151,7 @@ class SpringDialog(wx.Dialog):
         self.free_len_ctrl.SetValue(d["free_length"])
         self.num_coils_ctrl.SetValue(d["num_coils"])
         self.clockwise_ctrl.SetValue(d["clockwise"])
+        self.closed_ends_ctrl.SetValue(d["closed_ends"])
 
     def on_clear(self, event):
         if os.path.exists(SETTINGS_FILE):
@@ -150,34 +174,42 @@ class SpringDialog(wx.Dialog):
             " • Mean Coil Diameter: Distance across the spring from wire centre to\n"
             "                       wire centre (NOT outer diameter). Standard formula:\n"
             "                       Mean = Outer Diameter − Wire Diameter.\n\n"
-            " • Free Length:       The unloaded height of the spring in mm.\n\n"
-            " • Active Coils:      Number of load-bearing coils. Does not include\n"
-            "                       ground end coils if present.\n\n"
+            " • Free Length:       The unloaded height of the spring in mm.\n"
+            "                       Includes dead end coils when Closed Ends is on.\n\n"
+            " • Active Coils:      Number of load-bearing coils. Does not include the\n"
+            "                       dead end coils added by the Closed Ends option.\n\n"
             " • Clockwise:         If checked, the helix winds clockwise when viewed\n"
             "                       from the positive Z direction.\n\n"
+            " • Closed Ends:       Adds one dead coil at each end (pitch = wire diameter,\n"
+            "                       coils touching) to model a closed compression spring.\n"
+            "                       Three helices are joined: bottom dead coil, active body,\n"
+            "                       top dead coil. Free length must be > 2 × wire diameter.\n\n"
             "DERIVED VALUES (calculated automatically)\n"
             "-----------------------------------------\n"
-            "  Coil Radius  = Mean Coil Diameter / 2\n"
-            "  Pitch        = Free Length / Active Coils\n\n"
+            "  Coil Radius     = Mean Coil Diameter / 2\n"
+            "  Pitch (open)    = Free Length / Active Coils\n"
+            "  Pitch (closed)  = (Free Length − 2 × Wire Diameter) / Active Coils\n"
+            "  End coil pitch  = Wire Diameter (touching coils, closed ends only)\n\n"
             "OUTPUT\n"
             "------\n"
-            " A new Part Body is created with the helix, profile plane, and rib.\n"
-            " The body is named with the key spring parameters.\n"
+            " A new Part Body is created with the spring solid.\n"
+            " The construction geometry (helix spine, profile plane) is stored in a\n"
+            " geo set inside the body and hidden automatically after generation.\n"
         )
         dlg = dialogs.ScrolledMessageDialog(self, help_text, "Help")
         mono = wx.Font(10, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
         dlg.text.SetFont(mono)
-        dlg.SetSize((600, 500))
+        dlg.SetSize((620, 540))
         dlg.CenterOnParent()
         dlg.ShowModal()
         dlg.Destroy()
 
     def Validate(self):
         fields = [
-            (self.wire_d_ctrl,    "Wire Diameter",     float),
+            (self.wire_d_ctrl,    "Wire Diameter",      float),
             (self.coil_d_ctrl,    "Mean Coil Diameter", float),
-            (self.free_len_ctrl,  "Free Length",        float),
-            (self.num_coils_ctrl, "Active Coils",       float),
+            (self.free_len_ctrl,  "Free Length",         float),
+            (self.num_coils_ctrl, "Active Coils",        float),
         ]
         for ctrl, name, t in fields:
             val_str = ctrl.GetValue().strip()
@@ -192,21 +224,39 @@ class SpringDialog(wx.Dialog):
                 ctrl.SetFocus()
                 return False
 
-        wire_d  = float(self.wire_d_ctrl.GetValue())
-        coil_d  = float(self.coil_d_ctrl.GetValue())
+        wire_d = float(self.wire_d_ctrl.GetValue())
+        coil_d = float(self.coil_d_ctrl.GetValue())
         if wire_d >= coil_d / 2:
             wx.MessageBox("Wire diameter must be less than the coil radius (Mean Coil Diameter / 2).",
                           "Design Warning", wx.OK | wx.ICON_WARNING)
             return False
 
-        free_len   = float(self.free_len_ctrl.GetValue())
-        num_coils  = float(self.num_coils_ctrl.GetValue())
-        pitch = free_len / num_coils
-        if pitch <= wire_d:
-            if wx.MessageBox(f"Pitch ({pitch:.2f}mm) is less than or equal to wire diameter ({wire_d}mm).\n"
-                             "Coils will overlap. Proceed anyway?",
-                             "Design Warning", wx.YES_NO | wx.ICON_WARNING) == wx.NO:
+        free_len  = float(self.free_len_ctrl.GetValue())
+        num_coils = float(self.num_coils_ctrl.GetValue())
+
+        if self.closed_ends_ctrl.IsChecked():
+            main_height = free_len - 2.0 * wire_d
+            if main_height <= 0.0:
+                wx.MessageBox(
+                    f"With closed ends, main body height = Free length − 2 × Wire diameter = "
+                    f"{main_height:.2f} mm.\nIncrease free length or reduce wire diameter.",
+                    "Design Error", wx.OK | wx.ICON_ERROR)
                 return False
+            main_pitch = main_height / num_coils
+            if main_pitch <= wire_d:
+                if wx.MessageBox(
+                        f"Main coil pitch ({main_pitch:.2f} mm) ≤ wire diameter ({wire_d} mm).\n"
+                        "Active coils will overlap. Proceed anyway?",
+                        "Design Warning", wx.YES_NO | wx.ICON_WARNING) == wx.NO:
+                    return False
+        else:
+            pitch = free_len / num_coils
+            if pitch <= wire_d:
+                if wx.MessageBox(
+                        f"Pitch ({pitch:.2f} mm) ≤ wire diameter ({wire_d} mm).\n"
+                        "Coils will overlap. Proceed anyway?",
+                        "Design Warning", wx.YES_NO | wx.ICON_WARNING) == wx.NO:
+                    return False
 
         return True
 
@@ -217,6 +267,7 @@ class SpringDialog(wx.Dialog):
             "free_length": float(self.free_len_ctrl.GetValue()),
             "num_coils":   float(self.num_coils_ctrl.GetValue()),
             "clockwise":   self.clockwise_ctrl.IsChecked(),
+            "closed_ends": self.closed_ends_ctrl.IsChecked(),
         }
 
 
@@ -262,18 +313,20 @@ if __name__ == "__main__":
 
     dlg.Destroy()
 
-    wire_d       = params["wire_d"]
-    coil_d       = params["coil_d"]
-    free_length  = params["free_length"]
-    num_coils    = params["num_coils"]
-    clockwise    = params["clockwise"]
+    wire_d      = params["wire_d"]
+    coil_d      = params["coil_d"]
+    free_length = params["free_length"]
+    num_coils   = params["num_coils"]
+    clockwise   = params["clockwise"]
+    closed_ends = params["closed_ends"]
 
-    coil_radius  = coil_d / 2.0
-    pitch        = free_length / num_coils
-    wire_radius  = wire_d / 2.0
+    coil_radius = coil_d / 2.0
+    wire_radius = wire_d / 2.0
+
+    max_steps = 12 if closed_ends else 7
 
     progress = wx.ProgressDialog(
-        "Generating Spring", "Initialising...", maximum=7, parent=None,
+        "Generating Spring", "Initialising...", maximum=max_steps, parent=None,
         style=(wx.PD_APP_MODAL | wx.PD_AUTO_HIDE | wx.PD_SMOOTH | wx.PD_ELAPSED_TIME | wx.PD_REMAINING_TIME)
     )
 
@@ -282,20 +335,24 @@ if __name__ == "__main__":
     bodies               = part.bodies
 
     try:
-        progress.Update(1, "Creating spring body...")
+        step = 0
+
+        step += 1
+        progress.Update(step, "Creating spring body...")
 
         body = bodies.add()
+        closed_label = " | Closed Ends" if closed_ends else ""
         body.name = (f"Spring | Wd:{wire_d}mm | Cd:{coil_d}mm | L:{free_length}mm"
-                     f" | N:{num_coils} | {'CW' if clockwise else 'CCW'}")
+                     f" | N:{num_coils} | {'CW' if clockwise else 'CCW'}{closed_label}")
         part.in_work_object = body
 
-        progress.Update(2, "Creating construction geometry...")
-
-        geo_set = part.hybrid_bodies.add()
+        geo_set = body.hybrid_bodies.add()                                                                         #Construction geo set inside the body
         geo_set.name = "Spring_Construction"
         part.in_work_object = geo_set
 
-        #Create Z-axis spine line (origin -> top of spring)
+        step += 1
+        progress.Update(step, "Creating construction geometry...")
+
         pt_origin = hybrid_shape_factory.add_new_point_coord(0.0, 0.0, 0.0)
         pt_origin.name = "Origin"
         geo_set.append_hybrid_shape(pt_origin)
@@ -312,96 +369,275 @@ if __name__ == "__main__":
         geo_set.append_hybrid_shape(z_axis_line)
         part.update()
 
-        #Create helix start point at (coil_radius, 0, 0)
-        progress.Update(3, "Creating helix...")
-
-        pt_start = hybrid_shape_factory.add_new_point_coord(coil_radius, 0.0, 0.0)
-        pt_start.name = "Helix_Start"
-        geo_set.append_hybrid_shape(pt_start)
-        part.update()
-
         ref_z_axis = part.create_reference_from_object(z_axis_line)
-        ref_start  = part.create_reference_from_object(pt_start)
 
-        helix = hybrid_shape_factory.add_new_helix(
-            ref_z_axis,                                                                                            #Axis
-            False,                                                                                                 #Do not invert axis direction
-            ref_start,                                                                                             #Starting point
-            pitch,                                                                                                 #Pitch (mm)
-            free_length,                                                                                           #Height (mm)
-            clockwise,                                                                                             #Clockwise revolution
-            0.0,                                                                                                   #Starting angle
-            0.0,                                                                                                   #Taper angle (0 = cylindrical)
-            False,                                                                                                 #Taper outward
-        )
-        helix.name = "Helix"
-        geo_set.append_hybrid_shape(helix)
-        part.update()
+        # ------------------------------------------------------------------ #
+        #  Helix construction — branches on closed_ends                       #
+        # ------------------------------------------------------------------ #
 
-        progress.Update(4, "Creating profile plane...")
+        if closed_ends:
+            end_height  = wire_d                                                                                   #One dead coil per end, pitch = wire_d (coils touching)
+            main_height = free_length - 2.0 * end_height
+            main_pitch  = main_height / num_coils
 
-        ref_helix = part.create_reference_from_object(helix)
-        ref_start2 = part.create_reference_from_object(pt_start)
+            step += 1
+            progress.Update(step, "Creating bottom end helix...")
 
-        profile_plane = hybrid_shape_factory.add_new_plane_normal(ref_helix, ref_start2)                          #Plane normal to helix at start point
-        profile_plane.name = "Profile_Plane"
-        geo_set.append_hybrid_shape(profile_plane)
-        part.update()
+            pt_start = hybrid_shape_factory.add_new_point_coord(coil_radius, 0.0, 0.0)
+            pt_start.name = "Helix_Start"
+            geo_set.append_hybrid_shape(pt_start)
 
-        progress.Update(5, "Creating wire cross-section sketch...")
+            #After 1 full turn the start point is back at the same XY, up by end_height
+            pt_main_start = hybrid_shape_factory.add_new_point_coord(coil_radius, 0.0, end_height)
+            pt_main_start.name = "Main_Helix_Start"
+            geo_set.append_hybrid_shape(pt_main_start)
 
-        part.in_work_object = body                                                                                 #Switch back to body for sketch
-        ref_plane     = part.create_reference_from_object(profile_plane)
-        sketch_plane  = part.origin_elements.com_object                                                           #Needed to access the plane object for sketches
+            #After num_coils turns from pt_main_start, compute the XY landing position
+            frac   = num_coils % 1.0
+            y_sign = -1.0 if clockwise else 1.0
+            x_top_start = coil_radius * math.cos(frac * 2.0 * math.pi)
+            y_top_start = y_sign * coil_radius * math.sin(frac * 2.0 * math.pi)
 
-        profile_sketch = body.sketches.add(profile_plane)
-        profile_sketch.name = "Wire_Profile"
+            pt_top_start = hybrid_shape_factory.add_new_point_coord(x_top_start, y_top_start, end_height + main_height)
+            pt_top_start.name = "Top_Helix_Start"
+            geo_set.append_hybrid_shape(pt_top_start)
+            part.update()
 
-        ske_2d = profile_sketch.open_edition()
+            ref_start      = part.create_reference_from_object(pt_start)
+            ref_main_start = part.create_reference_from_object(pt_main_start)
+            ref_top_start  = part.create_reference_from_object(pt_top_start)
 
-        geo_elements = profile_sketch.geometric_elements
-        axis_obj     = geo_elements.item("AbsoluteAxis")
-        origin_2d    = profile_sketch.absolute_axis.origin
+            helix_bottom = hybrid_shape_factory.add_new_helix(
+                ref_z_axis, False, ref_start, wire_d, end_height, clockwise, 0.0, 0.0, False)
+            helix_bottom.name = "Helix_Bottom_End"
+            geo_set.append_hybrid_shape(helix_bottom)
 
-        wire_circle = ske_2d.create_closed_circle(0.0, 0.0, wire_radius)
-        wire_circle.name = "Wire_Cross_Section"
+            step += 1
+            progress.Update(step, "Creating main body helix...")
 
-        constraints = profile_sketch.constraints
-        cst_conc    = constraints.add_bi_elt_cst(CatConstraintType.catCstTypeConcentricity, wire_circle, origin_2d)
-        cst_conc.name = "Wire_Concentric_Origin"
-        cst_rad     = constraints.add_mono_elt_cst(CatConstraintType.catCstTypeRadius, wire_circle)
-        cst_rad.mode  = CatConstraintMode.catCstModeDrivingDimension
-        cst_rad.dimension.value = wire_radius
-        cst_rad.name = "Wire_Radius"
+            helix_main = hybrid_shape_factory.add_new_helix(
+                ref_z_axis, False, ref_main_start, main_pitch, main_height, clockwise, 0.0, 0.0, False)
+            helix_main.name = "Helix_Main"
+            geo_set.append_hybrid_shape(helix_main)
 
-        profile_sketch.close_edition()
-        part.update()
+            step += 1
+            progress.Update(step, "Creating top end helix...")
 
-        progress.Update(6, "Creating rib (sweep) along helix...")
+            helix_top = hybrid_shape_factory.add_new_helix(
+                ref_z_axis, False, ref_top_start, wire_d, end_height, clockwise, 0.0, 0.0, False)
+            helix_top.name = "Helix_Top_End"
+            geo_set.append_hybrid_shape(helix_top)
+            part.update()
 
-        part.in_work_object = body
+            step += 1
+            progress.Update(step, "Joining helices...")
 
-        rib = shape_factory.add_new_rib_from_ref(
-            part.create_reference_from_object(profile_sketch),
-            ref_helix
-        )
-        rib.name = "Spring_Rib"
+            helix_join = hybrid_shape_factory.add_new_join(
+                part.create_reference_from_object(helix_bottom),
+                part.create_reference_from_object(helix_main),
+            )
+            helix_join.add_element(part.create_reference_from_object(helix_top))
+            helix_join.name = "Helix_Join"
+            geo_set.append_hybrid_shape(helix_join)
+            part.update()
 
-        part.update()
+            ref_spine = part.create_reference_from_object(helix_join)
 
-        progress.Update(7, "Done.")
+        else:
+            pitch = free_length / num_coils
 
-        print(f"\n\n Spring generated successfully.")
-        print(f"   Wire diameter:  {wire_d} mm")
-        print(f"   Coil diameter:  {coil_d} mm  (mean)")
-        print(f"   Free length:    {free_length} mm")
-        print(f"   Active coils:   {num_coils}")
-        print(f"   Pitch:          {pitch:.4f} mm")
-        print(f"   Winding:        {'Clockwise' if clockwise else 'Counterclockwise'}")
+            step += 1
+            progress.Update(step, "Creating helix...")
+
+            pt_start = hybrid_shape_factory.add_new_point_coord(coil_radius, 0.0, 0.0)
+            pt_start.name = "Helix_Start"
+            geo_set.append_hybrid_shape(pt_start)
+            part.update()
+
+            ref_start = part.create_reference_from_object(pt_start)
+
+            helix = hybrid_shape_factory.add_new_helix(
+                ref_z_axis, False, ref_start, pitch, free_length, clockwise, 0.0, 0.0, False)
+            helix.name = "Helix"
+            geo_set.append_hybrid_shape(helix)
+            part.update()
+
+            ref_spine          = part.create_reference_from_object(helix)
+            ref_profile_origin = part.create_reference_from_object(pt_start)
+
+        # ------------------------------------------------------------------ #
+        #  Solid geometry — branches on closed_ends                           #
+        # ------------------------------------------------------------------ #
+
+        if not closed_ends:
+            step += 1
+            progress.Update(step, "Creating profile plane...")
+
+            profile_plane = hybrid_shape_factory.add_new_plane_normal(ref_spine, ref_profile_origin)
+            profile_plane.name = "Profile_Plane"
+            geo_set.append_hybrid_shape(profile_plane)
+            part.update()
+
+            step += 1
+            progress.Update(step, "Creating wire cross-section sketch...")
+
+            part.in_work_object = body
+
+            profile_sketch = body.sketches.add(profile_plane)
+            profile_sketch.name = "Wire_Profile"
+
+            ske_2d      = profile_sketch.open_edition()
+            origin_2d   = profile_sketch.absolute_axis.origin
+
+            wire_circle = ske_2d.create_closed_circle(0.0, 0.0, wire_radius)
+            wire_circle.name = "Wire_Cross_Section"
+
+            constraints = profile_sketch.constraints
+            cst_conc    = constraints.add_bi_elt_cst(CatConstraintType.catCstTypeConcentricity, wire_circle, origin_2d)
+            cst_conc.name = "Wire_Concentric_Origin"
+            cst_rad       = constraints.add_mono_elt_cst(CatConstraintType.catCstTypeRadius, wire_circle)
+            cst_rad.mode  = CatConstraintMode.catCstModeDrivingDimension
+            cst_rad.dimension.value = wire_radius
+            cst_rad.name  = "Wire_Radius"
+
+            profile_sketch.close_edition()
+            part.update()
+
+            step += 1
+            progress.Update(step, "Creating rib (sweep) along helix...")
+
+            part.in_work_object = body
+
+            rib = shape_factory.add_new_rib_from_ref(
+                part.create_reference_from_object(profile_sketch),
+                ref_spine,
+            )
+            rib.name = "Spring_Rib"
+            part.update()
+
+        else:
+            # ---- end cap planes + circles ---- #
+            step += 1
+            progress.Update(step, "Creating end cap geometry...")
+
+            # End of top helix: same XY as top_start, Z = free_length (after 1 full revolution)
+            pt_top_end = hybrid_shape_factory.add_new_point_coord(x_top_start, y_top_start, free_length)
+            pt_top_end.name = "Top_Helix_End"
+            geo_set.append_hybrid_shape(pt_top_end)
+            ref_pt_top_end = part.create_reference_from_object(pt_top_end)
+
+            plane_bot = hybrid_shape_factory.add_new_plane_normal(ref_spine, ref_start)
+            plane_bot.name = "Plane_Bot_Cap"
+            geo_set.append_hybrid_shape(plane_bot)
+
+            plane_top = hybrid_shape_factory.add_new_plane_normal(ref_spine, ref_pt_top_end)
+            plane_top.name = "Plane_Top_Cap"
+            geo_set.append_hybrid_shape(plane_top)
+            part.update()
+
+            circle_bot = hybrid_shape_factory.add_new_circle_ctr_rad(
+                ref_start,
+                part.create_reference_from_object(plane_bot),
+                False,
+                wire_radius,
+            )
+            circle_bot.name = "Circle_Bot_Cap"
+            geo_set.append_hybrid_shape(circle_bot)
+
+            circle_top = hybrid_shape_factory.add_new_circle_ctr_rad(
+                ref_pt_top_end,
+                part.create_reference_from_object(plane_top),
+                False,
+                wire_radius,
+            )
+            circle_top.name = "Circle_Top_Cap"
+            geo_set.append_hybrid_shape(circle_top)
+            part.update()
+
+            # ---- tubular sweep surface ---- #
+            step += 1
+            progress.Update(step, "Creating sweep surface...")
+
+            sweep = hybrid_shape_factory.add_new_sweep_explicit(
+                part.create_reference_from_object(circle_bot),
+                ref_spine,
+            )
+            sweep.smooth_activity = False
+            sweep.name = "Spring_Tube"
+            geo_set.append_hybrid_shape(sweep)
+            part.update()
+
+            # ---- end cap fills ---- #
+            step += 1
+            progress.Update(step, "Creating end cap fills...")
+
+            fill_bot = hybrid_shape_factory.add_new_fill()
+            fill_bot.add_bound(part.create_reference_from_object(circle_bot))
+            fill_bot.name = "Fill_Bot_Cap"
+            geo_set.append_hybrid_shape(fill_bot)
+
+            fill_top = hybrid_shape_factory.add_new_fill()
+            fill_top.add_bound(part.create_reference_from_object(circle_top))
+            fill_top.name = "Fill_Top_Cap"
+            geo_set.append_hybrid_shape(fill_top)
+            part.update()
+
+            # ---- join tube + caps into closed surface ---- #
+            step += 1
+            progress.Update(step, "Joining surfaces...")
+
+            surface_join = hybrid_shape_factory.add_new_join(
+                part.create_reference_from_object(sweep),
+                part.create_reference_from_object(fill_bot),
+            )
+            surface_join.add_element(part.create_reference_from_object(fill_top))
+            surface_join.name = "Spring_Surface"
+            geo_set.append_hybrid_shape(surface_join)
+            part.update()
+
+            # ---- close surface → solid ---- #
+            step += 1
+            progress.Update(step, "Closing surface to solid...")
+
+            part.in_work_object = body
+            close_solid = shape_factory.add_new_close_surface(
+                part.create_reference_from_object(surface_join)
+            )
+            close_solid.name = "Spring_Solid"
+            part.update()
+
+        step += 1
+        progress.Update(step, "Hiding construction geometry...")
+
+        selection = caa.active_document.selection
+        selection.clear()
+        selection.add(geo_set)
+        selection.vis_properties.set_show(CatVisPropertyShow.catVisPropertyNoShowAttr)
+        selection.clear()
+
+        if closed_ends:
+            main_pitch_display = (free_length - 2.0 * wire_d) / num_coils
+            print(f"\n\n Spring generated successfully (closed ends).")
+            print(f"   Wire diameter:    {wire_d} mm")
+            print(f"   Coil diameter:    {coil_d} mm  (mean)")
+            print(f"   Free length:      {free_length} mm")
+            print(f"   Active coils:     {num_coils}")
+            print(f"   Main pitch:       {main_pitch_display:.4f} mm")
+            print(f"   End coil pitch:   {wire_d} mm  (touching)")
+            print(f"   Winding:          {'Clockwise' if clockwise else 'Counterclockwise'}")
+        else:
+            print(f"\n\n Spring generated successfully.")
+            print(f"   Wire diameter:  {wire_d} mm")
+            print(f"   Coil diameter:  {coil_d} mm  (mean)")
+            print(f"   Free length:    {free_length} mm")
+            print(f"   Active coils:   {num_coils}")
+            print(f"   Pitch:          {free_length / num_coils:.4f} mm")
+            print(f"   Winding:        {'Clockwise' if clockwise else 'Counterclockwise'}")
+
         print(f"\n\n Completed\n\n")
 
     except Exception as e:
-        progress.Update(7, "Error.")
+        progress.Update(max_steps, "Error.")
         import traceback
         wx.MessageBox(
             f"Spring generation failed:\n\n{e}\n\n{traceback.format_exc()}",
