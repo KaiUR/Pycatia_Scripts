@@ -22,7 +22,7 @@ Thank you for your interest in contributing. This repository is a collection of 
 | `Part_Document_Scripts/` | Script requires an open Part document |
 | `Process_Document_Scripts/` | Script requires an open Process document |
 | `Product_Document_Scripts/` | Script requires an open Product document |
-| `Shape_Generation_Scripts/` | Script generates geometry from scratch (creates its own Part document) |
+| `Shape_Generation_Scripts/` | Script generates geometry into the active CATPart document |
 
 If your script doesn't fit any existing folder, propose a new one in your pull request.
 
