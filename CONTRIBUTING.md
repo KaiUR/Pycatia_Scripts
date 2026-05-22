@@ -18,9 +18,11 @@ Thank you for your interest in contributing. This repository is a collection of 
 | Folder | Use when |
 |--------|----------|
 | `Any_Document_Scripts/` | Script works on any open CATIA document |
+| `Drawing_Document_Scripts/` | Script requires an open CATDrawing document |
 | `Part_Document_Scripts/` | Script requires an open Part document |
 | `Process_Document_Scripts/` | Script requires an open Process document |
 | `Product_Document_Scripts/` | Script requires an open Product document |
+| `Shape_Generation_Scripts/` | Script generates geometry from scratch (creates its own Part document) |
 
 If your script doesn't fit any existing folder, propose a new one in your pull request.
 
@@ -86,11 +88,13 @@ If your script requires packages not already in `setup/requirements.txt`, add th
 
 ## Code Style
 
-- Python 3.9+ compatible
+- Python 3.10+ compatible
 - Use PyCATIA for all CATIA interactions — see [PyCATIA documentation](https://pycatia.readthedocs.io/)
 - Use `wxPython` for any GUI dialogs (message boxes, file pickers)
 - Keep scripts self-contained — one file per script
 - Handle common errors (wrong document type, nothing selected, CATIA not running) with clear user messages
+- Store all user-configurable settings in `%APPDATA%\pycatia_scripts\<Script_Name>\` using the persistent data pattern — never ask users to edit a script directly (CatiaMenuWin32 verifies script hashes before running)
+- All dialog scripts must include the `_bring_to_front` helper and call it via `wx.CallAfter` before `ShowModal()` — CATIA holds the foreground lock and a plain dialog will appear behind it
 
 ---
 
