@@ -62,6 +62,7 @@ Or use the **↓ Deps** button in CatiaMenuWin32 to install automatically.
 | `Copy_Geometric_Set_To_New_Part.py` | Copy a selected geometric set and all its contents into a new blank CATPart |
 | `Create_Construction_Planes.py` | Create a series of offset planes from a reference plane at a user-defined step and count |
 | `Create_ISM_OSM_STEP_Files.py` | Select two faces/surfaces, extract in tangency and export as ISM and OSM STEP files |
+| `Create_Spline_From_Coordinates.py` | Create a GSD point set and spline from X Y (or X Y Z) coordinates loaded from a file or pasted into the dialog |
 | `Delete_Deactivated_Features.py` | Delete all deactivated hybrid shapes inside a selected geometric set |
 | `Check_Open_Bodies.py` | Check all solid bodies in the active part for open (zero-volume) geometry |
 | `Copy_Parameters_Between_Parts.py` | Copy selected parameters from one open CATPart to another via a GUI dialog |
@@ -120,7 +121,9 @@ Or use the **↓ Deps** button in CatiaMenuWin32 to install automatically.
 
 | Script | Description |
 |--------|-------------|
+| `Custom_Coordinate_Airfoil_Generator.py` | Generate a GSD point set and spline from user-supplied X Y (or X Y Z) coordinates loaded from a .dat / .csv file or pasted directly into the dialog |
 | `Involute_Gear_Generator_Mathamatical.py` | Generate an involute gear profile from user-defined parameters |
+| `NACA_4_Digit_Airfoil_Generator.py` | Generate a NACA 4-digit series airfoil (e.g. 0010, 2412) as a point set and closed GSD spline at a user-defined chord length and resolution |
 | `Spring_Generator.py` | Generate a parametric helical spring solid from wire diameter, coil diameter, free length, and coil count; optional closed (compressed) ends |
 
 ### Process Document Scripts
