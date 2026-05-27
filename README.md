@@ -130,6 +130,7 @@ Or use the **↓ Deps** button in CatiaMenuWin32 to install automatically.
 
 | Script | Description |
 |--------|-------------|
+| `Configure_CATIA_Version_Settings.py` | Configure per-version settings paths and window titles for all installed CATIA V5 versions |
 | `Kill_CATIA_Processes.py` | Force-close all running CATIA processes to clear stale COM registrations |
 
 ### Process Document Scripts
