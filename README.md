@@ -158,6 +158,7 @@ Or use the **↓ Deps** button in CatiaMenuWin32 to install automatically.
 | `Export_Assembly_As_STEP.py` | Export the active product assembly as a single STEP file |
 | `Export_Component_Positions_To_CSV.py` | Export the position matrix and translation of every component in the active assembly to CSV |
 | `Save_Child_Parts_To_STEP.py` | Save all parts in a product to separate STEP files |
+| `Save_Child_Parts_To_STL.py` | Save all parts in a product to separate STL files |
 
 ---
 
