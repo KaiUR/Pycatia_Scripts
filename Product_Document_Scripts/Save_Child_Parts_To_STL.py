@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Save_Child_Parts_To_STL.py
-    Version:        1.1
+    Version:        1.0
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Save all child parts as STL
