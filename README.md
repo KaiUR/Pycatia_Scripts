@@ -126,6 +126,12 @@ Or use the **↓ Deps** button in CatiaMenuWin32 to install automatically.
 | `NACA_4_Digit_Airfoil_Generator.py` | Generate a NACA 4-digit series airfoil (e.g. 0010, 2412) as a point set and closed GSD spline at a user-defined chord length and resolution |
 | `Spring_Generator.py` | Generate a parametric helical spring solid from wire diameter, coil diameter, free length, and coil count; optional closed (compressed) ends |
 
+### Utility Scripts
+
+| Script | Description |
+|--------|-------------|
+| `Kill_CATIA_Processes.py` | Force-close all running CATIA processes to clear stale COM registrations |
+
 ### Process Document Scripts
 
 | Script | Description |
