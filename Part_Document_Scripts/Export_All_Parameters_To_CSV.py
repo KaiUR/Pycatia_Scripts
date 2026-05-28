@@ -42,9 +42,12 @@ if __name__ == "__main__":
     part = part_document.part                                                                                   #Current part
     parameters = part.parameters                                                                                #Get all parameters from part
 
-    doc_path = str(part_document.path())                                                                        #Get document path
-    doc_name = part_document.name.removesuffix('.CATPart')                                                      #Get document name without extension
-    output_path = str(Path(doc_path).parent / (doc_name + "_Parameters.csv"))                                   #Build output file path
+    doc_name     = part_document.name.removesuffix('.CATPart')                                                  #Get document name without extension
+    doc_path_str = str(part_document.path())                                                                     #Full path string
+    if doc_path_str == part_document.name:                                                                       #Unsaved document — path() returns just the filename
+        output_path = Path.home() / "Downloads" / (doc_name + "_Parameters.csv")                                #Fall back to Downloads
+    else:
+        output_path = Path(doc_path_str).parent / (doc_name + "_Parameters.csv")                                #Save alongside document
 
     print(f"\n Exporting {parameters.count} parameters\n")
 
