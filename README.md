@@ -142,6 +142,7 @@ Or use the **↓ Deps** button in CatiaMenuWin32 to install automatically.
 | `Reset_CATIA_Settings.py` | Delete the CATSettings folder for selected CATIA V5 versions to force a clean defaults reset |
 | `Restore_CATIA_Settings.py` | Restore a CATSettings folder from a zip backup created by Backup_CATIA_Settings.py |
 | `Set_CATIA_Environment_Variable.py` | Add or update any key=value entry in CATIA V5 environment files for selected versions |
+| `Show_CATIA_File_Info.py` | Display file name, creation/modified dates, owner and full CATIA V5 version (release, service pack, hotfix) for selected files |
 | `Toggle_CATIA_No_Start_Document.py` | Add or remove CATNoStartDocument=yes in CATIA V5 environment files to control blank document on startup |
 
 ### Process Document Scripts
