@@ -149,7 +149,7 @@ Or use the **↓ Deps** button in CatiaMenuWin32 to install automatically.
 |--------|-------------|
 | `Check_Operation_Parameters_Against_Limits.py` | Check all operation parameters against predefined min/max limits and flag violations |
 | `Export_NC_Program_Names_To_CSV.py` | Export all manufacturing program names and descriptions to CSV |
-| `Export_Process_Table_Parameters.py` | Export machining program parameters to Excel |
+| `Export_Process_Table_Parameters.py` | Export machining program parameters to Excel (includes operation type, tool, stepover, tolerances, depths, offsets) |
 | `Export_ResourceList.py` | Export names of all resources in a process document to CSV |
 | `Export_Tool_List_From_Process.py` | Export all cutting tools from a process document to Excel |
 | `Rename_Operations_From_Tool_Name.py` | Automatically rename each operation to match the assigned tool name |
