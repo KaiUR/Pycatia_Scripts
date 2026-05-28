@@ -133,8 +133,14 @@ Or use the **↓ Deps** button in CatiaMenuWin32 to install automatically.
 
 | Script | Description |
 |--------|-------------|
+| `Backup_CATIA_Settings.py` | Zip up the CATSettings folder for selected CATIA V5 versions to a chosen backup location |
+| `Clear_CATIA_Temp_Files.py` | Delete accumulated files from CATTemp and CATReport folders for selected CATIA V5 versions |
 | `Configure_CATIA_Version_Settings.py` | Configure per-version settings paths and window titles for all installed CATIA V5 versions |
 | `Kill_CATIA_Processes.py` | Force-close all running CATIA processes to clear stale COM registrations |
+| `Open_CATIA_Settings_Folder.py` | Open the CATSettings folder for a selected CATIA V5 version in Windows Explorer |
+| `Reset_CATIA_Settings.py` | Delete the CATSettings folder for selected CATIA V5 versions to force a clean defaults reset |
+| `Restore_CATIA_Settings.py` | Restore a CATSettings folder from a zip backup created by Backup_CATIA_Settings.py |
+| `Set_CATIA_Environment_Variable.py` | Add or update any key=value entry in CATIA V5 environment files for selected versions |
 | `Toggle_CATIA_No_Start_Document.py` | Add or remove CATNoStartDocument=yes in CATIA V5 environment files to control blank document on startup |
 
 ### Process Document Scripts
