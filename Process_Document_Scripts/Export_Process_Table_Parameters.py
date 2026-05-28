@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Export_Process_Table_Parameters.py
-    Version:        1.2
+    Version:        1.3
     Code:           Python3.10.4, Pycatia 0.9.5
     Release:        V5R32
     Purpose:        Exports parameters from process table to excel
@@ -9,10 +9,10 @@
     Date:           29.04.26
     Description:    This script will export all of the parameters in the process table for all part operations
                     and insert them into excel.
-                    
+
                     This script is to get all parameters for all manufacturing programs into one place so we can check our values to ensure
                     they are correct.
-                    
+
                     *** Only tested with sweep, pencil and contour driven so far***
     dependencies = [
                     "pycatia",
@@ -24,10 +24,11 @@
                     Catia V5 running wtih an open process containing a part operation with a program and operation.
                     This script needs an open part process document.
     -----------------------------------------------------------------------------------------------------------------------
-    
+
     Change:         29.04.26 1.1: Fixed script not showing part offset value for sweeps.
                     11.05.26 1.2: Improved Excel formatting — navy header, alternating row bands, centred numeric columns, frozen header row, navy tab colour, explicit column widths.
-    
+                    28.05.26 1.3: Added Operation column (between Description and Tool) showing the activity type (Sweep, Pencil, Contour...).
+
     -----------------------------------------------------------------------------------------------------------------------
 '''
 
@@ -144,26 +145,28 @@ if __name__ == "__main__":
                 #Set column widths
                 worksheet.set_column(0, 0, 28)   # Program Name
                 worksheet.set_column(1, 1, 32)   # Description
-                worksheet.set_column(2, 2, 30)   # Tool
-                worksheet.set_column(3, 3, 14)   # Stepover
-                worksheet.set_column(4, 4, 16)   # MC Tolerance
-                worksheet.set_column(5, 5, 16)   # Depth of Cut
-                worksheet.set_column(6, 6, 16)   # Offset on Part
-                worksheet.set_column(7, 7, 17)   # Offset on Check
-                worksheet.set_column(8, 8, 22)   # Depth of cut by level
+                worksheet.set_column(2, 2, 20)   # Operation
+                worksheet.set_column(3, 3, 30)   # Tool
+                worksheet.set_column(4, 4, 14)   # Stepover
+                worksheet.set_column(5, 5, 16)   # MC Tolerance
+                worksheet.set_column(6, 6, 16)   # Depth of Cut
+                worksheet.set_column(7, 7, 16)   # Offset on Part
+                worksheet.set_column(8, 8, 17)   # Offset on Check
+                worksheet.set_column(9, 9, 22)   # Depth of cut by level
 
                 row = 0                                                                                     #Set row counter to 0
 
                 #Add headings to sheet
-                worksheet.write(0, 0, "Program Name",         heading_format)
-                worksheet.write(0, 1, "Description",          heading_format)
-                worksheet.write(0, 2, "Tool",                 heading_format)
-                worksheet.write(0, 3, "Stepover",             heading_format)
-                worksheet.write(0, 4, "MC Tolerance",         heading_format)
-                worksheet.write(0, 5, "Depth of Cut",         heading_format)
-                worksheet.write(0, 6, "Offset on Part",       heading_format)
-                worksheet.write(0, 7, "Offset on Check",      heading_format)
-                worksheet.write(0, 8, "Depth of Cut by Level",heading_format)
+                worksheet.write(0, 0, "Program Name",          heading_format)
+                worksheet.write(0, 1, "Description",           heading_format)
+                worksheet.write(0, 2, "Operation",             heading_format)
+                worksheet.write(0, 3, "Tool",                  heading_format)
+                worksheet.write(0, 4, "Stepover",              heading_format)
+                worksheet.write(0, 5, "MC Tolerance",          heading_format)
+                worksheet.write(0, 6, "Depth of Cut",          heading_format)
+                worksheet.write(0, 7, "Offset on Part",        heading_format)
+                worksheet.write(0, 8, "Offset on Check",       heading_format)
+                worksheet.write(0, 9, "Depth of Cut by Level", heading_format)
                 
                 
                 manufacturing_programs = part_op.children_activities                                        #Get all activities for part operation
@@ -181,7 +184,7 @@ if __name__ == "__main__":
                             man_prog_desc = ""                                                              #Set to empty
 
                         worksheet.write(row, 1, man_prog_desc, prog_desc_fmt)                               #Write description to sheet
-                        for _col in range(2, 9):                                                            #Fill remaining columns with programme row background
+                        for _col in range(2, 10):                                                           #Fill remaining columns with programme row background
                             worksheet.write_blank(row, _col, None, prog_fmt)
                         
                         if man_prog.children_activities.count > 1:                                          #If the program has activities
@@ -194,14 +197,14 @@ if __name__ == "__main__":
                             alt_fmt_bold = line_format_1_bold if global_op_index % 2 == 0 else line_format_2_bold #Bold variant for programme name cell
                             worksheet.write(row, 0, man_prog.name, alt_fmt_bold)                           #Overwrite name cell — bold, alternating colour
                             worksheet.write(row, 1, man_prog_desc, alt_fmt)                                #Overwrite description cell with alternating colour
-                            for _col in range(2, 9):
+                            for _col in range(2, 10):
                                 worksheet.write_blank(row, _col, None, alt_fmt)                            #Overwrite remaining cells with alternating colour
 
                             for tool_change_index in range(tool_changes.count):                             #Cycle through all activities of program
 
                                 if tool_changes.item(tool_change_index + 1).type == "ToolChange":           #If activity is Tool Change
                                     r_fmt = line_format_1 if global_op_index % 2 == 0 else line_format_2
-                                    worksheet.write(row + tool_change_counter, 2, tool_changes.item(
+                                    worksheet.write(row + tool_change_counter, 3, tool_changes.item(
                                             tool_change_index + 1).resources.item(1).name.split("(")[0],
                                             r_fmt)                                                          #Write tool name, stripping extra info
                                     tool_change_counter = tool_change_counter + 1                           #Increment tool change count
@@ -219,6 +222,14 @@ if __name__ == "__main__":
                                     r_fmt  = line_format_1 if global_op_index % 2 == 0 else line_format_2  #Alternating row colour
                                     n_fmt  = num_fmt_1     if global_op_index % 2 == 0 else num_fmt_2      #Alternating numeric cell colour
 
+                                    op_type = tool_changes.item(tool_change_index + 1).type                #Operation type (e.g. "ManufacturingM3xSweep")
+                                    op_label = op_type.replace("Manufacturing", "")                        #Strip "Manufacturing" prefix
+                                    if op_label == "M3xBitangency":
+                                        op_label = "PencilTrace"
+                                    elif op_label.startswith("M3x"):
+                                        op_label = op_label[3:]                                            #Strip "M3x" prefix
+                                    worksheet.write(row + operation_counter, 2, op_label, r_fmt)           #Write operation type
+
                                     if DEBUG_PARAMS:                                                        #If debug mode is on, print all parameter names and indices
                                         print(f"--- Operation: {tool_changes.item(tool_change_index + 1).name} ---")
                                         for i in range(tool_changes_parameters.count):                     #Loop through all parameters
@@ -228,34 +239,34 @@ if __name__ == "__main__":
 
                                         if tool_changes_parameters.item(
                                                 t_parmeter_index + 1).name.find("Maximum distance") != -1: #Stepover distance
-                                            worksheet.write(row + operation_counter, 3,
+                                            worksheet.write(row + operation_counter, 4,
                                                     tool_changes_parameters.item(t_parmeter_index + 1
                                                     ).value_as_string(), n_fmt)
                                         if tool_changes_parameters.item(
                                                 t_parmeter_index + 1).name.find("Machining tolerance") != -1: #Machining tolerance
-                                            worksheet.write(row + operation_counter, 4,
+                                            worksheet.write(row + operation_counter, 5,
                                                     tool_changes_parameters.item(t_parmeter_index + 1
                                                     ).value_as_string(), n_fmt)
                                         if tool_changes_parameters.item(
                                                 t_parmeter_index + 1).name.find("Maximum depth of cut") != -1 or tool_changes_parameters.item(
                                                 t_parmeter_index + 1).name.find("Depth of cut by level for Multi-Pas") != -1: #Depth of cut
-                                            worksheet.write(row + operation_counter, 5,
-                                                    tool_changes_parameters.item(t_parmeter_index + 1
-                                                    ).value_as_string(), n_fmt)
-                                        if tool_changes_parameters.item(
-                                                t_parmeter_index + 1).name.find("Offset on part") != -1:   #Offset on part
                                             worksheet.write(row + operation_counter, 6,
                                                     tool_changes_parameters.item(t_parmeter_index + 1
                                                     ).value_as_string(), n_fmt)
                                         if tool_changes_parameters.item(
-                                                t_parmeter_index + 1).name.find("Offset on check") != -1:  #Offset on check
+                                                t_parmeter_index + 1).name.find("Offset on part") != -1:   #Offset on part
                                             worksheet.write(row + operation_counter, 7,
+                                                    tool_changes_parameters.item(t_parmeter_index + 1
+                                                    ).value_as_string(), n_fmt)
+                                        if tool_changes_parameters.item(
+                                                t_parmeter_index + 1).name.find("Offset on check") != -1:  #Offset on check
+                                            worksheet.write(row + operation_counter, 8,
                                                     tool_changes_parameters.item(t_parmeter_index + 1
                                                     ).value_as_string(), n_fmt)
                                         if tool_changes_parameters.item(
                                                 t_parmeter_index + 1
                                                 ).name.find("Depth of cut by level for Multi-Pass") != -1: #Depth of cut by level
-                                            worksheet.write(row + operation_counter, 8,
+                                            worksheet.write(row + operation_counter, 9,
                                                     tool_changes_parameters.item(t_parmeter_index + 1
                                                     ).value_as_string(), n_fmt)
                                     operation_counter = operation_counter + 1                               #Add row for next operation
