@@ -45,6 +45,7 @@ Or use the **↓ Deps** button in CatiaMenuWin32 to install automatically.
 | `Create_Drawing_Border_And_Title_Block.py` | Create a new CATDrawing with an ISO 5457 border and ISO 7200-style title block for A0–A4 paper sizes |
 | `Create_Drawing_Border_And_Title_Block_With_Values.py` | Create a new CATDrawing with an ISO 5457 border and title block, with a dialog to enter field values |
 | `Export_Drawing_Dimensions_To_CSV.py` | Export all dimensions from the active CATDrawing to CSV |
+| `Update_All_Drawing_Views.py` | Force update all views across all sheets in the active drawing document |
 | `Update_Title_Block_From_Properties.py` | Map document properties to drawing title block text fields via a GUI dialog |
 | `Update_Title_Block_Headings.py` | Edit the heading labels in the title block of the active CATDrawing sheet |
 
@@ -72,10 +73,12 @@ Or use the **↓ Deps** button in CatiaMenuWin32 to install automatically.
 | `Export_Curve_Lengths_Surface_Areas_To_CSV.py` | Export curve lengths and surface areas from a geometric set to CSV |
 | `Export_Geometric_Set_Structure_To_CSV.py` | Export the full geometric set tree and its contents to CSV |
 | `Export_Mass_CoG_Inertia_To_CSV.py` | Export mass, centre of gravity and inertia tensor from all solid bodies to CSV |
+| `Export_Parameter_Dependencies_To_CSV.py` | Export all parameters with their formula dependencies to a CSV file |
 | `Export_Points_Select_Axis_and_Geo_Set_To_CSV.py` | Export points from a geometric set relative to a selected axis system to CSV |
 | `Export_Points_Select_Axis_and_Geo_Set_To_XYZ.py` | Export points from a geometric set relative to a selected axis system to XYZ (PCDimms format) |
 | `Export_Points_Select_Geo_Set_To_CSV.py` | Export points from a geometric set relative to absolute axis to CSV |
 | `Export_Points_Select_Geo_Set_To_XYZ.py` | Export points from a geometric set relative to absolute axis to XYZ (PCDimms format) |
+| `Export_Sketch_Constraints_To_CSV.py` | Export all sketch constraints and dimensions from the active part to a CSV file |
 | `Extract_Boundary_Curves.py` | Extract boundary edges of a selected surface as datum curves |
 | `IGES_Export_Curve_AXIS.py` | Export curve to IGES after moving from a reference axis system to absolute |
 | `Insert_Points_Catia.py` | Insert points into active part from tab-separated or CSV file as datums |
