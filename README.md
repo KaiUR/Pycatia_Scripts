@@ -134,7 +134,6 @@ Or use the **↓ Deps** button in CatiaMenuWin32 to install automatically.
 | Script | Description |
 |--------|-------------|
 | `Backup_CATIA_Settings.py` | Zip up the CATSettings folder for selected CATIA V5 versions to a chosen backup location |
-| `Downgrade_CATIA_File_Version.py` | Patch .CATPart, .CATProduct, .CATProcess and .CATDrawing files to open in an older CATIA V5 release |
 | `Clear_CATIA_Temp_Files.py` | Delete accumulated files from CATTemp and CATReport folders for selected CATIA V5 versions |
 | `Configure_CATIA_Version_Settings.py` | Configure per-version settings paths and window titles for all installed CATIA V5 versions |
 | `Kill_CATIA_Processes.py` | Force-close all running CATIA processes to clear stale COM registrations |
