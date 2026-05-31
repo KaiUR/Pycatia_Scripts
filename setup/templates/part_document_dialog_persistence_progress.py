@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Your_Script_Name.py
-    Version:        1.2
+    Version:        1.3
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        EDIT: One line summary shown on the script button.
@@ -22,6 +22,7 @@
 
     Change:         12.05.26 1.1: Dialogs raised to foreground of CATIA window.
                     13.05.26 1.2: Fix searchHybridBody to use explicit name comparison.
+                    31.05.26 1.3: Use vbox.Fit(self) for dialog sizing.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -127,7 +128,7 @@ class ScriptDialog(wx.Dialog):
             except:
                 pass                                                                                           #Fall back to hardcoded defaults on error
 
-        super().__init__(parent, title=title, size=(420, 260), style=wx.DEFAULT_DIALOG_STYLE | wx.STAY_ON_TOP) #EDIT: Adjust dialog size to fit your fields
+        super().__init__(parent, title=title, style=wx.DEFAULT_DIALOG_STYLE | wx.STAY_ON_TOP)
 
         vbox = wx.BoxSizer(wx.VERTICAL)
         grid = wx.FlexGridSizer(2, 2, 10, 10)                                                                  #EDIT: First arg = number of parameter rows
@@ -162,6 +163,7 @@ class ScriptDialog(wx.Dialog):
         clear_btn.Bind(wx.EVT_BUTTON, self.on_clear_settings)
 
         self.SetSizer(vbox)
+        vbox.Fit(self)
         self.Center()
 
     def on_help(self, event):

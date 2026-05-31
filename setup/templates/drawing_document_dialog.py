@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Your_Script_Name.py
-    Version:        1.0
+    Version:        1.1
     Code:           Python3.10.4, Pycatia 0.9.6
     Release:        V5R32
     Purpose:        EDIT: One line summary shown on the script button.
@@ -19,7 +19,7 @@
                     Catia V5 running with an open CATDrawing document.
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:
+    Change:         31.05.26 1.1: Use vbox.Fit(self) for dialog sizing.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -49,7 +49,7 @@ def _bring_to_front(window):
 
 class ScriptDialog(wx.Dialog):
     def __init__(self, parent, title):
-        super().__init__(parent, title=title, size=(420, 200), style=wx.DEFAULT_DIALOG_STYLE | wx.STAY_ON_TOP)  #EDIT: Adjust dialog size to fit your fields
+        super().__init__(parent, title=title, style=wx.DEFAULT_DIALOG_STYLE | wx.STAY_ON_TOP)
 
         vbox = wx.BoxSizer(wx.VERTICAL)
         grid = wx.FlexGridSizer(2, 2, 10, 10)                                                                  #EDIT: First arg = number of parameter rows
@@ -76,6 +76,7 @@ class ScriptDialog(wx.Dialog):
         vbox.Add(btn_sizer, 0, wx.ALL | wx.EXPAND, 10)
 
         self.SetSizer(vbox)
+        vbox.Fit(self)
         self.Center()
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Your_Script_Name.py
-    Version:        1.2
+    Version:        1.3
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        EDIT: One line summary shown on the script button.
@@ -21,6 +21,7 @@
 
     Change:         12.05.26 1.1: Dialogs raised to foreground of CATIA window.
                     13.05.26 1.2: Fix searchHybridBody to use explicit name comparison.
+                    31.05.26 1.3: Remove duplicate wx.App in get_path; use vbox.Fit(self) for dialog sizing.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -57,7 +58,6 @@ def _bring_to_front(window):
         The selected file path as a string, or None if cancelled.
 '''
 def get_path(wildcard):
-    app = wx.App(None)                                                                                         #Bootstrap the wxPython system
     style = wx.FD_OPEN | wx.FD_FILE_MUST_EXIST                                                                 #Open dialog flags
     dialog = wx.FileDialog(None, 'Open', wildcard=wildcard, style=style)                                       #Create file dialog
     if dialog.ShowModal() == wx.ID_OK:                                                                         #Show dialog and wait for selection
@@ -131,7 +131,7 @@ def create_datum(hybrid_shape_factory, hybrid_shape, hybrid_body, name=None):
 
 class ScriptDialog(wx.Dialog):
     def __init__(self, parent, title):
-        super().__init__(parent, title=title, size=(420, 200), style=wx.DEFAULT_DIALOG_STYLE | wx.STAY_ON_TOP)  #EDIT: Adjust dialog size to fit your fields
+        super().__init__(parent, title=title, style=wx.DEFAULT_DIALOG_STYLE | wx.STAY_ON_TOP)
 
         vbox = wx.BoxSizer(wx.VERTICAL)
         grid = wx.FlexGridSizer(2, 2, 10, 10)                                                                  #EDIT: First arg = number of parameter rows
@@ -158,6 +158,7 @@ class ScriptDialog(wx.Dialog):
         vbox.Add(btn_sizer, 0, wx.ALL | wx.EXPAND, 10)
 
         self.SetSizer(vbox)
+        vbox.Fit(self)
         self.Center()
 
 if __name__ == "__main__":

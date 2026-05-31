@@ -6,16 +6,18 @@ Starting points for writing new Pycatia Scripts. Copy the template that best mat
 
 | Template | Document | GUI | Saves settings | Progress bar |
 |---|---|---|---|---|
-| `any_document_basic.py` | Any | No | No | No |
-| `any_document_dialog.py` | Any | Yes | No | No |
-| `part_document_basic.py` | CATPart | No | No | No |
-| `part_document_dialog.py` | CATPart | Yes | No | No |
-| `part_document_dialog_persistence.py` | CATPart | Yes | Yes | No |
-| `part_document_dialog_persistence_progress.py` | CATPart | Yes | Yes | Yes |
-| `process_document_basic.py` | CATProcess | No | No | No |
-| `process_document_dialog.py` | CATProcess | Yes | No | No |
-| `process_document_dialog_persistence.py` | CATProcess | Yes | Yes | No |
-| `product_document_basic.py` | CATProduct | No | No | No |
+| [`any_document_basic.py`](any_document_basic.py) | Any | No | No | No |
+| [`any_document_dialog.py`](any_document_dialog.py) | Any | Yes | No | No |
+| [`drawing_document_basic.py`](drawing_document_basic.py) | CATDrawing | No | No | No |
+| [`drawing_document_dialog.py`](drawing_document_dialog.py) | CATDrawing | Yes | No | No |
+| [`part_document_basic.py`](part_document_basic.py) | CATPart | No | No | No |
+| [`part_document_dialog.py`](part_document_dialog.py) | CATPart | Yes | No | No |
+| [`part_document_dialog_persistence.py`](part_document_dialog_persistence.py) | CATPart | Yes | Yes | No |
+| [`part_document_dialog_persistence_progress.py`](part_document_dialog_persistence_progress.py) | CATPart | Yes | Yes | Yes |
+| [`process_document_basic.py`](process_document_basic.py) | CATProcess | No | No | No |
+| [`process_document_dialog.py`](process_document_dialog.py) | CATProcess | Yes | No | No |
+| [`process_document_dialog_persistence.py`](process_document_dialog_persistence.py) | CATProcess | Yes | Yes | No |
+| [`product_document_basic.py`](product_document_basic.py) | CATProduct | No | No | No |
 
 ## Common Helper Functions
 
