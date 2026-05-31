@@ -7,7 +7,7 @@
     Purpose:        Delete all persistent saved settings for pycatia_scripts.
     Author:         Kai-Uwe Rathjen
     Date:           31.05.26
-    Description:    Removes the %APPDATA%\pycatia_scripts folder and all its contents, resetting
+    Description:    Removes the %APPDATA%\\pycatia_scripts folder and all its contents, resetting
                     every script's saved user presets (dialog values, last-used parameters, etc.)
                     back to factory defaults. Each script will recreate its own subfolder the next
                     time it is run. A confirmation dialog lists all script folders that will be
