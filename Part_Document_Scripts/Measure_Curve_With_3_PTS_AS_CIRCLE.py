@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Measure_Curve_With_3_PTS_AS_CIRCLE.py
-    Version:        1.4
+    Version:        1.5
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Measures curves by adding three points and gives a diamiter.
@@ -31,6 +31,9 @@
                     18.05.26
                     Fix collinear check: normalise cross product by vector magnitudes so the test is scale-independent.
 
+                    31.05.26
+                    Remove unused coords_relative_to_axis function.
+
     -----------------------------------------------------------------------------------------------------------------------
 '''
 
@@ -41,52 +44,6 @@ from pycatia.hybrid_shape_interfaces.hybrid_shape_point_on_curve import HybridSh
 from pycatia.mec_mod_interfaces.part_document import PartDocument
 from pycatia.mec_mod_interfaces.part import Part
 import time
-'''
-    This function will return a points coordinates relative to an axis system.
-    
-    Inputs:
-        axis_system         The axis sytem to measure relative to
-        point               The point being measured
-        precision=6         The precision for the calculation (Default = 6)
-        
-    output:
-        The coordinates of the point relative to the axis system inputed as a vector
-        
-    Requirments:
-        Two custom functions to calculate the dot product and a function to 
-        normalize vectors.
-'''
-def coords_relative_to_axis(axis_system, point, precision=6):
-    #Get axises
-    a_origin = axis_system.get_origin()
-    a_xaxis = axis_system.get_x_axis()
-    a_yaxis = axis_system.get_y_axis()
-    a_zaxis = axis_system.get_z_axis()
-
-    #Normalize
-    n_x = normalize_vector(a_xaxis)
-    n_y = normalize_vector(a_yaxis)
-    n_z = normalize_vector(a_zaxis)
-
-    #Measure Point
-    reference = part.create_reference_from_object(point)
-    measurable = spa_workbench.get_measurable(reference)
-    coordinates = measurable.get_point()
-
-    #Get difference
-    diff = [0] * 3
-    diff[0] = coordinates[0] - a_origin[0]
-    diff[1] = coordinates[1] - a_origin[1]
-    diff[2] = coordinates[2] - a_origin[2]
-
-    #Get dot product
-    x = round(dot_product(diff, n_x), precision)
-    y = round(dot_product(diff, n_y), precision)
-    z = round(dot_product(diff, n_z), precision)
-
-    return x, y, z
-
-'''
     This function will return a noralized vector
     
     Inputs:

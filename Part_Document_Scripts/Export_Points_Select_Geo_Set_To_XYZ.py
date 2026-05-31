@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Export_Points_Select_Geo_Set_To_XYZ.py
-    Version:        1.1
+    Version:        1.2
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Export points from any geometric set to an xyz file.
@@ -21,6 +21,7 @@
     -----------------------------------------------------------------------------------------------------------------------
     
     Change:         13.05.26 1.1: Replace name-based HybridBody lookup with direct COM reference.
+                    31.05.26 1.2: Pass part and spa_workbench explicitly to coords_relative_to_axis.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -34,9 +35,11 @@ from pycatia.mec_mod_interfaces.part_document import PartDocument
     This function will return a points coordinates relative to an axis system.
     
     Inputs:
-        axis_system         The axis sytem to measure relative to
-        point               The point being measured
-        precision=6         The precision for the calculation (Default = 6)
+        part                The Part object (part_document.part).
+        spa_workbench       The SPA workbench (part_document.spa_workbench()).
+        axis_system         The axis system to measure relative to.
+        point               The point being measured.
+        precision=6         The precision for the calculation (Default = 6).
         
     output:
         The coordinates of the point relative to the axis system inputed as a vector
@@ -45,7 +48,7 @@ from pycatia.mec_mod_interfaces.part_document import PartDocument
         Two custom functions to calculate the dot product and a function to 
         normalize vectors.
 '''
-def coords_relative_to_axis(axis_system, point, precision=6):
+def coords_relative_to_axis(part, spa_workbench, axis_system, point, precision=6):
     #Get axises
     a_origin = axis_system.get_origin()
     a_xaxis = axis_system.get_x_axis()
@@ -159,7 +162,7 @@ if __name__ == "__main__":
         if selected_elem.type == "HybridShapePointExplicit":                                                    #Check that point is HybridShapePointExplicit
             point = HybridShapePointCoord(current_hs.com_object)                                                #Cast the point
             
-            coords = coords_relative_to_axis(axis_system, point)                                                # Measure point to axis system and print
+            coords = coords_relative_to_axis(part, spa_workbench, axis_system, point)                          # Measure point to axis system and print
             print(current_hs.name, coords)                                                                      #Print Current point to console
             
             f.write(current_hs.name + "\t" + str(coords[0]) + "\t" + str(coords[1]) + "\t" + str(coords[2]) + "\n") #Write point to file
