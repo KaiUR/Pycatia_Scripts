@@ -132,8 +132,14 @@ Or, if using [CatiaMenuWin32](https://github.com/KaiUR/CatiaMenuWin32), use the 
 | Script | Description |
 |--------|-------------|
 | `Custom_Coordinate_Airfoil_Generator.py` | Generate a GSD point set and spline from user-supplied X Y (or X Y Z) coordinates loaded from a .dat / .csv file or pasted directly into the dialog |
+| `Ellipse_Generator.py` | Generate an ellipse as a point set and closed GSD spline from semi-major and semi-minor axes |
 | `Involute_Gear_Generator_Mathamatical.py` | Generate an involute gear profile from user-defined parameters |
 | `NACA_4_Digit_Airfoil_Generator.py` | Generate a NACA 4-digit series airfoil (e.g. 0010, 2412) as a point set and closed GSD spline at a user-defined chord length and resolution |
+| `NACA_5_Digit_Airfoil_Generator.py` | Generate a NACA 5-digit series airfoil (e.g. 23012) as a point set and closed GSD spline at a user-defined chord length and resolution |
+| `Plot_2D_Function.py` | Plot y = f(x) as a GSD point set and spline from a user-entered math expression over a specified X range |
+| `Plot_3D_Parametric_Curve.py` | Plot a 3D parametric curve x(t), y(t), z(t) as a GSD point set and spline from user-entered expressions |
+| `Regular_Polygon_Generator.py` | Generate a regular polygon (triangle, hexagon, etc.) as vertices, edges, and a joined wire; supports custom plane and centre point selection |
+| `Sine_Wave_Curve_Generator.py` | Generate a sine wave curve as a point set and GSD spline from amplitude, period, phase, and X range |
 | `Spring_Generator.py` | Generate a parametric helical spring solid from wire diameter, coil diameter, free length, and coil count; optional closed (compressed) ends |
 
 ### Utility Scripts
