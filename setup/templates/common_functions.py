@@ -226,19 +226,29 @@ def cross_product(a, b):
 
 '''
     Checks whether three 3D points are collinear (lie on the same line).
-    Uses the cross product method with a small epsilon for floating-point tolerance.
+    Uses the normalised cross product magnitude so the test is scale-independent.
+    Returns True if either input vector is zero length (degenerate case).
 
     Inputs:
         point_a, point_b, point_c   Each a list or tuple [x, y, z].
 
     output:
-        True if the points are collinear, False otherwise.
+        True if the points are collinear (or degenerate), False otherwise.
 '''
 def are_collinear(point_a, point_b, point_c):
-    vectorAB = (point_b[0] - point_a[0], point_b[1] - point_a[1], point_b[2] - point_a[2])
-    vectorAC = (point_c[0] - point_a[0], point_c[1] - point_a[1], point_c[2] - point_a[2])
-    cp = cross_product(vectorAB, vectorAC)
-    return cp[0]**2 + cp[1]**2 + cp[2]**2 < 0.000001                                                         #Near-zero magnitude squared = collinear
+    vectorAB = point_b[0] - point_a[0], point_b[1] - point_a[1], point_b[2] - point_a[2]
+    vectorAC = point_c[0] - point_a[0], point_c[1] - point_a[1], point_c[2] - point_a[2]
+
+    cross_product_vectors = cross_product(vectorAB, vectorAC)
+
+    cross_mag_sq = cross_product_vectors[0]**2 + cross_product_vectors[1]**2 + cross_product_vectors[2]**2
+    ab_mag_sq    = vectorAB[0]**2 + vectorAB[1]**2 + vectorAB[2]**2
+    ac_mag_sq    = vectorAC[0]**2 + vectorAC[1]**2 + vectorAC[2]**2
+
+    if ab_mag_sq == 0 or ac_mag_sq == 0:                                                                       #Degenerate — treat as collinear
+        return True
+
+    return cross_mag_sq / (ab_mag_sq * ac_mag_sq) < 1e-6
 
 
 '''
