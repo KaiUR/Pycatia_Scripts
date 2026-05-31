@@ -147,6 +147,7 @@ Or, if using [CatiaMenuWin32](https://github.com/KaiUR/CatiaMenuWin32), use the 
 | Script | Description |
 |--------|-------------|
 | `Backup_CATIA_Settings.py` | Zip up the CATSettings folder for selected CATIA V5 versions to a chosen backup location |
+| `Clear_Script_Settings.py` | Delete all persistent saved settings for pycatia_scripts, resetting every script to factory defaults |
 | `Clear_CATIA_Temp_Files.py` | Delete accumulated files from CATTemp and CATReport folders for selected CATIA V5 versions |
 | `Configure_CATIA_Version_Settings.py` | Configure per-version settings paths and window titles for all installed CATIA V5 versions |
 | `Kill_CATIA_Processes.py` | Force-close all running CATIA processes to clear stale COM registrations |
