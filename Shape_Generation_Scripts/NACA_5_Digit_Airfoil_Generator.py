@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    NACA_5_Digit_Airfoil_Generator.py
-    Version:        1.0
+    Version:        1.1
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Generate a NACA 5-digit airfoil profile as points and a closed spline.
@@ -24,6 +24,7 @@
     -----------------------------------------------------------------------------------------------------------------------
 
     Change:
+    v1.1 - Added Q=1 reflexed camber line support using NACA Report 824 / NASA TM-4741 constants.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -48,6 +49,16 @@ _NACA5_TABLE = {
     5: (0.3910,   3.230),
 }
 
+# Tabulated m, k1 (at L=2), and k2/k1 for NACA 5-digit reflexed (Q=1) camber lines.
+# Source: NACA Report 824 / NASA TM-4741 (Ladson, Brooks, Hill, Sproles, 1996).
+_NACA5_REFLEX_TABLE = {
+    1: (0.1300, 51.990, 0.000764),
+    2: (0.2170, 15.793, 0.00677),
+    3: (0.3180,  6.520, 0.0303),
+    4: (0.4410,  3.191, 0.1355),
+    5: (0.5800,  1.230, 0.6170),
+}
+
 
 def _bring_to_front(window):
     u32 = ctypes.windll.user32
@@ -62,6 +73,41 @@ def _bring_to_front(window):
     u32.SetForegroundWindow(hwnd)
     if fg_tid != our_tid:
         u32.AttachThreadInput(fg_tid, our_tid, False)
+
+
+def naca5_reflex_points(l_digit, p_digit, t_frac, n_pts):
+    """
+    Return (upper, lower) lists of (x, y) normalised to chord=1 for the Q=1 reflexed camber line.
+    Formula: y_c = (k1/6)*[(x-m)^3 - (k2/k1)*(1-m)^3*x - m^3*(x-1)]  for x <= m
+             y_c = (k1/6)*[(k2/k1)*(x-m)^3 - (k2/k1)*(1-m)^3*x - m^3*(x-1)]  for x > m
+    """
+    m, k1_at_l2, k2_over_k1 = _NACA5_REFLEX_TABLE[p_digit]
+    k1 = k1_at_l2 * (l_digit / 2.0)
+
+    betas  = [math.pi * i / (n_pts - 1) for i in range(n_pts)]
+    xs     = [(1 - math.cos(b)) / 2 for b in betas]
+
+    upper, lower = [], []
+    for x in xs:
+        y_t = (t_frac / 0.2) * (
+            0.2969 * math.sqrt(x)
+            - 0.1260 * x
+            - 0.3516 * x ** 2
+            + 0.2843 * x ** 3
+            - 0.1015 * x ** 4
+        )
+        if x <= m:
+            y_c    = (k1 / 6) * ((x - m) ** 3 - k2_over_k1 * (1 - m) ** 3 * x - m ** 3 * (x - 1))
+            dyc_dx = (k1 / 6) * (3 * (x - m) ** 2 - k2_over_k1 * (1 - m) ** 3 - m ** 3)
+        else:
+            y_c    = (k1 / 6) * (k2_over_k1 * (x - m) ** 3 - k2_over_k1 * (1 - m) ** 3 * x - m ** 3 * (x - 1))
+            dyc_dx = (k1 / 6) * (3 * k2_over_k1 * (x - m) ** 2 - k2_over_k1 * (1 - m) ** 3 - m ** 3)
+
+        theta = math.atan(dyc_dx)
+        upper.append((x - y_t * math.sin(theta),  y_c + y_t * math.cos(theta)))
+        lower.append((x + y_t * math.sin(theta),  y_c - y_t * math.cos(theta)))
+
+    return upper, lower
 
 
 def naca5_points(l_digit, p_digit, t_frac, n_pts):
@@ -147,7 +193,7 @@ class Naca5Dialog(wx.Dialog):
                                       majorDimension=1, style=wx.RA_SPECIFY_COLS)
         self.plane_ctrl.SetSelection(int(defaults["plane"]))
 
-        self.naca_ctrl.SetToolTip("5-digit NACA code, e.g. 23012. Third digit must be 0 (non-reflexed).")
+        self.naca_ctrl.SetToolTip("5-digit NACA code, e.g. 23012 (Q=0 standard) or 23112 (Q=1 reflexed).")
         self.chord_ctrl.SetToolTip("Chord length in mm.")
         self.npts_ctrl.SetToolTip("Number of sample points per surface (upper and lower). Minimum 5.")
 
@@ -205,15 +251,17 @@ class Naca5Dialog(wx.Dialog):
             " P (2nd digit): Position of maximum camber.\n"
             "                Max camber at P/20 × chord.  Supported: 1–5.\n"
             "                P=3 → max camber at 15% chord (most common, 23xxx family).\n\n"
-            " Q (3rd digit): Camber line type.  Must be 0 (standard non-reflexed).\n"
-            "                Q=1 (reflexed) is not supported.\n\n"
+            " Q (3rd digit): Camber line type.\n"
+            "                0 = standard non-reflexed (most common).\n"
+            "                1 = reflexed (zero pitching moment camber line).\n\n"
             " TT (4+5th):    Thickness as a percentage of chord.\n"
             "                E.g. 12 = 12% thick.\n\n"
             "COMMON EXAMPLES\n"
             "---------------\n"
             "  23012  →  L=2, P=3 (15%), Q=0, 12% thick  (classic transport wing)\n"
             "  23015  →  L=2, P=3 (15%), Q=0, 15% thick\n"
-            "  24012  →  L=2, P=4 (20%), Q=0, 12% thick\n\n"
+            "  24012  →  L=2, P=4 (20%), Q=0, 12% thick\n"
+            "  23112  →  L=2, P=3 (15%), Q=1, 12% thick  (reflexed, zero Cm)\n\n"
             "CHORD\n"
             "------\n"
             " Chord length in mm. Leading edge at origin, trailing edge at (chord, 0, 0).\n\n"
@@ -247,9 +295,8 @@ class Naca5Dialog(wx.Dialog):
             self.naca_ctrl.SetFocus()
             return False
 
-        if code[2] != '0':
-            wx.MessageBox(f"Third digit (Q) must be 0 (standard non-reflexed). Got '{code[2]}'.\n"
-                          "Reflexed camber lines (Q=1) are not supported by this script.",
+        if code[2] not in ('0', '1'):
+            wx.MessageBox(f"Third digit (Q) must be 0 (standard) or 1 (reflexed). Got '{code[2]}'.",
                           "Input Error", wx.OK | wx.ICON_ERROR)
             self.naca_ctrl.SetFocus()
             return False
@@ -329,9 +376,13 @@ if __name__ == "__main__":
 
     l_digit = int(naca_code[0])
     p_digit = int(naca_code[1])
+    q_digit = int(naca_code[2])
     t_frac  = int(naca_code[3:]) / 100.0
 
-    upper_norm, lower_norm = naca5_points(l_digit, p_digit, t_frac, n_pts)
+    if q_digit == 1:
+        upper_norm, lower_norm = naca5_reflex_points(l_digit, p_digit, t_frac, n_pts)
+    else:
+        upper_norm, lower_norm = naca5_points(l_digit, p_digit, t_frac, n_pts)
 
     progress = wx.ProgressDialog(
         "Generating Airfoil", "Initialising...", maximum=5, parent=None,
@@ -388,10 +439,13 @@ if __name__ == "__main__":
 
         progress.Update(5, "Done.")
 
-        design_cl = l_digit * 3 / 20
-        camber_pct = _NACA5_TABLE[p_digit][0] * 100
+        design_cl  = l_digit * 3 / 20
+        table      = _NACA5_REFLEX_TABLE if q_digit == 1 else _NACA5_TABLE
+        camber_pct = table[p_digit][0] * 100
+        camber_type = "reflexed (Q=1)" if q_digit == 1 else "standard (Q=0)"
         print(f"\n NACA {naca_code} airfoil generated successfully.")
         print(f"   Design CL:       {design_cl:.2f}  (L={l_digit})")
+        print(f"   Camber type:     {camber_type}")
         print(f"   Max camber at:   {camber_pct:.1f}%  chord  (P={p_digit})")
         print(f"   Thickness:       {int(naca_code[3:])}%")
         print(f"   Chord:           {chord} mm")
