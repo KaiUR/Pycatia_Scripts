@@ -1,17 +1,24 @@
 # Pycatia Scripts
 
-A collection of [PyCATIA](https://github.com/evereux/pycatia) scripts for automating CATIA V5, designed to be used with [CatiaMenuWin32](https://github.com/KaiUR/CatiaMenuWin32) — a native Windows launcher that syncs and runs these scripts directly from this repository.
+A collection of [PyCATIA](https://github.com/evereux/pycatia) scripts for automating CATIA V5. Each script runs standalone and can be launched from the terminal or directly from the scripts folder — no launcher required. [CatiaMenuWin32](https://github.com/KaiUR/CatiaMenuWin32) is an optional native Windows launcher that syncs and presents these scripts as clickable buttons.
 
 ## 📋 Requirements
 
 **Python:** 3.9+
 
 **Packages:**
+
+Run the included setup script:
 ```
-pip install pycatia wxPython xlsxwriter
+setup\setup.bat
 ```
 
-Or use the **↓ Deps** button in CatiaMenuWin32 to install automatically.
+Or install from the included requirements file:
+```
+pip install -r setup\requirements.txt
+```
+
+Or, if using [CatiaMenuWin32](https://github.com/KaiUR/CatiaMenuWin32), use the **↓ Deps** button to install automatically.
 
 **CATIA V5** must be running before executing scripts that interact with it.
 
@@ -172,13 +179,43 @@ Or use the **↓ Deps** button in CatiaMenuWin32 to install automatically.
 
 ---
 
-## 🚀 Usage with CatiaMenuWin32
+## 🚀 Running Scripts
+
+Scripts run standalone — no launcher required.
+
+**From the terminal:**
+```
+python path\to\script.py
+```
+
+**From the CATIA Macro Manager:**
+1. In CATIA, go to **Tools → Macros → Macros...**
+2. Set the macro library path to your local copy of the scripts folder
+3. Select the script and click **Run**
+
+**Using CatiaMenuWin32 (optional):**
 
 [CatiaMenuWin32](https://github.com/KaiUR/CatiaMenuWin32) is a native Windows launcher that syncs directly from this repository and presents each script as a clickable button. No manual path setup required.
 
 1. Download [CatiaMenuWin32](https://github.com/KaiUR/CatiaMenuWin32/releases/latest)
 2. Launch the app — scripts sync automatically
 3. Click any button to run the script
+
+---
+
+## 🔄 Updating Dependencies
+
+Run the included update script to upgrade all packages to their latest versions:
+```
+setup\update.bat
+```
+
+Or run pip directly:
+```
+pip install -r setup\requirements.txt --upgrade
+```
+
+The `--upgrade` flag tells pip to check for newer versions of each package and install them, even if a version is already installed.
 
 ---
 
