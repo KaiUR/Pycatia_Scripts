@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Ellipse_Generator.py
-    Version:        1.0
+    Version:        1.1
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Generate an ellipse as a point set and closed GSD spline.
@@ -22,7 +22,7 @@
                     Catia V5 running with an open part document.
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:
+    Change:         02.06.26 1.1: Error handler updated to use ScrolledMessageDialog pattern.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -35,6 +35,7 @@ import wx
 import wx.lib.dialogs as dialogs
 import os
 import json
+import traceback
 import ctypes
 
 
@@ -314,13 +315,31 @@ if __name__ == "__main__":
         print(f"\n\n Completed\n\n")
 
     except Exception as e:
-        import traceback
-        print(f"\n Error: Ellipse generation failed: {e}")
-        print(traceback.format_exc())
+        full_traceback = traceback.format_exc()
+        print(full_traceback)
         progress.Update(4, "Error.")
-        wx.MessageBox(
-            f"Ellipse generation failed:\n\n{e}\n\n{traceback.format_exc()}",
-            "Error", wx.OK | wx.ICON_ERROR
+        error_msg = (
+            f"Error Summary: {str(e)}\n"
+            f"------------------------------------------\n"
+            f"Technical Debug Info:\n\n{full_traceback}"
         )
+        e_dlg = dialogs.ScrolledMessageDialog(None, error_msg, "Script Error")
+        error_icon  = wx.ArtProvider.GetBitmap(wx.ART_ERROR, wx.ART_MESSAGE_BOX)
+        icon_bitmap = wx.StaticBitmap(e_dlg, wx.ID_ANY, error_icon)
+        header_text = wx.StaticText(e_dlg, label="An error occurred during ellipse generation:")
+        header_font = wx.Font(10, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD)
+        header_text.SetFont(header_font)
+        main_sizer   = e_dlg.GetSizer()
+        header_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        header_sizer.Add(icon_bitmap, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 15)
+        header_sizer.Add(header_text, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
+        main_sizer.Prepend(header_sizer, 0, wx.EXPAND)
+        mono_font = wx.Font(9, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
+        e_dlg.text.SetFont(mono_font)
+        e_dlg.SetSize((600, 400))
+        e_dlg.CenterOnParent()
+        wx.CallAfter(_bring_to_front, e_dlg)
+        e_dlg.ShowModal()
+        e_dlg.Destroy()
     finally:
         progress.Destroy()

@@ -133,6 +133,7 @@ Or, if using [CatiaMenuWin32](https://github.com/KaiUR/CatiaMenuWin32), use the 
 |--------|-------------|
 | `Custom_Coordinate_Airfoil_Generator.py` | Generate a GSD point set and spline from user-supplied X Y (or X Y Z) coordinates loaded from a .dat / .csv file or pasted directly into the dialog |
 | `Ellipse_Generator.py` | Generate an ellipse as a point set and closed GSD spline from semi-major and semi-minor axes |
+| `Hole_Size_Test_Plate_Generator.py` | Generate a rectangular test plate with a grid of through-holes of incrementally increasing diameter for testing drill bits, gauges, or clearance fits |
 | `Involute_Gear_Generator_Mathamatical.py` | Generate an involute gear profile from user-defined parameters |
 | `NACA_4_Digit_Airfoil_Generator.py` | Generate a NACA 4-digit series airfoil (e.g. 0010, 2412) as a point set and closed GSD spline at a user-defined chord length and resolution |
 | `NACA_5_Digit_Airfoil_Generator.py` | Generate a NACA 5-digit series airfoil (e.g. 23012) as a point set and closed GSD spline at a user-defined chord length and resolution |

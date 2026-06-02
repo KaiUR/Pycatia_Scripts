@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Spring_Generator.py
-    Version:        1.1
+    Version:        1.2
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Generate a parametric helical spring in the active CATPart.
@@ -31,7 +31,8 @@
                     Hybrid design mode should be disabled (the script handles this automatically).
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:         1.1 - Construction geo set now created inside the spring body (not at part level).
+    Change:         02.06.26 1.2: Error handler updated to use ScrolledMessageDialog pattern.
+                    1.1 - Construction geo set now created inside the spring body (not at part level).
                           Construction geometry is hidden at the end of generation.
                           Added Closed ends option: three helices joined into a single spine;
                           solid built via GSD explicit sweep (HybridShapeSweepExplicit) + fill
@@ -53,6 +54,7 @@ import wx
 import wx.lib.dialogs as dialogs
 import os
 import json
+import traceback
 import ctypes
 
 def _bring_to_front(window):
@@ -637,13 +639,32 @@ if __name__ == "__main__":
         print(f"\n\n Completed\n\n")
 
     except Exception as e:
+        full_traceback = traceback.format_exc()
+        print(full_traceback)
         progress.Update(max_steps, "Error.")
-        import traceback
-        wx.MessageBox(
-            f"Spring generation failed:\n\n{e}\n\n{traceback.format_exc()}",
-            "Error", wx.OK | wx.ICON_ERROR
+        error_msg = (
+            f"Error Summary: {str(e)}\n"
+            f"------------------------------------------\n"
+            f"Technical Debug Info:\n\n{full_traceback}"
         )
-        print(f"Error: {e}")
+        e_dlg = dialogs.ScrolledMessageDialog(None, error_msg, "Script Error")
+        error_icon  = wx.ArtProvider.GetBitmap(wx.ART_ERROR, wx.ART_MESSAGE_BOX)
+        icon_bitmap = wx.StaticBitmap(e_dlg, wx.ID_ANY, error_icon)
+        header_text = wx.StaticText(e_dlg, label="An error occurred during spring generation:")
+        header_font = wx.Font(10, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD)
+        header_text.SetFont(header_font)
+        main_sizer   = e_dlg.GetSizer()
+        header_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        header_sizer.Add(icon_bitmap, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 15)
+        header_sizer.Add(header_text, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
+        main_sizer.Prepend(header_sizer, 0, wx.EXPAND)
+        mono_font = wx.Font(9, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
+        e_dlg.text.SetFont(mono_font)
+        e_dlg.SetSize((600, 400))
+        e_dlg.CenterOnParent()
+        wx.CallAfter(_bring_to_front, e_dlg)
+        e_dlg.ShowModal()
+        e_dlg.Destroy()
 
     finally:
         if is_hybrid:
