@@ -46,4 +46,4 @@ if __name__ == "__main__":
 
     drawing_doc.update()                                                                                             #Update all views on all sheets
 
-    print(f"\n\n Completed\n\n")
+    print("\n\n Completed\n\n")

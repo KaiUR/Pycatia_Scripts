@@ -69,7 +69,7 @@ if __name__ == "__main__":
     caa = catia()                                                                                               #Catia application instance
     part_document: PartDocument = caa.active_document                                                          #Current open document
 
-    if not type(part_document) is PartDocument:                                                                 #Check if part document
+    if type(part_document) is not PartDocument:                                                                 #Check if part document
         print("A CATPart document must be the active document.")
         exit()
 

@@ -351,14 +351,14 @@ if __name__ == "__main__":
         progress.Update(4, "Done.")
 
         waves = (x_end - x_start) / period
-        print(f"\n Sine wave generated successfully.")
+        print("\n Sine wave generated successfully.")
         print(f"   Amplitude: {amp} mm")
         print(f"   Period:    {period} mm")
         print(f"   Phase:     {phase}°")
         print(f"   X range:   {x_start} -> {x_end} mm  ({waves:.2f} cycles)")
         print(f"   Points:    {n_pts}")
         print(f"   Plane:     {planes[plane_idx]}")
-        print(f"\n\n Completed\n\n")
+        print("\n\n Completed\n\n")
 
     except Exception as e:
         full_traceback = traceback.format_exc()

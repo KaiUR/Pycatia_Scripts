@@ -240,7 +240,7 @@ if __name__ == "__main__":
                 lines.append(f"  Settings path : Updated  ->  CATSettings{suffix}")
                 print(f"  {ver} settings path: Updated -> CATSettings{suffix}")
             else:
-                lines.append(f"  Settings path : No change")
+                lines.append("  Settings path : No change")
                 print(f"  {ver} settings path: No change")
 
         if do_ttl:
@@ -252,7 +252,7 @@ if __name__ == "__main__":
                 lines.append(f"  Window title  : Updated  ->  \"{title}\"")
                 print(f"  {ver} window title : Updated -> \"{title}\"")
             else:
-                lines.append(f"  Window title  : No change")
+                lines.append("  Window title  : No change")
                 print(f"  {ver} window title : No change")
 
         lines.append("")

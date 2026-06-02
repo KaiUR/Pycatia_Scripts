@@ -362,7 +362,7 @@ if __name__ == "__main__":
 
                                     if violated:                                                                  #If limit violated
                                         violation_count = violation_count + 1                                     #Increment violation count
-                                        report_lines.append(f"*** VIOLATION ***")
+                                        report_lines.append("*** VIOLATION ***")
                                         report_lines.append(f"  Part Op:   {part_op.name}")
                                         report_lines.append(f"  Program:   {man_prog.name}")
                                         report_lines.append(f"  Operation: {operation.name}")

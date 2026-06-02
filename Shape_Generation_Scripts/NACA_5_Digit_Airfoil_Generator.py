@@ -452,7 +452,7 @@ if __name__ == "__main__":
         print(f"   Chord:           {chord} mm")
         print(f"   Points per side: {n_pts}  ({2 * n_pts - 2} total spline points)")
         print(f"   Plane:           {planes[plane_idx]}")
-        print(f"\n\n Completed\n\n")
+        print("\n\n Completed\n\n")
 
     except Exception as e:
         full_traceback = traceback.format_exc()

@@ -386,7 +386,7 @@ if __name__ == "__main__":
         print(f"   z(t) = {expr_z}")
         print(f"   t range: {t_start:.6g} -> {t_end:.6g}")
         print(f"   Points:  {n_pts}")
-        print(f"\n\n Completed\n\n")
+        print("\n\n Completed\n\n")
 
     except Exception as e:
         full_traceback = traceback.format_exc()

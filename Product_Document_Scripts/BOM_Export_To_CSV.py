@@ -59,7 +59,7 @@ if __name__ == "__main__":
     caa = catia()                                                                                                  #Catia application instance
     active_doc = caa.active_document                                                                               #Current open document
 
-    if not type(active_doc) is ProductDocument:                                                                   #Check if product document
+    if type(active_doc) is not ProductDocument:                                                                   #Check if product document
         print("A CATProduct document must be the active document.")
         exit()
 

@@ -36,7 +36,7 @@ if __name__ == "__main__":
     caa = catia()
     active_doc = caa.active_document
 
-    if not type(active_doc) is PartDocument:
+    if type(active_doc) is not PartDocument:
         print("A CATPart document must be the active document.")
         exit()
 

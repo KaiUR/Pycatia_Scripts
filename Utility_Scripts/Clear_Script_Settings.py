@@ -90,10 +90,10 @@ if __name__ == "__main__":
 
     try:
         shutil.rmtree(SETTINGS_ROOT)
-        print(f"\n Cleared saved settings.")
+        print("\n Cleared saved settings.")
         for name in subfolders:
             print(f"   Removed: {name}")
-        print(f"\n\n Completed\n\n")
+        print("\n\n Completed\n\n")
         wx.MessageBox(
             f"All saved settings cleared.\n\n{len(subfolders)} script folder(s) removed.",
             "Done", wx.OK | wx.ICON_INFORMATION | wx.STAY_ON_TOP

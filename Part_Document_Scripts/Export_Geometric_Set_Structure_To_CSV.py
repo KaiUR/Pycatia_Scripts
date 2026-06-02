@@ -63,7 +63,7 @@ if __name__ == "__main__":
     caa = catia()                                                                                               #Catia application instance
     part_document: PartDocument = caa.active_document                                                          #Current open document
 
-    if not type(part_document) is PartDocument:                                                                 #Check if part document
+    if type(part_document) is not PartDocument:                                                                 #Check if part document
         print("A CATPart document must be the active document.")
         exit()
 
@@ -74,7 +74,7 @@ if __name__ == "__main__":
     doc_name = part_document.name.removesuffix('.CATPart')                                                      #Get document name without extension
     output_path = str(Path(doc_path).parent / (doc_name + "_Geometric_Set_Structure.csv"))                      #Build output file path
 
-    print(f"\n Exporting geometric set structure\n")
+    print("\n Exporting geometric set structure\n")
 
     try:
         with open(output_path, "w") as output_file:                                                             #Create output file
@@ -84,7 +84,7 @@ if __name__ == "__main__":
         print(f"\n\n Completed - saved to: {output_path}\n\n")
 
     except PermissionError:
-        print(f"Error: Permission denied. Is the output file already open in another program?")
+        print("Error: Permission denied. Is the output file already open in another program?")
     except IOError as e:
         print(f"Error: Could not write to file. {e}")
     except Exception as e:

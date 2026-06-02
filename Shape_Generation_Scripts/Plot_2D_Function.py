@@ -367,13 +367,13 @@ if __name__ == "__main__":
         progress.Update(4, "Done.")
 
         y_vals = [c[1] for c in coords]
-        print(f"\n Function curve generated successfully.")
+        print("\n Function curve generated successfully.")
         print(f"   f(x) = {expr}")
         print(f"   X range: {x_start} -> {x_end} mm")
         print(f"   Y range: {min(y_vals):.4f} -> {max(y_vals):.4f} mm")
         print(f"   Points:  {n_pts}")
         print(f"   Plane:   {planes[plane_idx]}")
-        print(f"\n\n Completed\n\n")
+        print("\n\n Completed\n\n")
 
     except Exception as e:
         full_traceback = traceback.format_exc()

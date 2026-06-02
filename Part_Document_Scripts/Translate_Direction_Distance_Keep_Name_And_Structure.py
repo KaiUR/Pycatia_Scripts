@@ -243,4 +243,4 @@ if __name__ == "__main__":
             hybrid_shape_factory, brep_name, direction_value, distance)
 
     part.update()                                                                                               #Final update
-    print(f"\n\n Completed\n\n")
+    print("\n\n Completed\n\n")

@@ -290,9 +290,9 @@ if __name__ == "__main__":
     sheet_com.Views.Item(1).Activate()                                                                               #Return to main view, leaving background edit mode
     caa.active_window.active_viewer.reframe()                                                                        #Zoom to fit entire sheet
 
-    print(f"  Border and title block created.")
+    print("  Border and title block created.")
     print(f"  Border:      ({bx1:.0f}, {by1:.0f}) to ({bx2:.0f}, {by2:.0f}) mm")
     print(f"  Title block: {TB_WIDTH:.0f} x {TB_HEIGHT:.0f} mm at lower-right of border")
-    print(f"\n  Named value fields: Drawn_By, Date, Approved, Scale, Sheet, Revision,")
-    print(f"  Part_Number, Material, Title, Company")
-    print(f"\n  Use Update_Title_Block_From_Properties to populate values from model properties.\n")
+    print("\n  Named value fields: Drawn_By, Date, Approved, Scale, Sheet, Revision,")
+    print("  Part_Number, Material, Title, Company")
+    print("\n  Use Update_Title_Block_From_Properties to populate values from model properties.\n")

@@ -35,7 +35,7 @@ if __name__ == "__main__":
     caa = catia()                                                                                               #Catia application instance
     part_document: PartDocument = caa.active_document                                                          #Current open document
 
-    if not type(part_document) is PartDocument:                                                                 #Check if part document
+    if type(part_document) is not PartDocument:                                                                 #Check if part document
         print("A CATPart document must be the active document.")
         exit()
 
@@ -83,7 +83,7 @@ if __name__ == "__main__":
         print(f"\n\n Completed - saved to: {output_path}\n\n")
 
     except PermissionError:
-        print(f"Error: Permission denied. Is the output file already open in another program?")
+        print("Error: Permission denied. Is the output file already open in another program?")
     except IOError as e:
         print(f"Error: Could not write to file. {e}")
     except Exception as e:

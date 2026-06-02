@@ -456,18 +456,18 @@ if __name__ == "__main__":
 
         progress.Update(4, "Done.")
 
-        print(f"\n Custom airfoil generated successfully.")
+        print("\n Custom airfoil generated successfully.")
         print(f"   Points:     {len(raw_coords)}")
         print(f"   Spline:     {'Closed' if close else 'Open'}")
         if scale > 0 and not is_3d:
             print(f"   Chord scale: {scale} mm")
         else:
-            print(f"   Scale:      Raw coordinates (no scaling)")
+            print("   Scale:      Raw coordinates (no scaling)")
         if not is_3d:
             print(f"   Plane:      {planes[plane_idx]}")
         else:
-            print(f"   Input:      3-D coordinates (plane selection ignored)")
-        print(f"\n Completed\n\n")
+            print("   Input:      3-D coordinates (plane selection ignored)")
+        print("\n Completed\n\n")
 
     except Exception as e:
         full_traceback = traceback.format_exc()

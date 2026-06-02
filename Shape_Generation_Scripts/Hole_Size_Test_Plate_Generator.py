@@ -201,16 +201,16 @@ class DataInputDialog(wx.Dialog):
             val_string = ctrl.GetValue().strip()
 
             if not val_string:
-                self.show_error(f"A required field is empty.", ctrl)
+                self.show_error("A required field is empty.", ctrl)
                 return False
 
             try:
                 val = target_type(val_string)
                 if not (val >= 0 if allow_zero else val > 0):
-                    self.show_error(f"All values must be greater than zero (Step may be zero).", ctrl)
+                    self.show_error("All values must be greater than zero (Step may be zero).", ctrl)
                     return False
             except (ValueError, TypeError):
-                self.show_error(f"Please enter a valid number.", ctrl)
+                self.show_error("Please enter a valid number.", ctrl)
                 return False
 
         # Check n_holes >= 1

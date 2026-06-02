@@ -19,6 +19,10 @@ ignore = [
     "E712",  # comparison to True/False — intentional in some cases
     "F401",  # imported but unused — pycatia imports are sometimes for side effects
     "F841",  # local variable assigned but never used — common in pycatia event handlers
+    "E701",  # multiple statements on one line — intentional brevity pattern in these scripts
+    "E721",  # type comparison style — type(x) == Foo used intentionally for exact type checks
+    "E722",  # bare except — intentional fallback pattern (except: pass) used throughout
+    "E741",  # ambiguous variable name — l/r/t/b are standard geometric coordinate names in these scripts
 ]
 
 # Exclude setup templates and utility files that aren't user scripts

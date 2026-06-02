@@ -307,12 +307,12 @@ if __name__ == "__main__":
 
         progress.Update(4, "Done.")
 
-        print(f"\n Ellipse generated successfully.")
+        print("\n Ellipse generated successfully.")
         print(f"   Semi-major axis: {a} mm")
         print(f"   Semi-minor axis: {b} mm")
         print(f"   Points:          {n_pts}")
         print(f"   Plane:           {planes[plane_idx]}")
-        print(f"\n\n Completed\n\n")
+        print("\n\n Completed\n\n")
 
     except Exception as e:
         full_traceback = traceback.format_exc()

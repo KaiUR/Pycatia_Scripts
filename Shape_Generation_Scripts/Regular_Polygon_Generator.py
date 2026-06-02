@@ -425,13 +425,13 @@ if __name__ == "__main__":
         progress.Update(5, "Done.")
 
         r_type_label = {0: "Circumradius", 1: "Inradius", 2: "Side length"}[r_type]
-        print(f"\n Regular polygon generated successfully.")
+        print("\n Regular polygon generated successfully.")
         print(f"   Sides:        {n}")
         print(f"   {r_type_label}:  {r_input} mm")
         print(f"   Circumradius: {r_circ:.4f} mm")
         print(f"   Rotation:     {rotation} deg")
         print(f"   Plane:        {plane_label}")
-        print(f"\n\n Completed\n\n")
+        print("\n\n Completed\n\n")
 
     except Exception as e:
         full_traceback = traceback.format_exc()

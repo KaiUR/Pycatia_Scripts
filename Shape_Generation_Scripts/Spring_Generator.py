@@ -619,7 +619,7 @@ if __name__ == "__main__":
 
         if closed_ends:
             main_pitch_display = (free_length - 2.0 * wire_d) / num_coils
-            print(f"\n\n Spring generated successfully (closed ends).")
+            print("\n\n Spring generated successfully (closed ends).")
             print(f"   Wire diameter:    {wire_d} mm")
             print(f"   Coil diameter:    {coil_d} mm  (mean)")
             print(f"   Free length:      {free_length} mm")
@@ -628,7 +628,7 @@ if __name__ == "__main__":
             print(f"   End coil pitch:   {wire_d} mm  (touching)")
             print(f"   Winding:          {'Clockwise' if clockwise else 'Counterclockwise'}")
         else:
-            print(f"\n\n Spring generated successfully.")
+            print("\n\n Spring generated successfully.")
             print(f"   Wire diameter:  {wire_d} mm")
             print(f"   Coil diameter:  {coil_d} mm  (mean)")
             print(f"   Free length:    {free_length} mm")
@@ -636,7 +636,7 @@ if __name__ == "__main__":
             print(f"   Pitch:          {free_length / num_coils:.4f} mm")
             print(f"   Winding:        {'Clockwise' if clockwise else 'Counterclockwise'}")
 
-        print(f"\n\n Completed\n\n")
+        print("\n\n Completed\n\n")
 
     except Exception as e:
         full_traceback = traceback.format_exc()

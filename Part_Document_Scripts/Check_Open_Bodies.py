@@ -71,7 +71,7 @@ if __name__ == "__main__":
 
     app = wx.App(None)
 
-    if not type(active_doc) is PartDocument:
+    if type(active_doc) is not PartDocument:
         wx.MessageDialog(None, "A CATPart document must be the active document.", "Error",
                 wx.OK | wx.ICON_ERROR | wx.STAY_ON_TOP).ShowModal()
         exit()

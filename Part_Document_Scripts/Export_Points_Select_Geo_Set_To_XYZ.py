@@ -133,7 +133,7 @@ if __name__ == "__main__":
 
     if status != "Normal":                                                                                      #Check if selection was succesful
         print("Error selecting geometric set containing points.")
-        exit(1);                                                                                                #Exit
+        exit(1)                                                                                                #Exit
 
     # Get points to measure
     hb = HybridBody(part_document.selection.item(1).value.com_object)                                          #Get selected geometric set directly from selection

@@ -454,7 +454,7 @@ if __name__ == "__main__":
 
         progress.Update(4, "Done.")
 
-        print(f"\n Spline created successfully.")
+        print("\n Spline created successfully.")
         print(f"   Geometric set: {geo_name}")
         print(f"   Points:        {len(raw_coords)}")
         print(f"   Spline:        {'Closed' if close else 'Open'}")
@@ -462,8 +462,8 @@ if __name__ == "__main__":
         if not is_3d:
             print(f"   Plane:         {planes[plane_idx]}")
         else:
-            print(f"   Input:         3-D coordinates (plane selection ignored)")
-        print(f"\n Completed\n\n")
+            print("   Input:         3-D coordinates (plane selection ignored)")
+        print("\n Completed\n\n")
 
     except Exception as e:
         progress.Update(4, "Error.")

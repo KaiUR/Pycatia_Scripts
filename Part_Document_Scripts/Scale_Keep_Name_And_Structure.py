@@ -196,4 +196,4 @@ if __name__ == "__main__":
     process_hybrid_body(source_hb, output_hb, part, hybrid_shape_factory, center_ref, ratio)
 
     part.update()
-    print(f"\n\n Completed\n\n")
+    print("\n\n Completed\n\n")

@@ -166,4 +166,4 @@ if __name__ == "__main__":
             hybrid_shape_factory, center_ref, start_ref, end_ref)
 
     part.update()                                                                                               #Final update
-    print(f"\n\n Completed\n\n")
+    print("\n\n Completed\n\n")
