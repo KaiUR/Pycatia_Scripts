@@ -1,0 +1,28 @@
+# Ruff configuration for Pycatia_Scripts
+# https://docs.astral.sh/ruff/
+
+target-version = "py310"
+line-length = 140
+
+# Only check for real errors and undefined-name bugs.
+# Style and formatting rules are excluded — scripts follow their own conventions.
+[lint]
+select = [
+    "E",    # pycodestyle errors (syntax-level)
+    "F",    # pyflakes (undefined names, unused imports, redefined)
+]
+ignore = [
+    "E401",  # multiple imports on one line — used in some scripts
+    "E402",  # module-level import not at top — pycatia sometimes imported after setup
+    "E501",  # line too long — not enforced; scripts have inline comments
+    "E711",  # comparison to None — sometimes intentional in pycatia scripts
+    "E712",  # comparison to True/False — intentional in some cases
+    "F401",  # imported but unused — pycatia imports are sometimes for side effects
+    "F841",  # local variable assigned but never used — common in pycatia event handlers
+]
+
+# Exclude setup templates and utility files that aren't user scripts
+exclude = [
+    "setup/",
+    ".github/",
+]
