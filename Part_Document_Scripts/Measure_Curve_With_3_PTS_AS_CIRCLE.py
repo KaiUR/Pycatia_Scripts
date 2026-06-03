@@ -34,6 +34,9 @@
                     31.05.26
                     Remove unused coords_relative_to_axis function.
 
+                    03.06.26
+                    Fix F401: remove unused HybridShapeExtract and HybridShapePointOnCurve imports.
+
     -----------------------------------------------------------------------------------------------------------------------
 '''
 

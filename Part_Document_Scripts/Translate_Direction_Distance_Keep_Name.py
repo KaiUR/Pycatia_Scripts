@@ -23,6 +23,7 @@
                     13.05.26 1.2: Replace name-based HybridBody lookup with direct COM reference.
                     13.05.26 1.3: Recreate HybridShapeDirection inside loop — direction object is consumed on first assignment.
                     16.05.26 1.4: Fix selection prompt text; remove stale inline comment.
+                    03.06.26 1.5: Fix E701: expand single-line if name guards in create_datum to two lines.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''

@@ -26,6 +26,7 @@
                     13.05.26 1.2: Replace name-based HybridBody lookup with direct COM reference.
                     13.05.26 1.3: Recreate brep reference and HybridShapeDirection inside loop — both consumed after part.update().
                     16.05.26 1.4: Guard against in-work object being selected as source geometric set.
+                    03.06.26 1.5: Fix E701: expand single-line if name guards in create_datum to two lines.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''

@@ -24,6 +24,7 @@
                     06.05.26 1.2: Replaced with datum recreation approach - creates sorted datums
                                   then removes originals, consistent with other scripts in collection.
                     13.05.26 1.3: Replace name-based HybridBody lookup with direct COM reference.
+                    03.06.26 1.4: Fix E701: expand single-line if name guards in create_datum to two lines.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''

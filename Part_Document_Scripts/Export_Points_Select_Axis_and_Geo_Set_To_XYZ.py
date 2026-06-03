@@ -24,6 +24,7 @@
     
     Change:         13.05.26 1.1: Replace name-based HybridBody lookup with direct COM reference.
                     31.05.26 1.2: Pass part and spa_workbench explicitly to coords_relative_to_axis.
+                    03.06.26 1.3: Fix E712: replace == False comparison with not found.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''

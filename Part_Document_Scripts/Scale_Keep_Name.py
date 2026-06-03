@@ -22,6 +22,7 @@
     -----------------------------------------------------------------------------------------------------------------------
 
     Change:         16.05.26 1.1: Fix scale creation — use hybrid_shape_factory.add_new_hybrid_scaling() instead of com_object.AddNewScaling().
+                    03.06.26 1.2: Fix E701: expand single-line if name guards in create_datum to two lines.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
