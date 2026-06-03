@@ -24,9 +24,7 @@
 
 #Imports
 from pycatia import catia, CatWorkModeType
-from pycatia.mec_mod_interfaces.part_document import PartDocument
 from pycatia.product_structure_interfaces.product_document import ProductDocument
-from pathlib import Path
 import sys
 
 if __name__ == "__main__":

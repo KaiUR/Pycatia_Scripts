@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Mirror_Keep_Name.py
-    Version:        1.2
+    Version:        1.3
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Mirrors hybrid shapes while keeping the names.
@@ -20,6 +20,7 @@
 
     Change:         13.05.26 1.1: Replace name-based HybridBody lookup with direct COM reference.
                     13.05.26 1.2: Changes it to use of selection.reference so script works with generic planes too.
+                    03.06.26 1.3: Fix E701: expand single-line if name guards in create_datum to two lines.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -34,23 +35,28 @@ def create_datum(hybrid_shape_factory, hybrid_shape, hybrid_body, name=None):
 
     if geo_type == 1:                                                                                           #Point
         datum = hybrid_shape_factory.add_new_point_datum(hybrid_shape)
-        if name: datum.name = name
+        if name:
+            datum.name = name
         hybrid_body.append_hybrid_shape(datum)
     elif geo_type == 2:                                                                                         #Curve
         datum = hybrid_shape_factory.add_new_curve_datum(hybrid_shape)
-        if name: datum.name = name
+        if name:
+            datum.name = name
         hybrid_body.append_hybrid_shape(datum)
     elif geo_type == 3:                                                                                         #Line
         datum = hybrid_shape_factory.add_new_line_datum(hybrid_shape)
-        if name: datum.name = name
+        if name:
+            datum.name = name
         hybrid_body.append_hybrid_shape(datum)
     elif geo_type == 4:                                                                                         #Circle
         datum = hybrid_shape_factory.add_new_circle_datum(hybrid_shape)
-        if name: datum.name = name
+        if name:
+            datum.name = name
         hybrid_body.append_hybrid_shape(datum)
     elif geo_type == 5:                                                                                         #Surface
         datum = hybrid_shape_factory.add_new_surface_datum(hybrid_shape)
-        if name: datum.name = name
+        if name:
+            datum.name = name
         hybrid_body.append_hybrid_shape(datum)
 
     hybrid_shape_factory.delete_object_for_datum(hybrid_shape)

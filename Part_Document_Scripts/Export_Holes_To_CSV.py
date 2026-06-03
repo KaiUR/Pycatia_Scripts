@@ -19,9 +19,7 @@
                     Catia V5 running with an open part document containing hole features.
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:         1.1 - Fixed search query sel -> all (sel searches empty selection, finds nothing).
-                          Use pycatia Hole wrapper and CatHoleType / CatHoleBottomType enums.
-                          Position now from hole.get_origin() instead of SPA CoG.
+    Change:         22.05.26 1.1: Fixed search query sel → all; use pycatia Hole wrapper and CatHoleType/CatHoleBottomType enums; position from hole.get_origin().
 
     -----------------------------------------------------------------------------------------------------------------------
 '''

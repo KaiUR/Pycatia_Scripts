@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Involute_Gear_Generator_Mathamatical.py
-    Version:        1.3
+    Version:        1.5
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Create Involute Gear
@@ -23,6 +23,8 @@
     
     Change:         10.05.26 1.1: Settings path moved to %APPDATA%\\pycatia_scripts\\<script_name>.
                     12.05.26 1.2: Dialogs raised to foreground of CATIA window; removed unused import.
+                    03.06.26 1.4: Fix E701: expand bare except: pass to two lines.
+                    03.06.26 1.5: Fix E722: replace bare except with except Exception.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -71,7 +73,8 @@ class DataInputDialog(wx.Dialog):
             try:
                 with open(SETTINGS_FILE, 'r') as f:
                     defaults.update(json.load(f))
-            except: pass # Fallback to hardcoded defaults on error
+            except Exception:      # Fallback to hardcoded defaults on error
+                pass
 
         super().__init__(parent, title=title, size=(450, 580), style=wx.DEFAULT_DIALOG_STYLE | wx.STAY_ON_TOP) #Set size of dialog
         
@@ -1360,13 +1363,13 @@ if __name__ == "__main__":
             selectionSet.add(partbody)                                                                              #Select body we created
             selectionSet.delete()                                                                                   #Delete selection
             selectionSet.clear()                                                                                    #Clear selection
-        except:
+        except Exception:
             pass                                                                                                    #If delete fails, at least try the rest of the cleanup
 
         if return_hybrid:                                                                                           #If hybrid desgin was turned off
             try:
                 part_infa.com_object.HybridDesignMode = True                                                        #Turn hybrid desgin back on
-            except:
+            except Exception:
                 pass                                                                                                #Could not restore settings
         
         full_traceback = traceback.format_exc()
@@ -1412,7 +1415,7 @@ if __name__ == "__main__":
         
         try:
             part.update()                                                                                           #Update part
-        except:
+        except Exception:
             pass                                                                                                    #Could not update part
         
         exit()                                                                                                      #Exit Script

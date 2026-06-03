@@ -27,7 +27,6 @@
 #Imports
 from pycatia import catia
 from pycatia.drafting_interfaces.drawing_document import DrawingDocument
-from pathlib import Path
 import wx
 import wx.lib.dialogs
 import ctypes

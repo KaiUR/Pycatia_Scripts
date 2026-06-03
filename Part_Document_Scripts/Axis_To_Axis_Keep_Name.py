@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Axis_To_Axis_Keep_Name.py
-    Version:        1.2
+    Version:        1.4
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Moves hybrid shapes from axis to axis while keeping the names.
@@ -20,13 +20,14 @@
     -----------------------------------------------------------------------------------------------------------------------
     
     Change:         16.05.26 1.2: Remove unused import wx.
+                    03.06.26 1.3: Fix E701: expand single-line if name guards in create_datum to two lines.
+                    03.06.26 1.4: Fix F401: remove unused HybridShapeAxisToAxis import.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
 
 #Imports
 from pycatia import catia
-from pycatia.hybrid_shape_interfaces.hybrid_shape_axis_to_axis import HybridShapeAxisToAxis
 from pycatia.mec_mod_interfaces.hybrid_body import HybridBody
 from pycatia.mec_mod_interfaces.part_document import PartDocument
 
@@ -35,23 +36,28 @@ def create_datum(hybrid_shape_factory, hybrid_shape, hybrid_body, name=None):
     
     if geo_type == 1:
         datum_point = hybrid_shape_factory.add_new_point_datum(hybrid_shape)
-        if name: datum_point.name = name
+        if name:
+            datum_point.name = name
         hybrid_body.append_hybrid_shape(datum_point)
     elif geo_type == 2:
         datum_curve = hybrid_shape_factory.add_new_curve_datum(hybrid_shape)
-        if name: datum_curve.name = name
+        if name:
+            datum_curve.name = name
         hybrid_body.append_hybrid_shape(datum_curve)
     elif geo_type == 3:
         datum_line = hybrid_shape_factory.add_new_line_datum(hybrid_shape)
-        if name: datum_line.name = name
+        if name:
+            datum_line.name = name
         hybrid_body.append_hybrid_shape(datum_line)
     elif geo_type == 4:
         datum_circle = hybrid_shape_factory.add_new_circle_datum(hybrid_shape)
-        if name: datum_circle.name = name
+        if name:
+            datum_circle.name = name
         hybrid_body.append_hybrid_shape(datum_circle)
     elif geo_type == 5:
         datum_surface = hybrid_shape_factory.add_new_surface_datum(hybrid_shape)
-        if name: datum_surface.name = name
+        if name:
+            datum_surface.name = name
         hybrid_body.append_hybrid_shape(datum_surface)
     
     hybrid_shape_factory.delete_object_for_datum(hybrid_shape)

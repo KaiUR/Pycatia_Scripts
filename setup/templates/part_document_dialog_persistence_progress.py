@@ -30,7 +30,6 @@
 #Imports
 from pycatia import catia
 from pycatia.mec_mod_interfaces.part_document import PartDocument
-from pathlib import Path
 import wx
 import wx.lib.dialogs
 import os
@@ -108,7 +107,8 @@ def create_datum(hybrid_shape_factory, hybrid_shape, hybrid_body, name=None):
         print(f"  Warning: unsupported geometry type ({geo_type}) for '{name}' — skipped")
         return
 
-    if name: datum.name = name                                                                                 #Apply name if given
+    if name:                                                                                                   #Apply name if given
+        datum.name = name
     hybrid_body.append_hybrid_shape(datum)                                                                     #Add datum to geometric set
     hybrid_shape_factory.delete_object_for_datum(hybrid_shape)                                                 #Remove the original construction shape
 
@@ -125,7 +125,7 @@ class ScriptDialog(wx.Dialog):
             try:
                 with open(SETTINGS_FILE, 'r') as f:
                     defaults.update(json.load(f))
-            except:
+            except Exception:
                 pass                                                                                           #Fall back to hardcoded defaults on error
 
         super().__init__(parent, title=title, style=wx.DEFAULT_DIALOG_STYLE | wx.STAY_ON_TOP)

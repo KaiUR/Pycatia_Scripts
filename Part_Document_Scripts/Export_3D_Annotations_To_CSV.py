@@ -21,8 +21,7 @@
                     CATIA FTA (3D Tolerancing & Annotation) workbench licence recommended.
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:         1.1 - Use pycatia Annotation wrapper throughout: annotation.type for type string,
-                          annotation.text().text for text content. Replaced raw COM guesswork.
+    Change:         22.05.26 1.1: Use pycatia Annotation wrapper throughout; replaced raw COM access.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''

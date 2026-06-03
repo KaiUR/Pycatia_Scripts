@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Hole_Size_Test_Plate_Generator.py
-    Version:        1.0
+    Version:        1.3
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Generate a rectangular test plate with a grid of incrementally sized through-holes.
@@ -23,7 +23,9 @@
                     Hybrid design should be disabled; the script will temporarily disable it if it is on.
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:
+    Change:         03.06.26 1.1: Fix E741: rename l to length; fix E701: expand single-line if guard.
+                    03.06.26 1.2: Fix F401: remove CatConstraintMode; fix F841: remove unused name variable; fix E701: expand bare except: pass.
+                    03.06.26 1.3: Fix E722: replace bare except with except Exception.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -39,7 +41,6 @@ import wx.lib.dialogs as dialogs
 from pycatia import catia
 from pycatia.mec_mod_interfaces.part_document import PartDocument
 from pycatia import CatConstraintType
-from pycatia import CatConstraintMode
 from pycatia import CatHoleType
 from pycatia import CatLimitMode
 from pycatia import CatPrismOrientation
@@ -76,7 +77,8 @@ class DataInputDialog(wx.Dialog):
             try:
                 with open(SETTINGS_FILE, 'r') as f:
                     defaults.update(json.load(f))
-            except: pass                                                                                                 # Fallback to hardcoded defaults on error
+            except Exception:                                                                                            # Fallback to hardcoded defaults on error
+                pass
 
         super().__init__(parent, title=title, style=wx.DEFAULT_DIALOG_STYLE | wx.STAY_ON_TOP)
 
@@ -154,15 +156,16 @@ class DataInputDialog(wx.Dialog):
     def _update_info(self):
         try:
             w    = float(self.width.GetValue())
-            l    = float(self.length.GetValue())
+            length = float(self.length.GetValue())
             n    = int(self.n_holes.GetValue())
             sd   = float(self.start_dia.GetValue())
             st   = float(self.step.GetValue())
-            if w <= 0 or l <= 0 or n <= 0 or sd <= 0: raise ValueError
+            if w <= 0 or length <= 0 or n <= 0 or sd <= 0:
+                raise ValueError
             cols = math.ceil(math.sqrt(n))
             rows = math.ceil(n / cols)
             cell_w = w / cols
-            cell_h = l / rows
+            cell_h = length / rows
             max_d = sd + (n - 1) * st
             fit = min(cell_w, cell_h)
             fit_pct = (max_d / fit * 100) if fit > 0 else 0
@@ -172,7 +175,7 @@ class DataInputDialog(wx.Dialog):
                     f"Diameters:  {sd:.2f} mm → {max_d:.2f} mm\n"
                     f"Fit:        {fit_pct:.0f}% of cell  [{status}]")
             self.info_text.SetLabel(info)
-        except:
+        except Exception:
             self.info_text.SetLabel("(enter valid values to see grid preview)")
         self.Layout()
         self.Fit()
@@ -198,7 +201,6 @@ class DataInputDialog(wx.Dialog):
 
     def Validate(self):
         for ctrl, target_type in self.numeric_fields:
-            name = ctrl.GetToolTip().GetTip().split("(")[0].strip() if ctrl.GetToolTip() else "Field"
             allow_zero = (ctrl == self.step)
             val_string = ctrl.GetValue().strip()
 
@@ -241,7 +243,7 @@ class DataInputDialog(wx.Dialog):
         # Grid fit check
         try:
             w  = float(self.width.GetValue())
-            l  = float(self.length.GetValue())
+            length = float(self.length.GetValue())
             n  = int(self.n_holes.GetValue())
             sd = float(self.start_dia.GetValue())
             st = float(self.step.GetValue())
@@ -249,7 +251,7 @@ class DataInputDialog(wx.Dialog):
             cols   = math.ceil(math.sqrt(n))
             rows   = math.ceil(n / cols)
             cell_w = w / cols
-            cell_h = l / rows
+            cell_h = length / rows
             max_d  = sd + (n - 1) * abs(st) if st >= 0 else sd                                                          # Largest diameter
             fit    = min(cell_w, cell_h)
 
@@ -572,13 +574,13 @@ if __name__ == "__main__":
             selectionSet.add(partbody)                                                                                   # Select body we created
             selectionSet.delete()                                                                                        # Delete selection
             selectionSet.clear()                                                                                         # Clear selection
-        except:
+        except Exception:
             pass                                                                                                         # If delete fails, continue with cleanup
 
         if return_hybrid:                                                                                                 # Restore hybrid design if needed
             try:
                 part_infa.com_object.HybridDesignMode = True
-            except:
+            except Exception:
                 pass
 
         full_traceback = traceback.format_exc()
@@ -617,7 +619,7 @@ if __name__ == "__main__":
 
         try:
             part.update()                                                                                                # Attempt to clean up partial state
-        except:
+        except Exception:
             pass
 
         exit()                                                                                                           # Exit script

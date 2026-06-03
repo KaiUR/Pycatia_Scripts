@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Create_Drawing_Border_And_Title_Block_With_Values.py
-    Version:        1.0
+    Version:        1.1
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Create a new CATDrawing with an ISO border, title block, and user-entered values.
@@ -24,7 +24,7 @@
                     Catia V5 running.
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:
+    Change:         03.06.26 1.1: Fix E741: rename ambiguous variable l to left in _draw_title_block.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -191,9 +191,9 @@ def _draw_border(factory, w, h):
 
 
 def _draw_title_block(factory, view_com, bx1, by1, bx2, by2, values):
-    r  = bx2
-    l  = r - TB_WIDTH
-    b  = by1
+    r    = bx2
+    left = r - TB_WIDTH
+    b    = by1
 
     rows = [
         b,
@@ -206,53 +206,53 @@ def _draw_title_block(factory, view_com, bx1, by1, bx2, by2, values):
 
     vy = [rows[i] + (rows[i + 1] - rows[i]) * 0.3 for i in range(5)]
 
-    _line(factory, l, rows[0], r, rows[0])
+    _line(factory, left, rows[0], r, rows[0])
     _line(factory, r, rows[0], r, rows[5])
-    _line(factory, r, rows[5], l, rows[5])
-    _line(factory, l, rows[5], l, rows[0])
+    _line(factory, r, rows[5], left, rows[5])
+    _line(factory, left, rows[5], left, rows[0])
 
     for y in rows[1:5]:
-        _line(factory, l, y, r, y)
+        _line(factory, left, y, r, y)
 
-    c0 = l + TB_WIDTH / 3
-    c1 = l + 2 * TB_WIDTH / 3
+    c0 = left + TB_WIDTH / 3
+    c1 = left + 2 * TB_WIDTH / 3
 
     _line(factory, c0, rows[0], c0, rows[1])
     _line(factory, c1, rows[0], c1, rows[1])
 
-    _label(view_com, "DRAWN BY:",  l  + 1, rows[1] - 1)
-    _label(view_com, "DATE:",      c0 + 1, rows[1] - 1)
-    _label(view_com, "APPROVED:",  c1 + 1, rows[1] - 1)
+    _label(view_com, "DRAWN BY:",  left + 1, rows[1] - 1)
+    _label(view_com, "DATE:",      c0 + 1,   rows[1] - 1)
+    _label(view_com, "APPROVED:",  c1 + 1,   rows[1] - 1)
 
-    _value(view_com, "Drawn_By",  l  + 1, vy[0], initial=values.get("Drawn_By",  ""))
-    _value(view_com, "Date",      c0 + 1, vy[0], initial=values.get("Date",      ""))
-    _value(view_com, "Approved",  c1 + 1, vy[0], initial=values.get("Approved",  ""))
+    _value(view_com, "Drawn_By",  left + 1, vy[0], initial=values.get("Drawn_By",  ""))
+    _value(view_com, "Date",      c0 + 1,   vy[0], initial=values.get("Date",      ""))
+    _value(view_com, "Approved",  c1 + 1,   vy[0], initial=values.get("Approved",  ""))
 
     _line(factory, c0, rows[1], c0, rows[2])
     _line(factory, c1, rows[1], c1, rows[2])
 
-    _label(view_com, "SCALE:",    l  + 1, rows[2] - 1)
-    _label(view_com, "SHEET:",    c0 + 1, rows[2] - 1)
-    _label(view_com, "REVISION:", c1 + 1, rows[2] - 1)
+    _label(view_com, "SCALE:",    left + 1, rows[2] - 1)
+    _label(view_com, "SHEET:",    c0 + 1,   rows[2] - 1)
+    _label(view_com, "REVISION:", c1 + 1,   rows[2] - 1)
 
-    _value(view_com, "Scale",    l  + 1, vy[1], initial=values.get("Scale",    ""))
-    _value(view_com, "Sheet",    c0 + 1, vy[1], initial=values.get("Sheet",    ""))
-    _value(view_com, "Revision", c1 + 1, vy[1], initial=values.get("Revision", ""))
+    _value(view_com, "Scale",    left + 1, vy[1], initial=values.get("Scale",    ""))
+    _value(view_com, "Sheet",    c0 + 1,   vy[1], initial=values.get("Sheet",    ""))
+    _value(view_com, "Revision", c1 + 1,   vy[1], initial=values.get("Revision", ""))
 
-    mid = l + 2 * TB_WIDTH / 3
+    mid = left + 2 * TB_WIDTH / 3
     _line(factory, mid, rows[2], mid, rows[3])
 
-    _label(view_com, "PART NUMBER:", l   + 1, rows[3] - 1)
-    _label(view_com, "MATERIAL:",    mid + 1, rows[3] - 1)
+    _label(view_com, "PART NUMBER:", left + 1, rows[3] - 1)
+    _label(view_com, "MATERIAL:",    mid + 1,  rows[3] - 1)
 
-    _value(view_com, "Part_Number", l   + 1, vy[2], initial=values.get("Part_Number", ""))
-    _value(view_com, "Material",    mid + 1, vy[2], initial=values.get("Material",    ""))
+    _value(view_com, "Part_Number", left + 1, vy[2], initial=values.get("Part_Number", ""))
+    _value(view_com, "Material",    mid + 1,  vy[2], initial=values.get("Material",    ""))
 
-    _label(view_com, "TITLE:", l + 1, rows[4] - 1)
-    _value(view_com, "Title",  l + 1, vy[3], size=5.0, initial=values.get("Title", ""))
+    _label(view_com, "TITLE:", left + 1, rows[4] - 1)
+    _value(view_com, "Title",  left + 1, vy[3], size=5.0, initial=values.get("Title", ""))
 
     _value(view_com, "Company",
-           l + TB_WIDTH / 2,
+           left + TB_WIDTH / 2,
            (rows[4] + rows[5]) / 2,
            size=5.0,
            anchor=CatTextAnchorPosition.catMiddleCenter,

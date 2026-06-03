@@ -22,8 +22,7 @@
                     Catia V5 running with an open CATProduct document.
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:         1.1 - Moved CreateButtonSizer to dialog-level sizer so buttons are
-                          correctly parented to the dialog (wx assertion fix).
+    Change:         22.05.26 1.1: Moved CreateButtonSizer to dialog-level sizer so buttons are correctly parented to the dialog.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''

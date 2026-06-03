@@ -17,8 +17,7 @@
                     This script needs an open part document.
     -----------------------------------------------------------------------------------------------------------------------
     
-    Change:         19.03.26
-                    Modified script to work when there is a process or procuct open containing a part.
+    Change:         19.03.26 1.1: Modified script to work when there is a process or product open containing a part.
     
     -----------------------------------------------------------------------------------------------------------------------
 '''

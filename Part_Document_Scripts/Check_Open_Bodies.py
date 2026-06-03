@@ -22,8 +22,7 @@
                     Catia V5 running with an open part document.
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:         1.1 - Fixed meas.volume (snake_case). Converted m³→mm³ (×1e9) for display.
-                          Replaced print output with custom ResultDialog (TE_DONTWRAP, resizable).
+    Change:         22.05.26 1.1: Fixed meas.volume (snake_case); converted m³→mm³ for display; replaced print output with custom ResultDialog.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''

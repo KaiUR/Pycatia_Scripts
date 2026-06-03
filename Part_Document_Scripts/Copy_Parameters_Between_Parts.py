@@ -22,9 +22,7 @@
                     Catia V5 running with at least two open CATPart documents.
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:         1.1 - Fixed AddMany tuple syntax (positional flags, not keyword args).
-                          Moved CreateButtonSizer to dialog-level sizer so buttons are
-                          correctly parented to the dialog.
+    Change:         22.05.26 1.1: Fixed AddMany tuple syntax; moved CreateButtonSizer to dialog-level sizer.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''

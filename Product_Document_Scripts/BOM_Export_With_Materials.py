@@ -21,9 +21,7 @@
                     Catia V5 running with an open CATProduct document.
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:         1.1 - Replaced non-existent analyze.material_name with MaterialManager
-                          via part.get_item("CATMatManagerVBExt"). Checks part-level material
-                          first then main body; labels result "(Part)" or "(Body)".
+    Change:         22.05.26 1.1: Replaced non-existent analyze.material_name with MaterialManager; checks part-level material then main body.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''

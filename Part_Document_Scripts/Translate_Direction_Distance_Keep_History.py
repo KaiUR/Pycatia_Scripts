@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Translate_Direction_Distance_Keep_History.py
-    Version:        1.0
+    Version:        1.1
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Moves hybrid shapes with translate while keeping the names and parametric history.
@@ -21,7 +21,7 @@
                     This script needs an open part document.
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:
+    Change:         03.06.26 1.1: Fix E722: replace bare except with except Exception.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -93,7 +93,7 @@ if __name__ == "__main__":
         brep_name = f"{brep_core});WithPermanentBody;WithoutBuildError;WithSelectingFeatureSupport;MFBRepVersion_CXR29)"#Build bref string to create reference
         direction_value = selectionSet.item(1).value                                                               #Store direction context object before loop
         direction_ref = part.create_reference_from_b_rep_name(brep_name, direction_value)                          #Validate brep is parseable
-    except:
+    except Exception:
         print("You must select a face or line of an axis system as direction")
         exit()
 

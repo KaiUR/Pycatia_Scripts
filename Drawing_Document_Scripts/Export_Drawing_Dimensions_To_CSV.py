@@ -19,8 +19,7 @@
                     Catia V5 running with an open CATDrawing document.
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:         1.1 - Replaced hardcoded DIM_TYPES dict with CatDimType enum lookup (pycatia.enumeration.enums).
-                        Fixes incorrect type labels for indices 3-9 and adds coverage for all 21 enum values (0-20).
+    Change:         22.05.26 1.1: Replaced hardcoded DIM_TYPES dict with CatDimType enum lookup; fixes incorrect type labels for indices 3-9 and adds coverage for all 21 enum values.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''

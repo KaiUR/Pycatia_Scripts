@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Measure_Radius_Surface_Keep_Con.py
-    Version:        1.6
+    Version:        1.8
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Measures surface by adding curves and adding three points and gives a diamiter.
@@ -18,36 +18,22 @@
                     This script needs an open part document.
     -----------------------------------------------------------------------------------------------------------------------
     
-    Change:         19.03.26
-                    Modified script to work when there is a process or procuct open containing a part.
-                    
-        
-                    30.04.26
-                    Fixed skript always saying something is colinear.
-
-                    16.05.26
-                    Updated point creation to single extremum anchor approach. Collinear check now
-                    measures datum points directly without requiring a user axis system.
-                    
-                    18.05.26
-                    Refactor and added proper delete of con elements for straight lines. Changed how plane is created.
-
-                    18.05.26
-                    Fix collinear check: normalise cross product by vector magnitudes so the test is scale-independent.
-
-                    31.05.26
-                    Remove unused coords_relative_to_axis function.
+    Change:         19.03.26 1.1: Modified script to work when there is a process or product open containing a part.
+                    30.04.26 1.2: Fixed script always saying something is collinear.
+                    16.05.26 1.3: Updated point creation to single extremum anchor approach; collinear check now measures datum points directly.
+                    18.05.26 1.4: Refactor and added proper delete of con elements for straight lines; changed how plane is created.
+                    18.05.26 1.5: Fix collinear check: normalise cross product by vector magnitudes so the test is scale-independent.
+                    31.05.26 1.6: Remove unused coords_relative_to_axis function.
+                    03.06.26 1.7: Fix syntax error: restore missing opening ''' before normalize_vector docstring; fix F401 (HybridShapeExtract, HybridShapePointOnCurve).
+                    03.06.26 1.8: Fix F401: remove unused Part and time imports.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
 
 #Imports
 from pycatia import catia
-from pycatia.hybrid_shape_interfaces.hybrid_shape_extract import HybridShapeExtract
-from pycatia.hybrid_shape_interfaces.hybrid_shape_point_on_curve import HybridShapePointOnCurve
 from pycatia.mec_mod_interfaces.part_document import PartDocument
-from pycatia.mec_mod_interfaces.part import Part
-import time
+
 '''
     This function will return a noralized vector
     

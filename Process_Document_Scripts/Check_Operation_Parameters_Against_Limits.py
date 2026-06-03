@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Check_Operation_Parameters_Against_Limits.py
-    Version:        1.4
+    Version:        1.5
     Code:           Python3.10.4, Pycatia 0.9.5
     Release:        V5R32
     Purpose:        Check all operation parameters against configurable min and max limits and flag any violations.
@@ -30,6 +30,7 @@
                     10.05.26 1.2: Limits are now configured via a dialog box with saved settings.
                     10.05.26 1.3: Settings path moved to %APPDATA%\pycatia_scripts\<script_name>.
                     12.05.26 1.4: Dialogs raised to foreground of CATIA window.
+                    03.06.26 1.5: Fix E722: replace bare except with except Exception.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -88,7 +89,7 @@ class LimitsDialog(wx.Dialog):
                 for param in defaults:
                     if param in saved:
                         defaults[param].update(saved[param])
-            except:
+            except Exception:
                 pass
 
         super().__init__(parent, title=title, size=(560, 370), style=wx.DEFAULT_DIALOG_STYLE | wx.STAY_ON_TOP)
@@ -346,7 +347,7 @@ if __name__ == "__main__":
                                                         t_parmeter_index + 1).value_as_string()                  #Get value string
                                                 val = float(val_str.replace("mm", "").replace("deg", "").strip()) #Parse numeric value
                                                 found_params[param_name] = val                                    #Store found value
-                                            except:
+                                            except Exception:
                                                 pass                                                              #Skip if value cannot be parsed
 
                                 for param_name, value in found_params.items():                                    #Check each found parameter against limits

@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Rename_Operations_From_Tool_Name.py
-    Version:        1.0
+    Version:        1.1
     Code:           Python3.10.4, Pycatia 0.9.5
     Release:        V5R32
     Purpose:        Automatically rename each operation in a process program to match the assigned tool name.
@@ -22,7 +22,7 @@
                     This script needs an open process document.
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:
+    Change:         03.06.26 1.1: Fix E722: replace bare except with except Exception.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -77,7 +77,7 @@ if __name__ == "__main__":
                                 try:
                                     tool = activity_item.resources.item(1)                                      #Get tool resource
                                     current_tool_name = tool.name.split("(")[0].strip()                         #Get tool name, strip extra info
-                                except:
+                                except Exception:
                                     current_tool_name = None                                                    #If no resource, clear tool name
 
                             elif activity_item.type in ("Start", "Stop"):                                       #Skip Start and Stop activities

@@ -22,7 +22,7 @@
                     Catia V5 running with an open CATProduct document.
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:         1.1 - Replaced print output with wx ResultDialog / MessageDialog.
+    Change:         22.05.26 1.1: Replaced print output with wx ResultDialog / MessageDialog.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''

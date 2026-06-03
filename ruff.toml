@@ -12,21 +12,11 @@ select = [
     "F",    # pyflakes (undefined names, unused imports, redefined)
 ]
 ignore = [
-    "E401",  # multiple imports on one line — used in some scripts
-    "E402",  # module-level import not at top — pycatia sometimes imported after setup
     "E501",  # line too long — not enforced; scripts have inline comments
-    "E711",  # comparison to None — sometimes intentional in pycatia scripts
-    "E712",  # comparison to True/False — intentional in some cases
-    "F401",  # imported but unused — pycatia imports are sometimes for side effects
-    "F841",  # local variable assigned but never used — common in pycatia event handlers
-    "E701",  # multiple statements on one line — intentional brevity pattern in these scripts
-    "E721",  # type comparison style — type(x) == Foo used intentionally for exact type checks
-    "E722",  # bare except — intentional fallback pattern (except: pass) used throughout
-    "E741",  # ambiguous variable name — l/r/t/b are standard geometric coordinate names in these scripts
 ]
 
 # Exclude setup templates and utility files that aren't user scripts
 exclude = [
-    "setup/",
-    ".github/",
+    "setup",
+    ".github",
 ]

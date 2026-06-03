@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Create_ISM_OSM_STEP_Files.py
-    Version:        1.0
+    Version:        1.1
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Create two step files, with ISM and OSM surfaces.
@@ -20,15 +20,13 @@
                     This script needs an open part document.
     -----------------------------------------------------------------------------------------------------------------------
     
-    Change:
-    
+    Change:         03.06.26 1.1: Fix F401: remove unused HybridShapeExtract and HybridShapeSurfaceExplicit imports.
+
     -----------------------------------------------------------------------------------------------------------------------
 '''
 
 #Imports
 from pycatia import catia
-from pycatia.hybrid_shape_interfaces.hybrid_shape_extract import HybridShapeExtract
-from pycatia.hybrid_shape_interfaces.hybrid_shape_surface_explicit import HybridShapeSurfaceExplicit
 from pycatia.mec_mod_interfaces.part_document import PartDocument
 
 if __name__ == "__main__":

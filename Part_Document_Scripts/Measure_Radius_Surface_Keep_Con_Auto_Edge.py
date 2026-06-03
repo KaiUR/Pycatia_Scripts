@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Measure_Radius_Surface_Keep_Con_Auto_Edge.py
-    Version:        1.3
+    Version:        1.6
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Measures the radius of all border edges of a selected surface face.
@@ -22,27 +22,21 @@
                     This script needs an open part document.
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:         18.05.26
-                    Fix collinear check: normalise cross product by vector magnitudes so the test is scale-independent.
-
-                    18.05.26
-                    Replace extremum-anchor point placement with add_new_point_on_curve_from_percent — fixes points
-                    collapsing to one location on edges where the extremum landed at the curve end.
-
-                    31.05.26
-                    Remove unused coords_relative_to_axis function.
+    Change:         18.05.26 1.1: Fix collinear check: normalise cross product by vector magnitudes so the test is scale-independent.
+                    18.05.26 1.2: Replace extremum-anchor point placement with add_new_point_on_curve_from_percent.
+                    31.05.26 1.3: Remove unused coords_relative_to_axis function.
+                    03.06.26 1.4: Fix syntax error: restore missing opening ''' before normalize_vector docstring; fix F401 (HybridShapeExtract, HybridShapePointOnCurve).
+                    03.06.26 1.5: Fix F401: remove unused Part and time imports.
+                    03.06.26 1.6: Fix E722: replace bare except with except Exception.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
 
 #Imports
 from pycatia import catia
-from pycatia.hybrid_shape_interfaces.hybrid_shape_extract import HybridShapeExtract
-from pycatia.hybrid_shape_interfaces.hybrid_shape_point_on_curve import HybridShapePointOnCurve
 from pycatia.mec_mod_interfaces.part_document import PartDocument
-from pycatia.mec_mod_interfaces.part import Part
-import time
 import re
+
 '''
     This function will return a noralized vector
 
@@ -174,7 +168,7 @@ if __name__ == "__main__":
             try:
                 edge_ref_b = part.create_reference_from_b_rep_name(brep_core, part.find_object_by_name(f"GSMBiDim.{gsm_id}"))
                 break
-            except:
+            except Exception:
                 continue
         if edge_ref_b is None:
             continue                                                                                            #Skip indices that are not border edges

@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Translate_Direction_Distance_Keep_Name_And_Structure.py
-    Version:        1.4
+    Version:        1.6
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Translates all hybrid shapes in a geometric set while keeping names and structure.
@@ -26,6 +26,8 @@
                     13.05.26 1.2: Replace name-based HybridBody lookup with direct COM reference.
                     13.05.26 1.3: Recreate brep reference and HybridShapeDirection inside loop — both consumed after part.update().
                     16.05.26 1.4: Guard against in-work object being selected as source geometric set.
+                    03.06.26 1.5: Fix E701: expand single-line if name guards in create_datum to two lines.
+                    03.06.26 1.6: Fix E722: replace bare except with except Exception.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -69,23 +71,28 @@ def create_datum(hybrid_shape_factory, hybrid_shape, hybrid_body, name=None):
 
     if geo_type == 1:                                                                                           #Point
         datum = hybrid_shape_factory.add_new_point_datum(hybrid_shape)
-        if name: datum.name = name
+        if name:
+            datum.name = name
         hybrid_body.append_hybrid_shape(datum)
     elif geo_type == 2:                                                                                         #Curve
         datum = hybrid_shape_factory.add_new_curve_datum(hybrid_shape)
-        if name: datum.name = name
+        if name:
+            datum.name = name
         hybrid_body.append_hybrid_shape(datum)
     elif geo_type == 3:                                                                                         #Line
         datum = hybrid_shape_factory.add_new_line_datum(hybrid_shape)
-        if name: datum.name = name
+        if name:
+            datum.name = name
         hybrid_body.append_hybrid_shape(datum)
     elif geo_type == 4:                                                                                         #Circle
         datum = hybrid_shape_factory.add_new_circle_datum(hybrid_shape)
-        if name: datum.name = name
+        if name:
+            datum.name = name
         hybrid_body.append_hybrid_shape(datum)
     elif geo_type == 5:                                                                                         #Surface
         datum = hybrid_shape_factory.add_new_surface_datum(hybrid_shape)
-        if name: datum.name = name
+        if name:
+            datum.name = name
         hybrid_body.append_hybrid_shape(datum)
     else:                                                                                                       #Unknown type
         print(f"  Warning: unsupported geometry type ({geo_type}) for '{name}' - skipped")
@@ -183,7 +190,7 @@ if __name__ == "__main__":
         brep_name = f"{brep_core});WithPermanentBody;WithoutBuildError;WithSelectingFeatureSupport;MFBRepVersion_CXR29)" #Build brep string to create reference
         direction_value = selectionSet.item(1).value                                                            #Store direction context object — stable across updates
         part.create_reference_from_b_rep_name(brep_name, direction_value)                                      #Validate brep is parseable
-    except:
+    except Exception:
         print("You must select a face or line of an axis system as direction")
         exit()
 
