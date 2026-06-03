@@ -15,7 +15,7 @@ Excluded paths:
 import os
 import sys
 
-REQUIRED_FIELDS = ["Script name:", "Version:", "Purpose:", "Author:", "Date:"]
+REQUIRED_FIELDS = ["Script name:", "Version:", "Purpose:", "Author:", "Date:", "Change:"]
 
 EXCLUDE_DIRS = {"setup"}
 

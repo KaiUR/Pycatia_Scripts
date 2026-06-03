@@ -48,6 +48,7 @@ from pycatia.hybrid_shape_interfaces.hybrid_shape_point_on_curve import HybridSh
 from pycatia.mec_mod_interfaces.part_document import PartDocument
 from pycatia.mec_mod_interfaces.part import Part
 import time
+'''
     This function will return a noralized vector
     
     Inputs:

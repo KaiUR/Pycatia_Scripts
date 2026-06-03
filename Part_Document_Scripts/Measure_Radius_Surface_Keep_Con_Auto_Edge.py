@@ -43,6 +43,7 @@ from pycatia.mec_mod_interfaces.part_document import PartDocument
 from pycatia.mec_mod_interfaces.part import Part
 import time
 import re
+'''
     This function will return a noralized vector
 
     Inputs:
