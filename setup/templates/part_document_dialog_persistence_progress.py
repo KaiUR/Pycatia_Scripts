@@ -125,7 +125,7 @@ class ScriptDialog(wx.Dialog):
             try:
                 with open(SETTINGS_FILE, 'r') as f:
                     defaults.update(json.load(f))
-            except:
+            except Exception:
                 pass                                                                                           #Fall back to hardcoded defaults on error
 
         super().__init__(parent, title=title, style=wx.DEFAULT_DIALOG_STYLE | wx.STAY_ON_TOP)

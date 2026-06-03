@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Export_Tool_List_From_Process.py
-    Version:        1.0
+    Version:        1.1
     Code:           Python3.10.4, Pycatia 0.9.5
     Release:        V5R32
     Purpose:        Export all cutting tools from a process document to an Excel file.
@@ -23,7 +23,7 @@
                     This script needs an open process document.
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:
+    Change:         03.06.26 1.1: Fix E722: replace bare except with except Exception.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -108,7 +108,7 @@ if __name__ == "__main__":
                                         worksheet.write(row, 2, part_op.name, line_format_1)                    #Write part operation name
                                         worksheet.write(row, 3, man_prog.name, line_format_1)                   #Write program name
                                         row = row + 1                                                           #Increment row
-                                except:
+                                except Exception:
                                     pass                                                                        #Skip tool changes with no resource
 
     worksheet.autofit()                                                                                         #Autofit sheet

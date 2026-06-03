@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Export_All_Parameters_To_CSV.py
-    Version:        1.0
+    Version:        1.1
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Export all parameters from the active part to a CSV file.
@@ -20,7 +20,7 @@
                     This script needs an open part document.
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:
+    Change:         03.06.26 1.1: Fix E722: replace bare except with except Exception.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -63,7 +63,7 @@ if __name__ == "__main__":
                 
                 try:
                     param_value = param.value_as_string()                                                       #Get value as string
-                except:
+                except Exception:
                     param_value = ""                                                                            #If value cannot be read, leave blank
 
                 try:
@@ -74,7 +74,7 @@ if __name__ == "__main__":
                         if relation.name.find(param_name) != -1:                                                 #If relation is for this parameter
                             param_formula = relation.value                                                       #Get formula value
                             break
-                except:
+                except Exception:
                     param_formula = ""                                                                           #If formula cannot be read, leave blank
 
                 output_file.write(f"\"{param_name}\",\"{param_type}\",\"{param_value}\",\"{param_formula}\"\n") #Write parameter to file
