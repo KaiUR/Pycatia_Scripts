@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Measure_Radius_Surface_Keep_Con.py
-    Version:        1.6
+    Version:        1.7
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Measures surface by adding curves and adding three points and gives a diamiter.
@@ -43,8 +43,6 @@
 
 #Imports
 from pycatia import catia
-from pycatia.hybrid_shape_interfaces.hybrid_shape_extract import HybridShapeExtract
-from pycatia.hybrid_shape_interfaces.hybrid_shape_point_on_curve import HybridShapePointOnCurve
 from pycatia.mec_mod_interfaces.part_document import PartDocument
 from pycatia.mec_mod_interfaces.part import Part
 import time

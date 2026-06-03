@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Export_Points_Select_Axis_and_Geo_Set_To_XYZ.py
-    Version:        1.2
+    Version:        1.3
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Export points from any geometric set to an xyz file.
@@ -138,7 +138,7 @@ if __name__ == "__main__":
                 found = True                                                                                    #Axis exists
                 axis_id = chk + 1                                                                               #Set index
         
-    if found == False:                                                                                          #Axis does not exist, script assumes axis is in std spot, not in geo set.
+    if not found:                                                                                               #Axis does not exist, script assumes axis is in std spot, not in geo set.
         print("Error: invalid selection for axis system. Please ensure axis system is not in a geometric set.")
         exit(1)                                                                                                #Exit
         

@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Axis_To_Axis_Keep_Name.py
-    Version:        1.2
+    Version:        1.3
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Moves hybrid shapes from axis to axis while keeping the names.
@@ -35,23 +35,28 @@ def create_datum(hybrid_shape_factory, hybrid_shape, hybrid_body, name=None):
     
     if geo_type == 1:
         datum_point = hybrid_shape_factory.add_new_point_datum(hybrid_shape)
-        if name: datum_point.name = name
+        if name:
+            datum_point.name = name
         hybrid_body.append_hybrid_shape(datum_point)
     elif geo_type == 2:
         datum_curve = hybrid_shape_factory.add_new_curve_datum(hybrid_shape)
-        if name: datum_curve.name = name
+        if name:
+            datum_curve.name = name
         hybrid_body.append_hybrid_shape(datum_curve)
     elif geo_type == 3:
         datum_line = hybrid_shape_factory.add_new_line_datum(hybrid_shape)
-        if name: datum_line.name = name
+        if name:
+            datum_line.name = name
         hybrid_body.append_hybrid_shape(datum_line)
     elif geo_type == 4:
         datum_circle = hybrid_shape_factory.add_new_circle_datum(hybrid_shape)
-        if name: datum_circle.name = name
+        if name:
+            datum_circle.name = name
         hybrid_body.append_hybrid_shape(datum_circle)
     elif geo_type == 5:
         datum_surface = hybrid_shape_factory.add_new_surface_datum(hybrid_shape)
-        if name: datum_surface.name = name
+        if name:
+            datum_surface.name = name
         hybrid_body.append_hybrid_shape(datum_surface)
     
     hybrid_shape_factory.delete_object_for_datum(hybrid_shape)

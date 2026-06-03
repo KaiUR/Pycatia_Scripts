@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Hole_Size_Test_Plate_Generator.py
-    Version:        1.0
+    Version:        1.1
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Generate a rectangular test plate with a grid of incrementally sized through-holes.
@@ -152,15 +152,16 @@ class DataInputDialog(wx.Dialog):
     def _update_info(self):
         try:
             w    = float(self.width.GetValue())
-            l    = float(self.length.GetValue())
+            length = float(self.length.GetValue())
             n    = int(self.n_holes.GetValue())
             sd   = float(self.start_dia.GetValue())
             st   = float(self.step.GetValue())
-            if w <= 0 or l <= 0 or n <= 0 or sd <= 0: raise ValueError
+            if w <= 0 or length <= 0 or n <= 0 or sd <= 0:
+                raise ValueError
             cols = math.ceil(math.sqrt(n))
             rows = math.ceil(n / cols)
             cell_w = w / cols
-            cell_h = l / rows
+            cell_h = length / rows
             max_d = sd + (n - 1) * st
             fit = min(cell_w, cell_h)
             fit_pct = (max_d / fit * 100) if fit > 0 else 0
@@ -239,7 +240,7 @@ class DataInputDialog(wx.Dialog):
         # Grid fit check
         try:
             w  = float(self.width.GetValue())
-            l  = float(self.length.GetValue())
+            length = float(self.length.GetValue())
             n  = int(self.n_holes.GetValue())
             sd = float(self.start_dia.GetValue())
             st = float(self.step.GetValue())
@@ -247,7 +248,7 @@ class DataInputDialog(wx.Dialog):
             cols   = math.ceil(math.sqrt(n))
             rows   = math.ceil(n / cols)
             cell_w = w / cols
-            cell_h = l / rows
+            cell_h = length / rows
             max_d  = sd + (n - 1) * abs(st) if st >= 0 else sd                                                          # Largest diameter
             fit    = min(cell_w, cell_h)
 

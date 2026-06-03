@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Reorder_Geometric_Set_Alphabetically.py
-    Version:        1.3
+    Version:        1.4
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Sort all elements inside a selected geometric set alphabetically by name.
@@ -50,23 +50,28 @@ def create_datum(hybrid_shape_factory, hybrid_shape, hybrid_body, name=None):
 
     if geo_type == 1:                                                                                           #Point
         datum = hybrid_shape_factory.add_new_point_datum(hybrid_shape)
-        if name: datum.name = name
+        if name:
+            datum.name = name
         hybrid_body.append_hybrid_shape(datum)
     elif geo_type == 2:                                                                                         #Curve
         datum = hybrid_shape_factory.add_new_curve_datum(hybrid_shape)
-        if name: datum.name = name
+        if name:
+            datum.name = name
         hybrid_body.append_hybrid_shape(datum)
     elif geo_type == 3:                                                                                         #Line
         datum = hybrid_shape_factory.add_new_line_datum(hybrid_shape)
-        if name: datum.name = name
+        if name:
+            datum.name = name
         hybrid_body.append_hybrid_shape(datum)
     elif geo_type == 4:                                                                                         #Circle
         datum = hybrid_shape_factory.add_new_circle_datum(hybrid_shape)
-        if name: datum.name = name
+        if name:
+            datum.name = name
         hybrid_body.append_hybrid_shape(datum)
     elif geo_type == 5:                                                                                         #Surface
         datum = hybrid_shape_factory.add_new_surface_datum(hybrid_shape)
-        if name: datum.name = name
+        if name:
+            datum.name = name
         hybrid_body.append_hybrid_shape(datum)
     else:                                                                                                       #Unknown type
         print(f"  Warning: unsupported geometry type ({geo_type}) for '{name}' - skipped")

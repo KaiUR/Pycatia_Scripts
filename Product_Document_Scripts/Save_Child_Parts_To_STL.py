@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Save_Child_Parts_To_STL.py
-    Version:        1.0
+    Version:        1.1
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Save all child parts as STL
@@ -42,7 +42,7 @@ if __name__ == "__main__":
     caa = catia()                                                                                                       #Catia application instance
     product_document: ProductDocument = caa.active_document                                                             #Current open document
 
-    if not type(product_document) == ProductDocument:                                                                   #Check if product
+    if not isinstance(product_document, ProductDocument):                                                               #Check if product
         print("A CATProduct document must be the active document.")
         sys.exit()
 

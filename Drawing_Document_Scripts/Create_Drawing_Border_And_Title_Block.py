@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Create_Drawing_Border_And_Title_Block.py
-    Version:        1.0
+    Version:        1.1
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Create a standard ISO border and title block on a new CATDrawing sheet.
@@ -166,9 +166,9 @@ def _draw_title_block(factory, view_com, bx1, by1, bx2, by2):
       Row 4 (10mm)  - COMPANY NAME
     """
 
-    r  = bx2                    #Right edge of border
-    l  = r - TB_WIDTH           #Left edge of title block
-    b  = by1                    #Bottom edge
+    r    = bx2                    #Right edge of border
+    left = r - TB_WIDTH           #Left edge of title block
+    b    = by1                    #Bottom edge
 
     #Row bottom y values (absolute)
     rows = [
@@ -184,58 +184,58 @@ def _draw_title_block(factory, view_com, bx1, by1, bx2, by2):
     vy = [rows[i] + (rows[i + 1] - rows[i]) * 0.3 for i in range(5)]
 
     #Outer rectangle
-    _line(factory, l, rows[0], r, rows[0])
+    _line(factory, left, rows[0], r, rows[0])
     _line(factory, r, rows[0], r, rows[5])
-    _line(factory, r, rows[5], l, rows[5])
-    _line(factory, l, rows[5], l, rows[0])
+    _line(factory, r, rows[5], left, rows[5])
+    _line(factory, left, rows[5], left, rows[0])
 
     #Horizontal dividers between rows
     for y in rows[1:5]:
-        _line(factory, l, y, r, y)
+        _line(factory, left, y, r, y)
 
     #--- Row 0: DRAWN BY | DATE | APPROVED (three equal columns) ---
-    c0 = l + TB_WIDTH / 3
-    c1 = l + 2 * TB_WIDTH / 3
+    c0 = left + TB_WIDTH / 3
+    c1 = left + 2 * TB_WIDTH / 3
     _line(factory, c0, rows[0], c0, rows[1])
     _line(factory, c1, rows[0], c1, rows[1])
 
-    _label(view_com, "DRAWN BY:",  l  + 1, rows[1] - 1)
-    _label(view_com, "DATE:",      c0 + 1, rows[1] - 1)
-    _label(view_com, "APPROVED:",  c1 + 1, rows[1] - 1)
+    _label(view_com, "DRAWN BY:",  left + 1, rows[1] - 1)
+    _label(view_com, "DATE:",      c0 + 1,   rows[1] - 1)
+    _label(view_com, "APPROVED:",  c1 + 1,   rows[1] - 1)
 
-    _value(view_com, "Drawn_By",   l  + 1, vy[0])
-    _value(view_com, "Date",       c0 + 1, vy[0])
-    _value(view_com, "Approved",   c1 + 1, vy[0])
+    _value(view_com, "Drawn_By",   left + 1, vy[0])
+    _value(view_com, "Date",       c0 + 1,   vy[0])
+    _value(view_com, "Approved",   c1 + 1,   vy[0])
 
     #--- Row 1: SCALE | SHEET | REVISION (three equal columns) ---
     _line(factory, c0, rows[1], c0, rows[2])
     _line(factory, c1, rows[1], c1, rows[2])
 
-    _label(view_com, "SCALE:",    l  + 1, rows[2] - 1)
-    _label(view_com, "SHEET:",    c0 + 1, rows[2] - 1)
-    _label(view_com, "REVISION:", c1 + 1, rows[2] - 1)
+    _label(view_com, "SCALE:",    left + 1, rows[2] - 1)
+    _label(view_com, "SHEET:",    c0 + 1,   rows[2] - 1)
+    _label(view_com, "REVISION:", c1 + 1,   rows[2] - 1)
 
-    _value(view_com, "Scale",    l  + 1, vy[1])
-    _value(view_com, "Sheet",    c0 + 1, vy[1])
-    _value(view_com, "Revision", c1 + 1, vy[1])
+    _value(view_com, "Scale",    left + 1, vy[1])
+    _value(view_com, "Sheet",    c0 + 1,   vy[1])
+    _value(view_com, "Revision", c1 + 1,   vy[1])
 
     #--- Row 2: PART NUMBER | MATERIAL (120mm / 60mm split) ---
-    mid = l + 2 * TB_WIDTH / 3
+    mid = left + 2 * TB_WIDTH / 3
     _line(factory, mid, rows[2], mid, rows[3])
 
-    _label(view_com, "PART NUMBER:", l   + 1, rows[3] - 1)
-    _label(view_com, "MATERIAL:",    mid + 1, rows[3] - 1)
+    _label(view_com, "PART NUMBER:", left + 1, rows[3] - 1)
+    _label(view_com, "MATERIAL:",    mid + 1,  rows[3] - 1)
 
-    _value(view_com, "Part_Number", l   + 1, vy[2])
-    _value(view_com, "Material",    mid + 1, vy[2])
+    _value(view_com, "Part_Number", left + 1, vy[2])
+    _value(view_com, "Material",    mid + 1,  vy[2])
 
     #--- Row 3: TITLE (full width, 15mm, larger value text) ---
-    _label(view_com, "TITLE:", l + 1, rows[4] - 1)
-    _value(view_com, "Title",  l + 1, vy[3], size=5.0)
+    _label(view_com, "TITLE:", left + 1, rows[4] - 1)
+    _value(view_com, "Title",  left + 1, vy[3], size=5.0)
 
     #--- Row 4: COMPANY NAME (full width, bold, centered — no label, centre is correct) ---
     _value(view_com, "Company",
-           l + TB_WIDTH / 2,
+           left + TB_WIDTH / 2,
            (rows[4] + rows[5]) / 2,
            size=5.0,
            anchor=CatTextAnchorPosition.catMiddleCenter)
