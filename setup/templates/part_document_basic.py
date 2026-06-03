@@ -25,7 +25,6 @@
 #Imports
 from pycatia import catia
 from pycatia.mec_mod_interfaces.part_document import PartDocument
-from pathlib import Path
 
 '''
     This function searches for a hybrid body (geometric set) by name and returns it.
@@ -84,7 +83,8 @@ def create_datum(hybrid_shape_factory, hybrid_shape, hybrid_body, name=None):
         print(f"  Warning: unsupported geometry type ({geo_type}) for '{name}' — skipped")
         return
 
-    if name: datum.name = name                                                                                 #Apply name if given
+    if name:                                                                                                   #Apply name if given
+        datum.name = name
     hybrid_body.append_hybrid_shape(datum)                                                                     #Add datum to geometric set
     hybrid_shape_factory.delete_object_for_datum(hybrid_shape)                                                 #Remove the original construction shape
 

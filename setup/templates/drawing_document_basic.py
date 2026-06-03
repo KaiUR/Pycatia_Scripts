@@ -25,7 +25,6 @@
 #Imports
 from pycatia import catia
 from pycatia.drafting_interfaces.drawing_document import DrawingDocument
-from pathlib import Path
 
 if __name__ == "__main__":
     caa = catia()                                                                                               #Catia application instance
