@@ -22,19 +22,12 @@
                     This script needs an open part document.
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:         18.05.26
-                    Fix collinear check: normalise cross product by vector magnitudes so the test is scale-independent.
-
-                    18.05.26
-                    Replace extremum-anchor point placement with add_new_point_on_curve_from_percent — fixes points
-                    collapsing to one location on edges where the extremum landed at the curve end.
-
-                    31.05.26
-                    Remove unused coords_relative_to_axis function.
-
-                    03.06.26
-                    Fix F401: remove unused HybridShapeExtract, HybridShapePointOnCurve, Part, and time imports.
-                    Fix E722: replace bare except with except Exception.
+    Change:         18.05.26 1.1: Fix collinear check: normalise cross product by vector magnitudes so the test is scale-independent.
+                    18.05.26 1.2: Replace extremum-anchor point placement with add_new_point_on_curve_from_percent.
+                    31.05.26 1.3: Remove unused coords_relative_to_axis function.
+                    03.06.26 1.4: Fix syntax error: restore missing opening ''' before normalize_vector docstring; fix F401 (HybridShapeExtract, HybridShapePointOnCurve).
+                    03.06.26 1.5: Fix F401: remove unused Part and time imports.
+                    03.06.26 1.6: Fix E722: replace bare except with except Exception.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''

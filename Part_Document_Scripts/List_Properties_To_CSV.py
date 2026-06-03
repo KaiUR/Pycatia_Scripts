@@ -21,10 +21,7 @@
                     Catia V5 running with an open part document containing a geometric set.
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:         1.1 - Replaced hardcoded CAT_VIS_PROPERTY_DEFINED constant with
-                          CatVisPropertyStatus.catVisPropertyDefined enum. Replaced
-                          GEO_TYPE_NAMES dict with GeometricalFeatureType enum lookup
-                          (adds Plane and Solid Volume coverage, unknown types handled).
+    Change:         22.05.26 1.1: Replaced hardcoded constants with CatVisPropertyStatus and GeometricalFeatureType enums; adds Plane and Solid Volume coverage.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''

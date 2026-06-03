@@ -23,10 +23,7 @@
                     DMU Space Analysis or DMU Navigator licence required.
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:         1.1 - Fixed workbench access: use SPAWorkbench → clashes → Clash → conflicts.
-                          Use pycatia Clash/Conflict wrappers and CatConflictType/CatConflictStatus
-                          enums. Renamed Volume_mm3 → Value_mm (value is penetration length or
-                          clearance distance, not a volume). Added wx dialog output.
+    Change:         22.05.26 1.1: Fixed workbench access; use pycatia Clash/Conflict wrappers and enums; renamed Volume_mm3 → Value_mm; added wx dialog output.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''

@@ -22,10 +22,7 @@
                     Catia V5 running with an open document.
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:         1.1 - Fixed capture API: use pycatia Viewer wrapper, capture_to_file(format, path)
-                          with CatCaptureFormat enum. Fixed background colour API: get/put_background_color
-                          with 0-1 float tuples. Removed unsupported width/height parameters. Replaced PNG
-                          (not supported by CatCaptureFormat) with BMP/JPEG/TIFF.
+    Change:         22.05.26 1.1: Fixed capture API: use pycatia Viewer wrapper with CatCaptureFormat enum; fixed background colour API; removed unsupported parameters; replaced PNG with BMP/JPEG/TIFF.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''

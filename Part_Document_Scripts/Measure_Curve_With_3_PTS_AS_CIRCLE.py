@@ -18,24 +18,13 @@
                     This script needs an open part document.
     -----------------------------------------------------------------------------------------------------------------------
     
-    Change:         19.03.26
-                    Modified script to work when there is a process or procuct open containing a part.
-
-                    16.05.26
-                    Added collinear check on datum points — notifies user and exits if curve is straight.
-                    Updated point creation to use a single extremum anchor with percentage points.
-                    
-                    18.05.26
-                    Refactor and added proper delete of con elements for straight lines.
-
-                    18.05.26
-                    Fix collinear check: normalise cross product by vector magnitudes so the test is scale-independent.
-
-                    31.05.26
-                    Remove unused coords_relative_to_axis function.
-
-                    03.06.26
-                    Fix F401: remove unused HybridShapeExtract, HybridShapePointOnCurve, and Part imports.
+    Change:         19.03.26 1.1: Modified script to work when there is a process or product open containing a part.
+                    16.05.26 1.2: Added collinear check on datum points; updated point creation to single extremum anchor approach.
+                    18.05.26 1.3: Refactor and added proper delete of con elements for straight lines.
+                    18.05.26 1.4: Fix collinear check: normalise cross product by vector magnitudes so the test is scale-independent.
+                    31.05.26 1.5: Remove unused coords_relative_to_axis function.
+                    03.06.26 1.6: Fix syntax error: restore missing opening ''' before normalize_vector docstring; fix F401 (HybridShapeExtract, HybridShapePointOnCurve).
+                    03.06.26 1.7: Fix F401: remove unused Part import.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
