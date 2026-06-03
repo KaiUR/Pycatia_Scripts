@@ -98,4 +98,40 @@ If your script requires packages not already in `setup/requirements.txt`, add th
 
 ---
 
+## Linting
+
+CI runs **[ruff](https://docs.astral.sh/ruff/)** on every push and pull request. Your script must pass before it can be merged.
+
+### Rules enforced
+
+| Category | Rules |
+|---|---|
+| `E` — pycodestyle | Syntax errors, indentation, whitespace, statement structure |
+| `F` — pyflakes | Undefined names, unused imports, redefined variables |
+
+### What is ignored
+
+| Rule | Reason |
+|---|---|
+| `E501` | Line length — scripts use right-aligned inline comments; not enforced |
+| `E722` | Bare `except:` — intentional fallback pattern for settings loading |
+
+### Common things that will fail
+
+- **Unused imports** (F401) — only import what your script actually uses
+- **Undefined names** (F821) — check all variable references, especially after renaming
+- **Unused local variables** (F841) — if you must suppress, prefix with `_` (e.g. `_app = wx.App(None)`)
+- **Multiple statements on one line** (E701) — `if x: y` must be split to two lines
+
+### Running ruff locally
+
+```
+pip install ruff
+ruff check .
+```
+
+The `setup/` and `.github/` directories are excluded.
+
+---
+
 **Author:** [Kai-Uwe Rathjen](https://github.com/KaiUR)
