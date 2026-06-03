@@ -14,7 +14,6 @@ select = [
 ignore = [
     "E501",  # line too long — not enforced; scripts have inline comments
     "E722",  # bare except — intentional fallback pattern (except: pass) used throughout
-    "F841",  # local variable assigned but never used — common in pycatia event handlers
 ]
 
 # Exclude setup templates and utility files that aren't user scripts
