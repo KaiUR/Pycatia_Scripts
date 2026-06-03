@@ -114,7 +114,6 @@ CI runs **[ruff](https://docs.astral.sh/ruff/)** on every push and pull request.
 | Rule | Reason |
 |---|---|
 | `E501` | Line length — scripts use right-aligned inline comments; not enforced |
-| `E722` | Bare `except:` — intentional fallback pattern for settings loading |
 
 ### Common things that will fail
 
