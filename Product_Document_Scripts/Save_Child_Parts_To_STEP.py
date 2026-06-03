@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Save_Child_Parts_To_STEP.py
-    Version:        1.1
+    Version:        1.2
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Save all child parts as step
@@ -25,13 +25,13 @@
     -----------------------------------------------------------------------------------------------------------------------
     
     Change:         03.06.26 1.1: Fix E721: replace type() == Cls guard with isinstance().
+                    03.06.26 1.2: Fix F401: remove unused PartDocument import.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
 
 #Imports
 from pycatia import catia, CatWorkModeType
-from pycatia.mec_mod_interfaces.part_document import PartDocument
 from pycatia.product_structure_interfaces.product_document import ProductDocument
 from pathlib import Path
 import sys

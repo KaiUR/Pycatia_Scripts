@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Hole_Size_Test_Plate_Generator.py
-    Version:        1.1
+    Version:        1.2
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Generate a rectangular test plate with a grid of incrementally sized through-holes.
@@ -24,6 +24,7 @@
     -----------------------------------------------------------------------------------------------------------------------
 
     Change:         03.06.26 1.1: Fix E741: rename l to length; fix E701: expand single-line if guard.
+                    03.06.26 1.2: Fix F401: remove CatConstraintMode; fix F841: remove unused name variable; fix E701: expand bare except: pass.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -39,7 +40,6 @@ import wx.lib.dialogs as dialogs
 from pycatia import catia
 from pycatia.mec_mod_interfaces.part_document import PartDocument
 from pycatia import CatConstraintType
-from pycatia import CatConstraintMode
 from pycatia import CatHoleType
 from pycatia import CatLimitMode
 from pycatia import CatPrismOrientation
@@ -76,7 +76,8 @@ class DataInputDialog(wx.Dialog):
             try:
                 with open(SETTINGS_FILE, 'r') as f:
                     defaults.update(json.load(f))
-            except: pass                                                                                                 # Fallback to hardcoded defaults on error
+            except:                                                                                                      # Fallback to hardcoded defaults on error
+                pass
 
         super().__init__(parent, title=title, style=wx.DEFAULT_DIALOG_STYLE | wx.STAY_ON_TOP)
 
@@ -199,7 +200,6 @@ class DataInputDialog(wx.Dialog):
 
     def Validate(self):
         for ctrl, target_type in self.numeric_fields:
-            name = ctrl.GetToolTip().GetTip().split("(")[0].strip() if ctrl.GetToolTip() else "Field"
             allow_zero = (ctrl == self.step)
             val_string = ctrl.GetValue().strip()
 

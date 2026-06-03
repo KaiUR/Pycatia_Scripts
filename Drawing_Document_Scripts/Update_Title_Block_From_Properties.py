@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Update_Title_Block_From_Properties.py
-    Version:        1.1
+    Version:        1.2
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Update title block text items from the linked model's properties.
@@ -26,6 +26,7 @@
 
     Change:         21.05.26 1.1: Replaced property dropdown with editable ComboBox to allow custom text input.
                               Heading labels (texts ending with ':') are now excluded — only value fields are shown.
+                    03.06.26 1.2: Fix F401: remove unused Path import.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -33,7 +34,6 @@
 #Imports
 from pycatia import catia
 from pycatia.drafting_interfaces.drawing_document import DrawingDocument
-from pathlib import Path
 import wx
 import ctypes
 

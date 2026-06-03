@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    insert_points_catia.py
-    Version:        1.2
+    Version:        1.3
     Code:           Python3.10.4, Pycatia 0.8.3, wx 4.2.5
     Release:        V5R32
     Purpose:        Imports points into catia from file
@@ -27,6 +27,7 @@
     
     Change:         12.05.26 1.1: File dialog raised to foreground of CATIA window; removed unused import.
                     16.05.26 1.2: Convert inserted points to datums.
+                    03.06.26 1.3: Fix F841: rename app to _app to suppress unused-variable warning.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -63,7 +64,7 @@ def _bring_to_front(window):
         without selecting anything.
 '''
 def get_path(wildcard):
-    app = wx.App(None)                                                      #bootstrap the wxPython system
+    _app = wx.App(None)                                                     #bootstrap the wxPython system
     style = wx.FD_OPEN | wx.FD_FILE_MUST_EXIST                              #Add conditions
     dialog = wx.FileDialog(None, 'Open', wildcard=wildcard, style=style)    #Create dialog
     wx.CallAfter(_bring_to_front, dialog)

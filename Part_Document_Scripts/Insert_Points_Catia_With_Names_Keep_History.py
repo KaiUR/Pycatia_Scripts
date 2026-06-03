@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Insert_Points_Catia_With_Names_Keep_History.py
-    Version:        1.0
+    Version:        1.1
     Code:           Python3.10.4, Pycatia 0.8.3, wx 4.2.5
     Release:        V5R32
     Purpose:        Insert named points into active part from file, preserving parametric history.
@@ -26,7 +26,7 @@
                     This script needs an open part document.
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:
+    Change:         03.06.26 1.1: Fix F841: rename app to _app to suppress unused-variable warning.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -51,7 +51,7 @@ def _bring_to_front(window):
         u32.AttachThreadInput(fg_tid, our_tid, False)
 
 def get_path(wildcard):
-    app = wx.App(None)                                                      #bootstrap the wxPython system
+    _app = wx.App(None)                                                     #bootstrap the wxPython system
     style = wx.FD_OPEN | wx.FD_FILE_MUST_EXIST                              #Add conditions
     dialog = wx.FileDialog(None, 'Open', wildcard=wildcard, style=style)    #Create dialog
     wx.CallAfter(_bring_to_front, dialog)

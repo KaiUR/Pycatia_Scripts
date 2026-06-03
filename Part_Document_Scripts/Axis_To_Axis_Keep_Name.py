@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Axis_To_Axis_Keep_Name.py
-    Version:        1.3
+    Version:        1.4
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Moves hybrid shapes from axis to axis while keeping the names.
@@ -21,13 +21,13 @@
     
     Change:         16.05.26 1.2: Remove unused import wx.
                     03.06.26 1.3: Fix E701: expand single-line if name guards in create_datum to two lines.
+                    03.06.26 1.4: Fix F401: remove unused HybridShapeAxisToAxis import.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
 
 #Imports
 from pycatia import catia
-from pycatia.hybrid_shape_interfaces.hybrid_shape_axis_to_axis import HybridShapeAxisToAxis
 from pycatia.mec_mod_interfaces.hybrid_body import HybridBody
 from pycatia.mec_mod_interfaces.part_document import PartDocument
 

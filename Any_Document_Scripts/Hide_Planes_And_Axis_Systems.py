@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Hide_Planes_And_Axis_Systems.py
-    Version:        1.0
+    Version:        1.1
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Hides all planes and axis systems.
@@ -17,14 +17,13 @@
                     This script needs an open part document ,product document or process document.
     -----------------------------------------------------------------------------------------------------------------------
     
-    Change:
-    
+    Change:         03.06.26 1.1: Fix F401: remove unused PartDocument import.
+
     -----------------------------------------------------------------------------------------------------------------------
 '''
 
 #Imports
 from pycatia import catia
-from pycatia.mec_mod_interfaces.part_document import PartDocument
 
 if __name__ == "__main__":
 

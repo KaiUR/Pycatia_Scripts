@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Measure_Radius_Surface.py
-    Version:        1.7
+    Version:        1.8
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Measures surface by adding curves and adding three points and gives a diamiter.
@@ -39,7 +39,7 @@
                     Remove unused coords_relative_to_axis function.
 
                     03.06.26
-                    Fix F401: remove unused HybridShapeExtract and HybridShapePointOnCurve imports.
+                    Fix F401: remove unused HybridShapeExtract, HybridShapePointOnCurve, Part, and time imports.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -47,8 +47,6 @@
 #Imports
 from pycatia import catia
 from pycatia.mec_mod_interfaces.part_document import PartDocument
-from pycatia.mec_mod_interfaces.part import Part
-import time
 
 '''
     This function will return a noralized vector

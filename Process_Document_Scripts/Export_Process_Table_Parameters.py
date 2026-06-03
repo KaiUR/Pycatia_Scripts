@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Export_Process_Table_Parameters.py
-    Version:        1.3
+    Version:        1.4
     Code:           Python3.10.4, Pycatia 0.9.5
     Release:        V5R32
     Purpose:        Exports parameters from process table to excel
@@ -28,6 +28,7 @@
     Change:         29.04.26 1.1: Fixed script not showing part offset value for sweeps.
                     11.05.26 1.2: Improved Excel formatting — navy header, alternating row bands, centred numeric columns, frozen header row, navy tab colour, explicit column widths.
                     28.05.26 1.3: Added Operation column (between Description and Tool) showing the activity type (Sweep, Pencil, Contour...).
+                    03.06.26 1.4: Fix F401: remove unused Activities and Activity imports.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -35,8 +36,6 @@
 #Imports
 from pycatia import catia
 from pycatia.dmaps_interfaces.process_document import ProcessDocument
-from pycatia.dmaps_interfaces.activities import Activities
-from pycatia.dmaps_interfaces.activity import Activity
 from pycatia.ppr_interfaces.ppr_document import PPRDocument
 import xlsxwriter
 import os

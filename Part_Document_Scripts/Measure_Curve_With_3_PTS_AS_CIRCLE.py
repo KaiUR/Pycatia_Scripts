@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Measure_Curve_With_3_PTS_AS_CIRCLE.py
-    Version:        1.6
+    Version:        1.7
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Measures curves by adding three points and gives a diamiter.
@@ -35,7 +35,7 @@
                     Remove unused coords_relative_to_axis function.
 
                     03.06.26
-                    Fix F401: remove unused HybridShapeExtract and HybridShapePointOnCurve imports.
+                    Fix F401: remove unused HybridShapeExtract, HybridShapePointOnCurve, and Part imports.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -43,7 +43,6 @@
 #Imports
 from pycatia import catia
 from pycatia.mec_mod_interfaces.part_document import PartDocument
-from pycatia.mec_mod_interfaces.part import Part
 import time
 
 '''

@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Measure_Radius_Surface_Keep_Con_Auto_Edge.py
-    Version:        1.4
+    Version:        1.5
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Measures the radius of all border edges of a selected surface face.
@@ -33,7 +33,7 @@
                     Remove unused coords_relative_to_axis function.
 
                     03.06.26
-                    Fix F401: remove unused HybridShapeExtract and HybridShapePointOnCurve imports.
+                    Fix F401: remove unused HybridShapeExtract, HybridShapePointOnCurve, Part, and time imports.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -41,8 +41,6 @@
 #Imports
 from pycatia import catia
 from pycatia.mec_mod_interfaces.part_document import PartDocument
-from pycatia.mec_mod_interfaces.part import Part
-import time
 import re
 
 '''

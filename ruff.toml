@@ -18,6 +18,6 @@ ignore = [
 
 # Exclude setup templates and utility files that aren't user scripts
 exclude = [
-    "setup/",
-    ".github/",
+    "setup",
+    ".github",
 ]

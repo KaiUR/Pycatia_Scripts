@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Add_Border_And_Title_Block.py
-    Version:        1.1
+    Version:        1.2
     Code:           Python3.10.4, Pycatia 0.8.3
     Release:        V5R32
     Purpose:        Add a standard ISO border and title block to the active CATDrawing sheet.
@@ -23,6 +23,7 @@
     -----------------------------------------------------------------------------------------------------------------------
 
     Change:         03.06.26 1.1: Fix E741: rename ambiguous variable l to left in _draw_title_block.
+                    03.06.26 1.2: Fix F821: rename missed l reference in Company _value call to left.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -157,7 +158,7 @@ def _draw_title_block(factory, view_com, bx1, by1, bx2, by2):
     _value(view_com, "Title",  left + 1, vy[3], size=5.0)
 
     _value(view_com, "Company",
-           l + TB_WIDTH / 2,
+           left + TB_WIDTH / 2,
            (rows[4] + rows[5]) / 2,
            size=5.0,
            anchor=CatTextAnchorPosition.catMiddleCenter)
