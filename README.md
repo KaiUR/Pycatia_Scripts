@@ -196,10 +196,9 @@ Scripts run standalone — no launcher required.
 python path\to\script.py
 ```
 
-**From the CATIA Macro Manager:**
-1. In CATIA, go to **Tools → Macros → Macros...**
-2. Set the macro library path to your local copy of the scripts folder
-3. Select the script and click **Run**
+**By double-clicking in File Explorer:**
+
+Scripts can be run directly by double-clicking the .py file in File Explorer, provided Python is associated with .py files (it is by default if you checked "Add Python to PATH" during installation). CATIA must already be running before you double-click.
 
 **Using CatiaMenuWin32 (optional):**
 
