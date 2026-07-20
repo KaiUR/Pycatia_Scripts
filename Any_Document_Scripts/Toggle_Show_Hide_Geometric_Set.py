@@ -1,8 +1,8 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Toggle_Show_Hide_Geometric_Set.py
-    Version:        1.2
-    Code:           Python3.10.4, Pycatia 0.8.3
+    Version:        1.3
+    Code:           Python3.10.4, Pycatia 0.10.0
     Release:        V5R32
     Purpose:        Toggle the visibility of the contents and children of a selected geometric set.
     Author:         Kai-Uwe Rathjen
@@ -22,6 +22,8 @@
     Change:         06.05.26 1.1: Fixed child visibility - now iterates hybrid_shapes collection directly
                                   instead of using invalid selection search query.
                     09.05.26 1.2: Selected set is no longer toggled — only its contents and children are affected.
+                    20.07.26 1.3: get_show() now returns a tuple (status, show) as of pycatia 0.9.3 — read the show
+                                  state from index 1 and compare against CatVisPropertyShow instead of raw ints.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -30,6 +32,22 @@
 from pycatia import catia
 from pycatia.mec_mod_interfaces.part_document import PartDocument
 from pycatia.mec_mod_interfaces.hybrid_body import HybridBody
+from pycatia.enumeration.enums import CatVisPropertyShow
+
+'''
+    This function reads the current show state from a VisPropertySet and returns the opposite state.
+
+    Inputs:
+        vis_properties  The VisPropertySet of the current selection
+
+    output:
+        The opposite CatVisPropertyShow value
+'''
+def opposite_show_state(vis_properties):
+    current = vis_properties.get_show()[1]                                                                      #get_show() returns (status, show) - index 1 is the show state
+    if current == CatVisPropertyShow.catVisPropertyShowAttr:                                                    #If currently shown
+        return CatVisPropertyShow.catVisPropertyNoShowAttr                                                      #Hide it
+    return CatVisPropertyShow.catVisPropertyShowAttr                                                            #Otherwise show it
 
 '''
     This function recursively sets the visibility of all hybrid shapes in a geometric set and its children.
@@ -46,15 +64,13 @@ def toggle_visibility_recursive(hybrid_body, selection):
     for index in range(hybrid_shapes.count):                                                                    #Loop through all shapes
         selection.clear()                                                                                       #Clear selection
         selection.add(hybrid_shapes.item(index + 1))                                                            #Add shape to selection
-        current = selection.vis_properties.get_show()                                                           #Get current visibility state of this shape
-        selection.vis_properties.set_show(1 if current == 0 else 0)                                             #Toggle visibility of shape
+        selection.vis_properties.set_show(opposite_show_state(selection.vis_properties))                        #Toggle visibility of shape
 
     for child_index in range(hybrid_body.hybrid_bodies.count):                                                  #Loop through child geometric sets
         child_hb = HybridBody(hybrid_body.hybrid_bodies.item(child_index + 1).com_object)                       #Get and cast child geometric set
         selection.clear()                                                                                       #Clear selection
         selection.add(child_hb)                                                                                 #Add child set to selection
-        current = selection.vis_properties.get_show()                                                           #Get current visibility state of this child set
-        selection.vis_properties.set_show(1 if current == 0 else 0)                                             #Toggle visibility of child set
+        selection.vis_properties.set_show(opposite_show_state(selection.vis_properties))                        #Toggle visibility of child set
         toggle_visibility_recursive(child_hb, selection)                                                        #Recurse into child set
 
 if __name__ == "__main__":
@@ -81,9 +97,9 @@ if __name__ == "__main__":
         part = part_document.part                                                                               #Get new part object
 
     vis_properties = selectionSet.vis_properties                                                                #Get visible properties of selected item
-    current_show = vis_properties.get_show()                                                                    #Get current visibility state (0 = shown, 1 = hidden)
+    current_show = vis_properties.get_show()[1]                                                                 #Get current visibility state - get_show() returns (status, show)
 
-    if current_show == 0:                                                                                       #If set is currently visible, its contents will be hidden
+    if current_show == CatVisPropertyShow.catVisPropertyShowAttr:                                               #If set is currently visible, its contents will be hidden
         print(f"Hiding contents of geometric set: {selected_hb.name}")
     else:                                                                                                       #If set is currently hidden, its contents will be shown
         print(f"Showing contents of geometric set: {selected_hb.name}")

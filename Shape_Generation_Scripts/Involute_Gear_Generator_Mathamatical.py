@@ -1,8 +1,8 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Involute_Gear_Generator_Mathamatical.py
-    Version:        1.5
-    Code:           Python3.10.4, Pycatia 0.8.3
+    Version:        1.6
+    Code:           Python3.10.4, Pycatia 0.10.0
     Release:        V5R32
     Purpose:        Create Involute Gear
     Author:         Kai-Uwe Rathjen
@@ -25,6 +25,7 @@
                     12.05.26 1.2: Dialogs raised to foreground of CATIA window; removed unused import.
                     03.06.26 1.4: Fix E701: expand bare except: pass to two lines.
                     03.06.26 1.5: Fix E722: replace bare except with except Exception.
+                    20.07.26 1.6: Import enums from pycatia.enumeration.enums; use CatVisPropertyShow for set_show.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -32,10 +33,8 @@
 #Imports
 from pycatia import catia
 from pycatia.mec_mod_interfaces.part_document import PartDocument
-from pycatia import CatConstraintType
-from pycatia import CatConstraintMode
-from pycatia import CatPrismOrientation
-from pycatia import CatLimitMode
+from pycatia.enumeration.enums import CatConstraintType, CatConstraintMode, CatPrismOrientation, CatLimitMode
+from pycatia.enumeration.enums import CatVisPropertyShow
 import math
 import wx
 import wx.lib.dialogs as dialogs
@@ -1249,7 +1248,7 @@ if __name__ == "__main__":
             
             selectionSet.clear()                                                                                #Clear selection
             selectionSet.add(shaft_hole.sketch)                                                                 #Add hole feature sketch to selection
-            selectionSet.vis_properties.set_show(1)                                                             #Hide selecton
+            selectionSet.vis_properties.set_show(CatVisPropertyShow.catVisPropertyNoShowAttr)                   #Hide selecton
             selectionSet.clear()                                                                                #Clear selection
 
             part.update()                                                                                       #Update part

@@ -39,7 +39,7 @@ Or, if using [CatiaMenuWin32](https://github.com/KaiUR/CatiaMenuWin32), use the 
 | `Reset_Visual_Properties.py` | Reset colour, line weight, line type and opacity of selected elements to CATIA defaults |
 | `Screenshot_White_Background.py` | Capture a white-background screenshot of the active 3D view to PNG |
 | `Swap_Names.py` | Swap the names of two selected elements |
-| `Toggle_Show_Hide_Geometric_Set.py` | Toggle the visibility of a selected geometric set and all its children |
+| `Toggle_Show_Hide_Geometric_Set.py` | Toggle the visibility of the contents and children of a selected geometric set (the set itself is unchanged) |
 
 ### Drawing Document Scripts
 
@@ -235,7 +235,7 @@ Every script includes a structured metadata header that CatiaMenuWin32 reads to 
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Script_Name.py
     Version:        1.0
-    Code:           Python3.10.4, Pycatia 0.8.3
+    Code:           Python3.10.4, Pycatia 0.10.0
     Release:        V5R32
     Purpose:        One line summary shown on the script button.
     Author:         Your Name

@@ -1,8 +1,8 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Select_By_Colour.py
-    Version:        1.0
-    Code:           Python3.10.4, Pycatia 0.8.3
+    Version:        1.1
+    Code:           Python3.10.4, Pycatia 0.10.0
     Release:        V5R32
     Purpose:        Select all elements in a geometric set that share the same colour as a chosen source element.
     Author:         Kai-Uwe Rathjen
@@ -20,7 +20,7 @@
                     Catia V5 running with an open part document containing a geometric set.
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:
+    Change:         20.07.26 1.1: Use CatVisPropertyStatus enum instead of local CatVisPropertyStatus.catVisPropertyDefined constant.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -28,8 +28,7 @@
 from pycatia import catia
 from pycatia.mec_mod_interfaces.hybrid_body import HybridBody
 from pycatia.mec_mod_interfaces.part_document import PartDocument
-
-CAT_VIS_PROPERTY_DEFINED = 0                                                                                     # catVisPropertyDefined
+from pycatia.enumeration.enums import CatVisPropertyStatus
 
 def collect_shapes(hb, result):
     shapes = hb.hybrid_shapes
@@ -74,7 +73,7 @@ if __name__ == "__main__":
     selectionSet.add(source_obj)
     colour_result = selectionSet.vis_properties.get_real_color()                                                  # (status, r, g, b)
 
-    if colour_result[0] != CAT_VIS_PROPERTY_DEFINED:
+    if colour_result[0] != CatVisPropertyStatus.catVisPropertyDefined:
         print("Could not read a defined colour from the selected element.")
         exit()
 
@@ -90,7 +89,7 @@ if __name__ == "__main__":
         selectionSet.clear()
         selectionSet.add(shape)
         shape_colour = selectionSet.vis_properties.get_real_color()                                               # (status, r, g, b)
-        if shape_colour[0] == CAT_VIS_PROPERTY_DEFINED:
+        if shape_colour[0] == CatVisPropertyStatus.catVisPropertyDefined:
             if shape_colour[1] == src_r and shape_colour[2] == src_g and shape_colour[3] == src_b:
                 matches.append(shape)
 

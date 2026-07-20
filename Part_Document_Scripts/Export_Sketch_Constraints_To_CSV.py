@@ -1,8 +1,8 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Export_Sketch_Constraints_To_CSV.py
-    Version:        1.0
-    Code:           Python3.10.4, Pycatia 0.8.3
+    Version:        1.1
+    Code:           Python3.10.4, Pycatia 0.10.0
     Release:        V5R32
     Purpose:        Export all sketch constraints and dimensions from the active part to a CSV file.
     Author:         Kai-Uwe Rathjen
@@ -24,15 +24,14 @@
                     This script needs an open part document.
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:
+    Change:         20.07.26 1.1: Import enums from pycatia.enumeration.enums for consistency.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
 
 #Imports
 from pycatia import catia
-from pycatia import CatConstraintType
-from pycatia import CatConstraintStatus
+from pycatia.enumeration.enums import CatConstraintType, CatConstraintStatus
 from pycatia.mec_mod_interfaces.part_document import PartDocument
 from pathlib import Path
 

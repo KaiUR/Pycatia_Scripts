@@ -1,8 +1,8 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Spring_Generator.py
-    Version:        1.2
-    Code:           Python3.10.4, Pycatia 0.8.3
+    Version:        1.3
+    Code:           Python3.10.4, Pycatia 0.10.0
     Release:        V5R32
     Purpose:        Generate a parametric helical spring in the active CATPart.
     Author:         Kai-Uwe Rathjen
@@ -31,7 +31,8 @@
                     Hybrid design mode should be disabled (the script handles this automatically).
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:         02.06.26 1.2: Error handler updated to use ScrolledMessageDialog pattern.
+    Change:         20.07.26 1.3: Import all enums from pycatia.enumeration.enums for consistency.
+                    02.06.26 1.2: Error handler updated to use ScrolledMessageDialog pattern.
                     1.1 - Construction geo set now created inside the spring body (not at part level).
                           Construction geometry is hidden at the end of generation.
                           Added Closed ends option: three helices joined into a single spine;
@@ -45,10 +46,9 @@
 
 #Imports
 from pycatia import catia
-from pycatia import CatConstraintType, CatConstraintMode
 from pycatia.mec_mod_interfaces.part_document import PartDocument
 from pycatia.hybrid_shape_interfaces.hybrid_shape_factory import HybridShapeFactory
-from pycatia.enumeration.enums import CatVisPropertyShow
+from pycatia.enumeration.enums import CatConstraintType, CatConstraintMode, CatVisPropertyShow
 import math
 import wx
 import wx.lib.dialogs as dialogs

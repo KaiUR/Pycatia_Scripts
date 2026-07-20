@@ -2,7 +2,7 @@
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Your_Script_Name.py
     Version:        1.3
-    Code:           Python3.10.4, Pycatia 0.8.3
+    Code:           Python3.10.4, Pycatia 0.10.0
     Release:        V5R32
     Purpose:        EDIT: One line summary shown on the script button.
     Author:         EDIT: Your Name

@@ -1,8 +1,8 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Hole_Size_Test_Plate_Generator.py
-    Version:        1.3
-    Code:           Python3.10.4, Pycatia 0.8.3
+    Version:        1.4
+    Code:           Python3.10.4, Pycatia 0.10.0
     Release:        V5R32
     Purpose:        Generate a rectangular test plate with a grid of incrementally sized through-holes.
     Author:         Kai-Uwe Rathjen
@@ -26,6 +26,7 @@
     Change:         03.06.26 1.1: Fix E741: rename l to length; fix E701: expand single-line if guard.
                     03.06.26 1.2: Fix F401: remove CatConstraintMode; fix F841: remove unused name variable; fix E701: expand bare except: pass.
                     03.06.26 1.3: Fix E722: replace bare except with except Exception.
+                    20.07.26 1.4: Import enums from pycatia.enumeration.enums; use CatVisPropertyShow for set_show.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -40,10 +41,8 @@ import wx
 import wx.lib.dialogs as dialogs
 from pycatia import catia
 from pycatia.mec_mod_interfaces.part_document import PartDocument
-from pycatia import CatConstraintType
-from pycatia import CatHoleType
-from pycatia import CatLimitMode
-from pycatia import CatPrismOrientation
+from pycatia.enumeration.enums import CatConstraintType, CatHoleType, CatLimitMode, CatPrismOrientation
+from pycatia.enumeration.enums import CatVisPropertyShow
 
 
 def _bring_to_front(window):
@@ -547,8 +546,8 @@ if __name__ == "__main__":
                     x_hole, y_hole, 0,
                     plane_XY,
                     thickness)
-            hole.type = CatHoleType.catSimpleHole.value                                                                  # Simple cylindrical hole
-            hole.bottom_limit.limit_mode = CatLimitMode.catUpToLastLimit.value                                           # Through all
+            hole.type = CatHoleType.catSimpleHole                                                                        # Simple cylindrical hole
+            hole.bottom_limit.limit_mode = CatLimitMode.catUpToLastLimit                                                 # Through all
             hole.diameter.value = diameter                                                                               # Set hole diameter
             hole.reverse()                                                                                               # Flip direction to go through the pad (+Z)
             hole.name = f"Hole_{i + 1:02d}_D{diameter:.2f}mm"                                                           # Rename hole feature
@@ -556,7 +555,7 @@ if __name__ == "__main__":
 
             selectionSet.clear()                                                                                         # Clear selection
             selectionSet.add(hole.sketch)                                                                                # Add hole sketch to selection
-            selectionSet.vis_properties.set_show(1)                                                                      # Hide hole sketch to keep tree clean
+            selectionSet.vis_properties.set_show(CatVisPropertyShow.catVisPropertyNoShowAttr)                            # Hide hole sketch to keep tree clean
             selectionSet.clear()                                                                                         # Clear selection
 
             part.update()                                                                                                # Update part after each hole

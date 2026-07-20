@@ -39,7 +39,7 @@ Every script **must** include a properly formatted metadata header as the first 
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Your_Script_Name.py
     Version:        1.0
-    Code:           Python3.10.4, Pycatia 0.8.3
+    Code:           Python3.10.4, Pycatia 0.10.0
     Release:        V5R32
     Purpose:        One line summary — shown on the script button in CatiaMenuWin32.
     Author:         Your Name
