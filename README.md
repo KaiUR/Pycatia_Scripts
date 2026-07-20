@@ -72,6 +72,7 @@ Or, if using [CatiaMenuWin32](https://github.com/KaiUR/CatiaMenuWin32), use the 
 | `Create_ISM_OSM_STEP_Files.py` | Select two faces/surfaces, extract in tangency and export as ISM and OSM STEP files |
 | `Create_Spline_From_Coordinates.py` | Create a GSD point set and spline from X Y (or X Y Z) coordinates loaded from a file or pasted into the dialog |
 | `Delete_Deactivated_Features.py` | Delete all deactivated hybrid shapes inside a selected geometric set |
+| `Delete_Hidden_Elements_In_Geometric_Set.py` | Delete all hidden shapes and hidden child geometric sets inside a selected geometric set |
 | `Check_Open_Bodies.py` | Check all solid bodies in the active part for open (zero-volume) geometry |
 | `Copy_Parameters_Between_Parts.py` | Copy selected parameters from one open CATPart to another via a GUI dialog |
 | `Export_3D_Annotations_To_CSV.py` | Export all FTA 3D annotations from the active part to CSV |
