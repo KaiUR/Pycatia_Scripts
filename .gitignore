@@ -1,3 +1,5 @@
 Process_Document_Scripts/Reasource_list.csv
 .claude/settings.local.json
 Part_Document_Scripts/.claude/settings.local.json
+__pycache__/
+*.pyc
