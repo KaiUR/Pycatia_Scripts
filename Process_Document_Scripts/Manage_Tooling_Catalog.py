@@ -161,6 +161,35 @@ def default_for(keyword):
     return ""
 
 
+def _make_icon():
+    """Draws the window icon - a rounded blue tile carrying a catalog grid - so no image file
+    has to ship alongside the script. Plain shapes, so it stays legible at 16 pixels."""
+    size = 32
+    bitmap = wx.Bitmap(size, size)
+    dc = wx.MemoryDC(bitmap)
+
+    mask_colour = wx.Colour(255, 0, 255)                                                                         #Not used in the drawing, so only the background is masked
+    dc.SetBackground(wx.Brush(mask_colour))
+    dc.Clear()
+
+    dc.SetBrush(wx.Brush(wx.Colour(31, 78, 121)))
+    dc.SetPen(wx.Pen(wx.Colour(31, 78, 121)))
+    dc.DrawRoundedRectangle(2, 2, size - 4, size - 4, 5)
+
+    dc.SetBrush(wx.Brush(wx.Colour(255, 255, 255)))
+    dc.SetPen(wx.Pen(wx.Colour(255, 255, 255)))
+    for row in range(2):                                                                                         #A 2 x 2 grid - the catalog editor's grid of tools
+        for column in range(2):
+            dc.DrawRectangle(8 + column * 10, 8 + row * 10, 7, 7)
+
+    dc.SelectObject(wx.NullBitmap)
+    bitmap.SetMask(wx.Mask(bitmap, mask_colour))
+
+    icon = wx.Icon()
+    icon.CopyFromBitmap(bitmap)
+    return icon
+
+
 def _bring_to_front(window):
     u32 = ctypes.windll.user32
     hwnd = window.GetHandle()
@@ -487,6 +516,7 @@ class CatalogEditor(wx.Frame):
     def __init__(self, caa, settings, settings_file):
         super().__init__(None, title="Tooling Catalog Editor", size=(1150, 680),
                          style=wx.DEFAULT_FRAME_STYLE | wx.STAY_ON_TOP)
+        self.SetIcon(_make_icon())
         self.caa = caa
         self.settings = settings
         self.settings_file = settings_file
