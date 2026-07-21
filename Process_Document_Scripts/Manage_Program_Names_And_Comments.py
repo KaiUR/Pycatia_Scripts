@@ -9,7 +9,7 @@
     Date:           20.07.26
     Description:    Lists the whole machining tree - part operations, programs and operations - with each
                     activity's name, comment, tool and the same settings Export_Process_Table_Parameters reads.
-                    Names and comments are set from template lists, program names built as K862D2008US01 and
+                    Names and comments are set from template lists, program names built as A104D4503LP01 and
                     renumbered in sequence, and program comments composed as TOOL DESCRIPTION TO 0.0MM
                     (M/C: -0.7MM), the machined figure coming from the operations and the stage from the job.
                     Job details are read from the CATPart name and the metal thickness from the design part.
@@ -602,7 +602,7 @@ def read_comment(activity):
     This function reads the master side and metal thickness out of a piece of text.
 
     Both are stated in the design part, in the name of the body holding the master panel, as
-    "MASTER PANEL RH CP12 REV47 - UPPER IS MASTER - METAL IS 0.7mm". The same wording turns up in
+    "MASTER PANEL LH CP02 REV11 - UPPER IS MASTER - METAL IS 1.5mm". The same wording turns up in
     part operation comments, so one reader serves both.
 
     Inputs:
@@ -647,7 +647,7 @@ def is_divider(name):
 '''
     This function builds a manufacturing program name.
 
-        K    862    D20   08    US    01
+        A    104    D45   03    LP    01
         |    |      |     |     |     +-- program number, the part renumbering rewrites
         |    |      |     |     +-------- die part code
         |    |      |     +-------------- revision
@@ -664,7 +664,7 @@ def is_divider(name):
         number          Program number
 
     output:
-        The name, e.g. "K862D2008US01"
+        The name, e.g. "A104D4503LP01"
 '''
 def program_name_token(initial, project, die, revision, code, number):
     return f"{initial}{project}{die}{revision}{code}{int(number):02d}".upper()
@@ -698,7 +698,7 @@ def die_part_code(die_part):
     This function reads the trailing program number off a name.
 
     Inputs:
-        name            A program name, e.g. "K862D2008US01"
+        name            A program name, e.g. "A104D4503LP01"
 
     output:
         Tuple of (the name without its trailing number, the number or None)
@@ -717,7 +717,7 @@ def split_program_number(name):
         settings        The job settings
 
     output:
-        The stem, e.g. "K862D2008US", or an empty string where the job is not filled in
+        The stem, e.g. "A104D4503LP", or an empty string where the job is not filled in
 '''
 def job_stem(settings):
     pieces = (settings.get("initial", ""), settings.get("project", ""), settings.get("die", ""),
@@ -728,14 +728,14 @@ def job_stem(settings):
 '''
     This function reads a program's number, but only where the name is one of this job's.
 
-    A program CATIA named itself - Manufacturing Program.19 - ends in the number of the activity
+    A program CATIA named itself - Manufacturing Program.14 - ends in the number of the activity
     CATIA has created, which has nothing to do with the program numbering. Taking it would suggest
     19 where the job has only reached 09, so a number is read only from a name built on this job's
     stem.
 
     Inputs:
         name            The program name
-        stem            The job stem, e.g. "K862D2008US"
+        stem            The job stem, e.g. "A104D4503LP"
 
     output:
         The program number, or None where this name does not carry one
@@ -1130,7 +1130,7 @@ class EditDialog(wx.Dialog):
         vbox.Add(grid_sizer, 0, wx.EXPAND | wx.ALL, 8)
 
         if row["kind"] == "Program":
-            vbox.Add(self._name_builder(panel), 0, wx.EXPAND | wx.ALL, 8)                                        #K862D2008US01
+            vbox.Add(self._name_builder(panel), 0, wx.EXPAND | wx.ALL, 8)                                        #A104D4503LP01
             vbox.Add(self._composer(panel), 0, wx.EXPAND | wx.ALL, 8)                                            #TOOL DESCRIPTION TO OFFSETMM
 
         self.preview = wx.StaticText(panel, label="")
