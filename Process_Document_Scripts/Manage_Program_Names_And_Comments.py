@@ -1654,14 +1654,14 @@ class TreeFrame(wx.Frame):
     COLUMNS = (("Level", "Operation", "Name", "Comment", "Tool") + PARAMETER_LABELS
                + ("Stage", "Nominal", "New name", "New comment"))
 
-    ROW_COLOURS = {                                                                                              #The tree levels, deepest the palest
-        "Part Operation": wx.Colour(214, 228, 240),
-        "Program": wx.Colour(238, 242, 247),
-        "Operation": wx.Colour(243, 240, 248),
+    ROW_COLOURS = {                                                                                              #Blue for the two upper levels, warm for operations
+        "Part Operation": wx.Colour(157, 195, 230),
+        "Program": wx.Colour(208, 227, 245),
+        "Operation": wx.Colour(252, 249, 241),
     }
-    DIVIDER_COLOUR = wx.Colour(255, 242, 204)                                                                    #*** heading *** programs
-    STAGED_COLOUR = wx.Colour(198, 239, 206)                                                                     #A value waiting to be written
-    STAGED_MARK_COLOUR = wx.Colour(155, 209, 155)                                                                #Row marker, so staged rows are findable at a glance
+    DIVIDER_COLOUR = wx.Colour(255, 230, 153)                                                                    #*** heading *** programs
+    STAGED_COLOUR = wx.Colour(169, 224, 178)                                                                     #A value waiting to be written
+    STAGED_MARK_COLOUR = wx.Colour(112, 173, 122)                                                                #Row marker, so staged rows are findable at a glance
 
     def __init__(self, rows, job_info, settings, settings_dir, ppr_document=None):
         super().__init__(None, title="Manage Program Names And Comments", size=(1400, 760))
