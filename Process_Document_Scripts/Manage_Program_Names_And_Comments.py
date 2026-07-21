@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Manage_Program_Names_And_Comments.py
-    Version:        1.0
+    Version:        1.1
     Code:           Python3.10.4, Pycatia 0.10.0
     Release:        V5R32
     Purpose:        Review and set the names and comments of manufacturing programs and operations.
@@ -13,7 +13,7 @@
                     renumbered in sequence, and program comments composed as TOOL DESCRIPTION TO 0.0MM
                     (M/C: -0.7MM), the machined figure coming from the operations and the stage from the job.
                     Job details are read from the CATPart name and the metal thickness from the design part.
-                    Edits are staged beside the current values; nothing is written until Apply is pressed.
+                    Edits are staged in place over the current values; nothing is written until Apply is pressed.
     dependencies = [
                     "pycatia",
                     "wxPython",
@@ -25,7 +25,12 @@
                     This script needs an open CATProcess document.
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:
+    Change:         21.07.26 1.1: Staged edits shown in place of the current values rather than in
+                                  their own columns, Apply no longer asks to confirm, staged names
+                                  counted when numbering, the stage read from the staged comment,
+                                  the operation description filled in when a row is reopened, and
+                                  PPInstruction activities given their name and their PP words
+                                  syntax from two template lists of the user's own.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -34,6 +39,7 @@
 from pycatia import catia
 from pycatia.dmaps_interfaces.process_document import ProcessDocument
 from pycatia.manufacturing_interfaces.manufacturing_setup import ManufacturingSetup
+from pycatia.knowledge_interfaces.str_param import StrParam
 from pycatia.mec_mod_interfaces.part_document import PartDocument
 from pycatia.ppr_interfaces.ppr_document import PPRDocument
 import wx
@@ -82,6 +88,8 @@ TEMPLATES = json.loads(r'''
     "OPTIMIZED FINISH SWEEP","FINISH SWEEP","FINISH CONTOUR","FINISH SCRIBE",
     "Z CHECKS X DIR","Z CHECKS Y DIR","Z CHECKS"
   ],
+  "instruction_names": [],
+  "instructions": [],
   "tools": [
     "END MILL","SCRIBE TOOL","80 DEPO R8","63 DEPO R8","50 DEPO R8","32 DEPO R8","32BN","20BN","16BN",
     "12BN","10BN","8BN","6BN","4BN","20-R2 BULL"
@@ -108,6 +116,16 @@ STAGE_ORDER = ("Z-LEVEL ROUGHING", "ROUGHING", "SEMI-FINISH", "FINISH", "Z CHECK
 
 ACTIVITY_SKIP = ("Start", "Stop")                                                                                #Not real operations
 
+# Activities that carry a post processor instruction rather than a cut. They sit at the head of a
+# program and hold two separate things: the activity name - MECOF_HEAD - and the instruction the
+# post processor actually reads - head/'TCB6'. Each has its own template list, and both ship empty
+# because the instructions belong to the shop and its machines rather than to the script.
+INSTRUCTION_TYPES = ("PPInstruction",)
+
+# The activity parameter the instruction lives in. SetPPWORDSyntax and GetPPWORDSyntax are not on
+# the activity in V5R32, so the parameter is read and written directly, wrapped as a StrParam.
+INSTRUCTION_PARAMETER = "PP words syntax"
+
 PLACEHOLDERS = ("**.**MM", "***MM", "0.*MM", "POS_##")                                                           #Matched case insensitively, longest first
 
 REMEMBERED_SETTINGS = ("initial", "machine")                                                                     #All that survives between runs - the rest is read from the document
@@ -126,6 +144,8 @@ TEMPLATE_LISTS = (
     ("masters", "Masters"),
     ("dividers", "Dividers"),
     ("descriptions", "Operation descriptions"),
+    ("instruction_names", "PP instruction names"),
+    ("instructions", "PP instructions"),
     ("tools", "Tools"),
     ("die_numbers", "Die numbers"),
 )
@@ -262,6 +282,55 @@ def read_operation_parameters(activity):
 
     missing = [label for label in PARAMETER_LABELS if not values[label]]
     return values, missing
+
+
+'''
+    This function finds the parameter holding a PP instruction.
+
+    The post processor reads this, not the activity name - MECOF_HEAD is what the activity is
+    called, head/'TCB6' is what it does. It is wrapped as a StrParam so the value can be read
+    and written as a string.
+
+    Inputs:
+        activity        A PPInstruction activity
+
+    output:
+        The StrParam, or None where the activity has no such parameter
+'''
+def instruction_parameter(activity):
+    try:
+        parameters = activity.parameters
+        count = parameters.count
+    except Exception:
+        return None
+
+    for index in range(count):
+        try:
+            parameter = parameters.item(index + 1)
+            if INSTRUCTION_PARAMETER in parameter.name:
+                return StrParam(parameter.com_object)
+        except Exception:
+            continue
+    return None
+
+
+'''
+    This function reads the PP instruction off an activity.
+
+    Inputs:
+        activity        A PPInstruction activity
+
+    output:
+        The instruction, e.g. head/'TCB6', or an empty string where there is none
+'''
+def read_instruction(activity):
+    parameter = instruction_parameter(activity)
+    if parameter is None:
+        return ""
+    try:
+        return parameter.value or ""
+    except Exception:
+        return ""
 
 
 '''
@@ -417,6 +486,37 @@ def compose_program_comment(tool, description, stage_offset, machine_offset=None
         text = f"{text} (M/C: {format_offset(machine_offset)})"                                                   #Only worth saying when it differs
     if spotting:
         text = f"{text}\n{spotting}"                                                                             #A line of its own
+    return text.strip()
+
+
+'''
+    This function reads the description back out of a program comment.
+
+    A composed comment reads TOOL DESCRIPTION TO +0.3MM (M/C: -0.7MM) with any spotting note on a
+    line of its own, so the description is what is left once the tool in front and the offsets
+    behind are taken off. A comment written some other way has no offsets to cut, and keeps
+    whatever text it carries.
+
+    Inputs:
+        comment         The comment on the program, staged or current
+        tool            The tool token the row detected, e.g. "32BN"
+
+    output:
+        The description, e.g. "SEMI FINISH SWEEP", or an empty string
+'''
+def description_from_comment(comment, tool):
+    text = (comment or "").replace("\r\n", "\n").split("\n")[0].strip()                                          #The spotting note is never part of it
+    if not text:
+        return ""
+
+    offsets = text.rfind(" TO ")                                                                                 #The offsets are appended last, so cut the rightmost
+    if offsets != -1:
+        text = text[:offsets]
+
+    token = (tool or "").strip()
+    if token and text.upper().startswith(token.upper()):
+        text = text[len(token):]
+
     return text.strip()
 
 
@@ -694,6 +794,43 @@ def same_text(left, right):
 
 
 '''
+    These two functions give the name and comment a row will carry once the staged edits are
+    written, which is what everything downstream has to work from. Numbering a program against
+    the name it is about to lose would hand out a number that is already spoken for, and the
+    stage of a comment that is about to be replaced is not the stage the row is heading for.
+
+    Inputs:
+        row             A row from the tree
+
+    output:
+        The staged value where there is one, otherwise what the activity carries now
+'''
+def effective_name(row):
+    return (row.get("new_name") or row.get("name") or "") if row else ""
+
+
+def effective_comment(row):
+    return (row.get("new_comment") or row.get("comment") or "") if row else ""
+
+
+def effective_instruction(row):
+    return (row.get("new_instruction") or row.get("instruction") or "") if row else ""
+
+
+'''
+    This function says whether a row has anything waiting to be written.
+
+    Inputs:
+        row             A row from the tree
+
+    output:
+        True where a name, a comment or a PP instruction is staged
+'''
+def is_staged(row):
+    return bool(row.get("new_name") or row.get("new_comment") or row.get("new_instruction"))
+
+
+'''
     This function reads an activity's comment, treating CATIA's placeholder as no comment at all.
 
     Inputs:
@@ -885,7 +1022,7 @@ def program_number_of(name, stem):
         stem            The job stem
 
     output:
-        One past the highest number in use, or 1 where none are numbered yet
+        One past the highest number in use, staged names counted, or 1 where none are numbered yet
 '''
 def next_program_number(rows, part_op_row, stem):
     numbers = []
@@ -894,7 +1031,7 @@ def next_program_number(rows, part_op_row, stem):
             continue
         if part_op_row is not None and row.get("parent") is not part_op_row:
             continue
-        number = program_number_of(row["name"], stem)
+        number = program_number_of(effective_name(row), stem)                                                    #A staged name has already claimed its number
         if number is not None:
             numbers.append(number)
     return max(numbers) + 1 if numbers else 1
@@ -1097,6 +1234,8 @@ def read_tree(ppr_doc, report=None):
                 "metal_note": stated["note"],
                 "new_name": "",
                 "new_comment": "",
+                "instruction": "",                                                                               #Only a PPInstruction carries one
+                "new_instruction": "",
                 "offset": None,
                 "offset_attribute": "",
             })
@@ -1121,6 +1260,8 @@ def read_tree(ppr_doc, report=None):
                     "parent": part_op_row,
                     "new_name": "",
                     "new_comment": "",
+                    "instruction": "",                                                                           #Only a PPInstruction carries one
+                    "new_instruction": "",
                     "offset": None,
                     "offset_attribute": "",
                 })
@@ -1159,6 +1300,9 @@ def read_tree(ppr_doc, report=None):
                         "parent": program_row,
                         "new_name": "",
                         "new_comment": "",
+                        "instruction": (read_instruction(activity)                                                #What the post processor reads
+                                        if activity.type in INSTRUCTION_TYPES else ""),
+                        "new_instruction": "",
                         "offset": offset,
                         "offset_attribute": "Offset on part" if offset is not None else "",
                         "parameters": parameters,
@@ -1560,6 +1704,9 @@ class EditDialog(wx.Dialog):
         self.new_comment = row["new_comment"] or ""
         self.current_name = row["name"] or ""                                                                    #What is on the activity now
         self.current_comment = row["comment"] or ""
+        self.new_instruction = row.get("new_instruction") or ""
+        self.current_instruction = row.get("instruction") or ""
+        self.is_instruction = row["activity_type"] in INSTRUCTION_TYPES
 
         panel = wx.Panel(self)
         vbox = wx.BoxSizer(wx.VERTICAL)
@@ -1602,6 +1749,16 @@ class EditDialog(wx.Dialog):
         self.comment_choice.SetValue(self.new_comment or self.current_comment)
         grid_sizer.Add(wx.StaticText(panel, label="Comment"), 0, wx.ALIGN_TOP | wx.TOP, 4)
         grid_sizer.Add(self.comment_choice, 1, wx.EXPAND)
+
+        if self.is_instruction:                                                                                  #What the post processor reads, not the name
+            self.instruction_choice = wx.ComboBox(panel, choices=[""] + TEMPLATES["instructions"],
+                                                  style=wx.CB_DROPDOWN)
+            self.instruction_choice.SetValue(self.new_instruction or self.current_instruction)
+            self.instruction_choice.Bind(wx.EVT_TEXT, self._on_change)
+            grid_sizer.Add(wx.StaticText(panel, label="PP instruction"), 0, wx.ALIGN_CENTER_VERTICAL)
+            grid_sizer.Add(self.instruction_choice, 1, wx.EXPAND)
+        else:
+            self.instruction_choice = None
 
         vbox.Add(grid_sizer, 0, wx.EXPAND | wx.ALL, 8)
 
@@ -1739,7 +1896,7 @@ class EditDialog(wx.Dialog):
 
         part_op = part_operation_of(self.row)
         stem = job_stem(self.settings, part_op)                                                                  #The code comes from this part operation
-        current_number = program_number_of(self.row["name"], stem)                                                #None where CATIA named the program
+        current_number = program_number_of(self.new_name or self.current_name, stem)                              #None where CATIA named the program
         if current_number is None:
             current_number = next_program_number(self.rows, part_op, stem)                                        #Carry on from the highest in use
 
@@ -1785,6 +1942,20 @@ class EditDialog(wx.Dialog):
         self._update_preview()
 
     '''
+        This function gives the text the stage is read from.
+
+        A staged comment is what the row is heading for, so it is read in preference to the one
+        the activity still carries. Reopening a row that was edited then shows the stage that was
+        staged, rather than the stage it is being changed away from.
+
+        output:
+            The staged comment, or the current comment, or the name
+    '''
+    def _staged_text(self):
+        return (self.new_comment or self.current_comment
+                or self.new_name or self.current_name)
+
+    '''
         This function builds the tool / description / offset composer for a program comment.
     '''
     def _composer(self, panel):
@@ -1800,10 +1971,12 @@ class EditDialog(wx.Dialog):
         inner.Add(self.tool_choice, 1, wx.EXPAND)
 
         self.description_choice = wx.ComboBox(panel, choices=[""] + TEMPLATES["descriptions"], style=wx.CB_DROPDOWN)
+        self.description_choice.SetValue(                                                                        #Edit from what is there, not from blank
+            description_from_comment(self.new_comment or self.current_comment, detected))
         inner.Add(wx.StaticText(panel, label="Description"), 0, wx.ALIGN_CENTER_VERTICAL)
         inner.Add(self.description_choice, 1, wx.EXPAND)
 
-        detected_stage, detected_nominal = stage_for_description(self.row["comment"] or self.row["name"])
+        detected_stage, detected_nominal = stage_for_description(self._staged_text())
         self.stage_choice = wx.ComboBox(panel, choices=[""] + list(STAGE_ORDER), style=wx.CB_DROPDOWN)
         if detected_stage:
             self.stage_choice.SetValue(detected_stage)                                                           #What the program already reads as
@@ -1824,7 +1997,7 @@ class EditDialog(wx.Dialog):
             self.offset_text.SetValue(f"{measured:.1f}")
             offset_label = "M/C offset mm (from operations)"
         else:
-            part, ruled, note = self._offset_context(self.row["comment"] or self.row["name"])                    #Nothing measured - fall back to the rule
+            part, ruled, note = self._offset_context(self._staged_text())                                        #Nothing measured - fall back to the rule
             if ruled is not None:
                 self.offset_text.SetValue(f"{ruled:.1f}")
                 offset_label = "M/C offset mm (from the stage rule)"
@@ -1855,6 +2028,8 @@ class EditDialog(wx.Dialog):
             return TEMPLATES["die_parts"]
         if self.row["kind"] == "Program":
             return TEMPLATES["dividers"]                                                                         #A divider is a program carrying a heading
+        if self.row["activity_type"] in INSTRUCTION_TYPES:
+            return TEMPLATES["instruction_names"]                                                                #A post processor instruction cuts nothing
         return TEMPLATES["descriptions"]
 
     '''
@@ -1876,7 +2051,7 @@ class EditDialog(wx.Dialog):
         while part_op and part_op["kind"] != "Part Operation":
             part_op = part_op["parent"]
 
-        part = upper_or_lower(part_op["name"]) if part_op else None
+        part = upper_or_lower(effective_name(part_op)) if part_op else None                                      #A staged rename decides the side too
         if part is None and self.row["kind"] == "Part Operation":
             part = upper_or_lower(self.name_choice.GetValue())                                                    #The name being given to it now
 
@@ -2019,6 +2194,11 @@ class EditDialog(wx.Dialog):
                  f"Comment : {shown}"
                  + ("   unchanged" if same_text(comment, self.current_comment) else "")]
 
+        if self.instruction_choice is not None:
+            instruction = self.instruction_choice.GetValue().strip()
+            lines.append(f"PP instr: {instruction or '(cleared - will not be written)'}"
+                         + ("   unchanged" if instruction == self.current_instruction else ""))
+
         if self.row["kind"] == "Program":
             built = self._built_name()
             self.built_name.SetLabel(built or "fill Initial, Project, Die and Rev, and the Code "
@@ -2063,6 +2243,13 @@ class EditDialog(wx.Dialog):
 
         self.new_name = "" if name == self.current_name else name                                                 #Only what actually differs is staged
         self.new_comment = "" if same_text(comment, self.current_comment) else comment
+
+        if self.instruction_choice is not None:
+            instruction = self._resolve_placeholders(self.instruction_choice.GetValue().strip(), "PP instruction")
+            if instruction is None:
+                return
+            self.new_instruction = "" if instruction == self.current_instruction else instruction
+
         if self.machine_choice is not None:
             self.settings["machine"] = self.machine_choice.GetValue().strip()
         event.Skip()
@@ -2235,8 +2422,11 @@ class TemplateEditor(wx.Dialog):
     def _on_reset_list(self, event):
         key = self._key()
         label = dict(TEMPLATE_LISTS)[key]
-        if wx.MessageBox(f"Put {label} back to the entries the script ships with?",
-                         "Reset", wx.YES_NO | wx.ICON_QUESTION, self) != wx.YES:
+        question = (f"Put {label} back to the entries the script ships with?"
+                    if DEFAULT_TEMPLATES[key] else
+                    f"{label} ships empty - the entries are yours, not the script's.\n\n"       #Nothing to put back
+                    f"Resetting empties the list. Carry on?")
+        if wx.MessageBox(question, "Reset", wx.YES_NO | wx.ICON_QUESTION, self) != wx.YES:
             return
         self.working[key] = list(DEFAULT_TEMPLATES[key])
         self._show_list()
@@ -2409,15 +2599,16 @@ class RenumberDialog(wx.Dialog):
 
         for row_index, (kind, row) in enumerate(self.lines):
             if kind == "header":
-                self.grid.SetCellValue(row_index, self.NAME, (row["name"] if row else "(no part operation)"))
+                self.grid.SetCellValue(row_index, self.NAME, (effective_name(row) if row else "(no part operation)"))
                 self.grid.SetCellValue(row_index, self.START, "1")                                               #This part operation's own numbering
                 self.grid.SetCellValue(row_index, self.STEP, "1")
                 for column in range(5):
                     self.grid.SetReadOnly(row_index, column, column not in (self.START, self.STEP))
                     self.grid.SetCellBackgroundColour(row_index, column, self.HEADER_COLOUR)
                 continue
-            number = program_number_of(row["name"], job_stem(settings, part_operation_of(row)))                  #Blank where CATIA named it
-            self.grid.SetCellValue(row_index, self.NAME, "    " + (row["name"] or ""))
+            number = program_number_of(effective_name(row),                                                      #Blank where CATIA named it
+                                       job_stem(settings, part_operation_of(row)))
+            self.grid.SetCellValue(row_index, self.NAME, "    " + effective_name(row))                           #What it will be called, staging included
             self.grid.SetCellValue(row_index, self.NUMBER, str(number) if number is not None else "")
             for column in (self.NAME, self.START, self.STEP, self.NEW_NAME):
                 self.grid.SetReadOnly(row_index, column, True)
@@ -2473,7 +2664,7 @@ class RenumberDialog(wx.Dialog):
             if kind == "header":
                 continue
             text = self.grid.GetCellValue(row_index, self.NUMBER).strip()
-            if not text or is_divider(row["name"]):
+            if not text or is_divider(effective_name(row)):
                 self.grid.SetCellValue(row_index, self.NEW_NAME, "")
                 continue
             try:
@@ -2485,12 +2676,12 @@ class RenumberDialog(wx.Dialog):
             stem = job_stem(self.settings, part_operation_of(row))
             if rebuild and stem:
                 new_name = f"{stem}{number:02d}"
-            elif program_number_of(row["name"], stem) is not None:
+            elif program_number_of(effective_name(row), stem) is not None:
                 new_name = f"{stem}{number:02d}"                                                                 #Keep the name, change the number
             elif stem:
                 new_name = f"{stem}{number:02d}"                                                                 #CATIA named this one - there is no stem worth keeping
             else:
-                existing, _ = split_program_number(row["name"])
+                existing, _ = split_program_number(effective_name(row))
                 new_name = f"{existing}{number:02d}" if existing else f"{number:02d}"
             self.grid.SetCellValue(row_index, self.NEW_NAME, new_name)
         self.grid.ForceRefresh()
@@ -2507,7 +2698,7 @@ class RenumberDialog(wx.Dialog):
             if kind == "header":
                 continue
             new_name = self.grid.GetCellValue(row_index, self.NEW_NAME).strip()
-            if new_name and new_name != "not a number" and new_name != row["name"]:
+            if new_name and new_name != "not a number" and new_name != effective_name(row):
                 names[id(row)] = new_name
         return names
 
@@ -2515,8 +2706,10 @@ class RenumberDialog(wx.Dialog):
 class TreeFrame(wx.Frame):
     """The machining tree, the staged edits, and the button that writes them."""
 
-    COLUMNS = (("Level", "Operation", "Name", "Comment", "Tool") + PARAMETER_LABELS
-               + ("Stage", "Nominal", "New name", "New comment"))
+    COLUMNS = (("Level", "Operation", "Name", "Comment", "PP instruction", "Tool") + PARAMETER_LABELS
+               + ("Stage", "Nominal"))
+
+    NAME_COLUMN, COMMENT_COLUMN, INSTRUCTION_COLUMN = 2, 3, 4                                                    #Staged values are shown in place, and coloured
 
     ROW_COLOURS = {                                                                                              #Blue for the two upper levels, warm for operations
         "Part Operation": wx.Colour(157, 195, 230),
@@ -2642,23 +2835,22 @@ class TreeFrame(wx.Frame):
     def _fill_grid(self):
         for row_index, row in enumerate(self.rows):
             indent = "    " * row["level"]
-            stage, nominal = stage_for_description(row["comment"] or row["name"])
+            name, comment = effective_name(row), effective_comment(row)                                          #What the row is heading for, not what it leaves
+            stage, nominal = stage_for_description(comment or name)
             is_operation = row["kind"] == "Operation"                                                            #Only operations carry these settings
             parameters = row.get("parameters") or {}
             missing = (row.get("missing") or []) if is_operation else []
-            one_line = re.sub(r"\s*[\r\n]+\s*", " / ", row["comment"] or "").strip()                              #A part operation comment is several lines
-            values = ((row["kind"], operation_label(row["activity_type"]), indent + (row["name"] or ""),
-                       one_line, row["tool"] or "")
+            one_line = re.sub(r"\s*[\r\n]+\s*", " / ", comment).strip()                                          #A part operation comment is several lines
+            values = ((row["kind"], operation_label(row["activity_type"]), indent + name,
+                       one_line, effective_instruction(row), row["tool"] or "")
                       + tuple(parameters.get(label, "") or ("missing" if label in missing else "")
                               for label in PARAMETER_LABELS)
-                      + (stage or "", "" if nominal is None else f"{nominal:+.1f}",
-                         row["new_name"],
-                         re.sub(r"\s*[\r\n]+\s*", " / ", row["new_comment"]).strip()))
+                      + (stage or "", "" if nominal is None else f"{nominal:+.1f}"))
             for column, value in enumerate(values):
                 self.grid.SetCellValue(row_index, column, value)
 
             for offset_index, label in enumerate(PARAMETER_LABELS):                                              #Missing settings are called out, not left blank
-                column = 5 + offset_index
+                column = len(self.COLUMNS) - 2 - len(PARAMETER_LABELS) + offset_index
                 self.grid.SetCellTextColour(row_index, column,
                                             wx.Colour(192, 0, 0) if label in missing else wx.BLACK)
 
@@ -2668,16 +2860,16 @@ class TreeFrame(wx.Frame):
             for column in range(len(self.COLUMNS)):
                 self.grid.SetCellBackgroundColour(row_index, column, row_colour)
 
-            name_column, comment_column = len(self.COLUMNS) - 2, len(self.COLUMNS) - 1
-            self.grid.SetCellBackgroundColour(row_index, name_column,
-                                              self.STAGED_COLOUR if row["new_name"] else row_colour)
-            self.grid.SetCellBackgroundColour(row_index, comment_column,
-                                              self.STAGED_COLOUR if row["new_comment"] else row_colour)
+            for column, staged in ((self.NAME_COLUMN, row["new_name"]),                                          #The staged value stands where the current one did
+                                   (self.COMMENT_COLUMN, row["new_comment"]),
+                                   (self.INSTRUCTION_COLUMN, row.get("new_instruction"))):
+                self.grid.SetCellBackgroundColour(row_index, column,
+                                                  self.STAGED_COLOUR if staged else row_colour)
+                self.grid.SetCellTextColour(row_index, column,
+                                            wx.Colour(0, 97, 0) if staged else wx.BLACK)
 
-            if row["new_name"] or row["new_comment"]:                                                            #Mark the whole row so staged edits are easy to find
+            if is_staged(row):                                                                                   #Mark the whole row so staged edits are easy to find
                 self.grid.SetCellBackgroundColour(row_index, 0, self.STAGED_MARK_COLOUR)
-                for column in (name_column, comment_column):
-                    self.grid.SetCellTextColour(row_index, column, wx.Colour(0, 97, 0))
         self.grid.AutoSizeColumns()
         self.grid.ForceRefresh()
 
@@ -2700,8 +2892,9 @@ class TreeFrame(wx.Frame):
         if dialog.ShowModal() == wx.ID_OK:
             row["new_name"] = dialog.new_name
             row["new_comment"] = dialog.new_comment
+            row["new_instruction"] = dialog.new_instruction
             self._fill_grid()
-            self.status.SetLabel(f"Staged - {sum(1 for r in self.rows if r['new_name'] or r['new_comment'])} "
+            self.status.SetLabel(f"Staged - {sum(1 for r in self.rows if is_staged(r))} "
                                  f"row(s) waiting to be applied.")
         dialog.Destroy()
 
@@ -2776,9 +2969,11 @@ class TreeFrame(wx.Frame):
             "--------------------------------------------------------------------------\n"
             " Lists the machining tree of the open CATProcess and sets the names and\n"
             " comments of its part operations, programs and operations.\n\n"
-            " Edits are staged and shown in the last two columns. Nothing reaches the\n"
+            " Edits are staged in place - the Name and Comment columns show what the row\n"
+            " will be called, coloured green while it is waiting. Nothing reaches the\n"
             " document until [Apply staged edits to CATIA] is pressed, and only values\n"
-            " that differ from what is already there are written.\n\n"
+            " that differ from what is already there are written. [Clear staged edit]\n"
+            " puts a row back to what the document still holds.\n\n"
 
             "BUTTONS\n"
             "--------------------------------------------------------------------------\n"
@@ -2789,8 +2984,10 @@ class TreeFrame(wx.Frame):
             "                        be added by hand where a part does not state one.\n"
             " [Renumber programs]    Numbers the programs in sequence, or by hand.\n"
             " [Refresh from CATIA]   Reads the whole tree again. Staged edits are lost.\n"
-            " [Clear staged edit]    Drops the staged values on the selected row.\n"
-            " [Apply staged edits]   Writes every staged value to the document.\n"
+            " [Clear staged edit]    Drops the staged values on the selected row, so it\n"
+            "                        shows what the document holds again.\n"
+            " [Apply staged edits]   Writes every staged value to the document, without\n"
+            "                        asking again.\n"
             " [Edit templates]       Adds, edits, reorders and removes the entries in\n"
             "                        the dropdown lists.\n"
             " [Clear saved settings] Deletes the saved settings and puts every template\n"
@@ -2842,6 +3039,20 @@ class TreeFrame(wx.Frame):
             " (M/C: ...MM)  What the operations actually machine to, read from their\n"
             "               Offset on part. Shown only when it differs from the stage.\n\n"
 
+            "PP INSTRUCTIONS\n"
+            "--------------------------------------------------------------------------\n"
+            " A PPInstruction - the activity sitting at the head of a program - cuts\n"
+            " nothing and carries two separate things:\n\n"
+            "     Name             MECOF_HEAD     what the activity is called\n"
+            "     PP instruction   head/'TCB6'    what the post processor reads\n\n"
+            " Renaming it does not change what gets posted. The instruction is held in\n"
+            " the activity's PP words syntax parameter, and is set in the edit window\n"
+            " on its own row, staged and applied like a name or a comment.\n\n"
+            " Both have their own template list, and both ship empty - the entries\n"
+            " belong to the shop and its machines rather than to the script. Add your\n"
+            " own under [Edit templates], PP instruction names and PP instructions,\n"
+            " and press Save to keep them. They export and import like any other list.\n\n"
+
             "THE OFFSET RULE\n"
             "--------------------------------------------------------------------------\n"
             " The master side is cut to nominal. The other side has the metal taken\n"
@@ -2878,7 +3089,8 @@ class TreeFrame(wx.Frame):
             " Pale blue   Manufacturing program.\n"
             " Cream       Operation.\n"
             " Amber       Divider - a program carrying a *** heading ***.\n"
-            " Green       Staged, waiting for Apply.\n"
+            " Green       A staged Name or Comment, shown in place and waiting for\n"
+            "             Apply. The darker mark on the Level column finds the row.\n"
             " Red text    A setting this operation type should have but does not. A\n"
             "             setting counts as missing only where another operation of\n"
             "             the same type has one, so a pencil trace is not reported\n"
@@ -2937,7 +3149,7 @@ class TreeFrame(wx.Frame):
             self.status.SetLabel("No document to read - this window was opened without one.")
             return
 
-        staged = [row for row in self.rows if row["new_name"] or row["new_comment"]]
+        staged = [row for row in self.rows if is_staged(row)]
         if staged:
             confirm = wx.MessageBox(f"{len(staged)} staged edit(s) have not been applied.\n\n"
                                     f"Reading again will discard them. Carry on?",
@@ -2987,7 +3199,7 @@ class TreeFrame(wx.Frame):
             names = dialog.staged_names()
             for row in program_rows:
                 if id(row) in names:
-                    row["new_name"] = names[id(row)]
+                    row["new_name"] = "" if names[id(row)] == row["name"] else names[id(row)]                    #Back to its own name is not an edit
             self._fill_grid()
             self.status.SetLabel(f"Staged {len(names)} new program name(s). Nothing is written until Apply.")
         dialog.Destroy()
@@ -2999,6 +3211,7 @@ class TreeFrame(wx.Frame):
             return
         self.rows[row_index]["new_name"] = ""
         self.rows[row_index]["new_comment"] = ""
+        self.rows[row_index]["new_instruction"] = ""
         self._fill_grid()
         self.status.SetLabel("Staged edit cleared.")
 
@@ -3012,14 +3225,9 @@ class TreeFrame(wx.Frame):
         self._read_job_bar()
         save_settings(self.settings_dir, self.settings)
 
-        staged = [row for row in self.rows if row["new_name"] or row["new_comment"]]
+        staged = [row for row in self.rows if is_staged(row)]
         if not staged:
             self.status.SetLabel("Nothing staged.")
-            return
-
-        confirm = wx.MessageBox(f"Write {len(staged)} staged edit(s) to the document?",
-                                "Apply", wx.YES_NO | wx.ICON_QUESTION, self)
-        if confirm != wx.YES:
             return
 
         written = 0
@@ -3032,8 +3240,15 @@ class TreeFrame(wx.Frame):
                 if row["new_comment"]:
                     row["activity"].description = row["new_comment"]
                     row["comment"] = row["new_comment"]
+                if row.get("new_instruction"):
+                    parameter = instruction_parameter(row["activity"])                                           #The post processor reads this, not the name
+                    if parameter is None:
+                        raise ValueError(f"no {INSTRUCTION_PARAMETER} parameter on this activity")
+                    parameter.value = row["new_instruction"]
+                    row["instruction"] = row["new_instruction"]
                 row["new_name"] = ""
                 row["new_comment"] = ""
+                row["new_instruction"] = ""
                 written += 1
             except Exception as error:
                 failures.append(f"{row['kind']} {row['name']}: {error}")
