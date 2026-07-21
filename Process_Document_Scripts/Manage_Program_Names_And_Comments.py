@@ -112,6 +112,67 @@ PLACEHOLDERS = ("**.**MM", "***MM", "0.*MM", "POS_##")                          
 
 REMEMBERED_SETTINGS = ("initial", "machine")                                                                     #All that survives between runs - the rest is read from the document
 
+DEFAULT_TEMPLATES = json.loads(json.dumps(TEMPLATES))                                                            #Kept whole, so Reset can put every list back
+
+TEMPLATE_STATE = {"use_defaults": True}                                                                          #False where the shop keeps its own lists only
+
+# The lists the editor offers, in the order they are shown. part_operation_name is left out - it
+# is the shape of a name rather than a list of choices.
+TEMPLATE_LISTS = (
+    ("die_parts", "Die parts"),
+    ("machines", "Machines"),
+    ("job_descriptions", "Job descriptions"),
+    ("part_operation_comments", "Part operation comments"),
+    ("masters", "Masters"),
+    ("dividers", "Dividers"),
+    ("descriptions", "Operation descriptions"),
+    ("tools", "Tools"),
+    ("die_numbers", "Die numbers"),
+)
+
+
+'''
+    This function loads the template lists, with the user's own entries on top of the defaults.
+
+    Inputs:
+        settings_dir    The folder settings live in
+
+    output:
+        None - TEMPLATES is updated in place, so every reference to it sees the change
+'''
+def load_templates(settings_dir):
+    path = os.path.join(settings_dir, "templates.json")
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            saved = json.load(handle)
+    except Exception:
+        return                                                                                                   #No file yet, or an unreadable one - the defaults stand
+
+    TEMPLATE_STATE["use_defaults"] = bool(saved.get("_use_defaults", True))
+    for key, value in saved.items():
+        if key in TEMPLATES and isinstance(value, type(TEMPLATES[key])):
+            TEMPLATES[key] = value
+
+
+'''
+    This function saves the template lists.
+
+    Inputs:
+        settings_dir    The folder settings live in
+
+    output:
+        True where it was written
+'''
+def save_templates(settings_dir):
+    try:
+        content = dict(TEMPLATES)
+        content["_use_defaults"] = TEMPLATE_STATE["use_defaults"]                                                 #Remembered, so the tick box comes back as it was left
+        with open(os.path.join(settings_dir, "templates.json"), "w", encoding="utf-8") as handle:
+            json.dump(content, handle, indent=2)
+        return True
+    except Exception:
+        return False
+
 # The settings worth checking, matched on the parameter name the way Export_Process_Table_Parameters
 # does. That script walks a fixed list of parameter indices; the indices move between operation
 # types, so every parameter is scanned by name here and anything absent is reported as missing
@@ -227,23 +288,23 @@ def normalise_tool(raw):
 
 
 '''
-    This function works out which side of the die a part sits on.
+    This function works out whether a part is an upper or a lower part.
 
-    The UPPER / LOWER prefix decides it, with no exceptions. A part with no prefix - a roller,
-    restrike or flange cam, or a cam pad - genuinely can be either, so it returns None and is
-    asked for rather than guessed.
+    It is read from the UPPER or LOWER in the part operation's name, which is the name the user
+    gives it from the die parts list - name it UPPER PAD and it is an upper part. There is no
+    separate setting, so the name and the offset can never disagree.
 
     Inputs:
-        die_part        A die part name, e.g. "LOWER POST"
+        die_part        A die part name, e.g. "UPPER TRIM CAM POS_01"
 
     output:
-        "UPPER", "LOWER", or None when the name does not say
+        "UPPER", "LOWER", or None where the name does not say
 '''
-def side_for_die_part(die_part):
-    text = (die_part or "").upper().strip()
-    if text.startswith("UPPER"):
+def upper_or_lower(die_part):
+    text = re.sub(r"[_\-]+", " ", (die_part or "").upper())
+    if re.search(r"\bUPPER\b", text):
         return "UPPER"
-    if text.startswith("LOWER"):
+    if re.search(r"\bLOWER\b", text):
         return "LOWER"
     return None
 
@@ -251,29 +312,59 @@ def side_for_die_part(die_part):
 '''
     This function applies the master rule to a stage nominal.
 
-    The master side is cut to nominal. The other side has the metal taken off it. BOTH means no
-    metal comes off either side, so both are cut to nominal.
+    The master side is cut to nominal. The other side has the metal taken off it. So an upper cam
+    is cut to nominal where UPPER is master, and has the metal taken out of it where LOWER is.
+    BOTH means no metal comes off either side.
+
+        Master    Upper parts        Lower parts
+        UPPER     nominal            nominal - metal
+        LOWER     nominal - metal    nominal
+        BOTH      nominal            nominal
 
     Inputs:
         nominal         Stock left at this stage, e.g. 0.3
-        side            "UPPER" or "LOWER" - the side this part sits on
+        part            "UPPER" or "LOWER" - what this part is
         master          "UPPER", "LOWER" or "BOTH"
         metal           Metal thickness in mm
 
     output:
-        The offset in mm, or None when the side is not known and the answer could be wrong by
-        the full metal thickness
+        The offset in mm, or None where it is not known what the part is and the answer could be
+        wrong by the whole metal thickness
 '''
-def offset_for(nominal, side, master, metal):
+def offset_for(nominal, part, master, metal, spotting=0.0):
     if nominal is None:
         return None
     if master == "BOTH":
-        return nominal
-    if side is None:
+        return nominal + spotting
+    if part is None:
         return None                                                                                              #Never guess - a wrong side is wrong by the whole metal
-    if side == master:
-        return nominal
-    return nominal - metal
+    if part == master:
+        return nominal + spotting
+    return nominal - metal + spotting
+
+
+'''
+    This function writes the spotting allowance the way it appears in a comment.
+
+    Spotting is material left on for hand work at try out. It is either built into the programs,
+    so the tool never cuts it away, or left to the operator to hold off at the machine - in which
+    case the programs are unchanged and the comment tells them to.
+
+    Inputs:
+        value           The allowance in mm as text, e.g. "0.3"
+        built_in        True where the programs already leave it
+
+    output:
+        The note, or an empty string where there is no allowance
+'''
+def spotting_note(value, built_in):
+    try:
+        allowance = float(value)
+    except (TypeError, ValueError):
+        return ""
+    if not allowance:
+        return ""
+    return f"SPOTTING {format_offset(allowance)} BUILT IN" if built_in else f"LEAVE {allowance}MM FOR SPOTTING"
 
 
 '''
@@ -314,7 +405,7 @@ def format_offset(offset):
     output:
         The comment, e.g. "32BN FINISH SWEEP TO 0.0MM (M/C: -0.7MM)"
 '''
-def compose_program_comment(tool, description, stage_offset, machine_offset=None):
+def compose_program_comment(tool, description, stage_offset, machine_offset=None, spotting=""):
     text = " ".join(part for part in (tool, description) if part)
 
     if stage_offset is None:
@@ -324,6 +415,8 @@ def compose_program_comment(tool, description, stage_offset, machine_offset=None
         text = f"{text} TO {format_offset(stage_offset)}"
     if machine_offset is not None and stage_offset is not None and abs(machine_offset - stage_offset) > 0.001:
         text = f"{text} (M/C: {format_offset(machine_offset)})"                                                   #Only worth saying when it differs
+    if spotting:
+        text = f"{text}\n{spotting}"                                                                             #A line of its own
     return text.strip()
 
 
@@ -374,8 +467,8 @@ def fill_placeholder(template, placeholder, value):
         Dict of settings, with defaults for anything not saved yet
 '''
 def load_settings(settings_dir):
-    settings = {"initial": "", "project": "", "die": "", "revision": "", "code": "", "master": "UPPER",
-                "metal": "", "machine": "OKUMA", "pos": ""}
+    settings = {"initial": "", "project": "", "die": "", "revision": "",
+                "machine": "OKUMA", "pos": ""}                                                                    #Code, metal and master are per part operation
     path = os.path.join(settings_dir, "settings.json")
     try:
         with open(path, "r", encoding="utf-8") as handle:
@@ -582,6 +675,24 @@ def find_part_name(part_op):
 
 
 '''
+    This function compares two pieces of text ignoring how their lines end.
+
+    A comment read back from CATIA carries carriage returns that the dialog does not, so a
+    comment that was only read and put back would otherwise look like a change.
+
+    Inputs:
+        left            A piece of text
+        right           Another piece of text
+
+    output:
+        True where they say the same thing
+'''
+def same_text(left, right):
+    tidy = lambda text: (text or "").replace("\r\n", "\n").replace("\r", "\n").strip()
+    return tidy(left) == tidy(right)
+
+
+'''
     This function reads an activity's comment, treating CATIA's placeholder as no comment at all.
 
     Inputs:
@@ -719,10 +830,26 @@ def split_program_number(name):
     output:
         The stem, e.g. "A104D4503LP", or an empty string where the job is not filled in
 '''
-def job_stem(settings):
+def job_stem(settings, part_op=None):
+    code = (part_op or {}).get("code") or die_part_code((part_op or {}).get("name", ""))                          #The die part code belongs to the part operation
     pieces = (settings.get("initial", ""), settings.get("project", ""), settings.get("die", ""),
-              settings.get("revision", ""), settings.get("code", ""))
+              settings.get("revision", ""), code)
     return "".join(pieces).upper() if all(pieces) else ""
+
+
+'''
+    This function finds the part operation a row sits under.
+
+    Inputs:
+        row             Any row
+
+    output:
+        The part operation row, or None
+'''
+def part_operation_of(row):
+    while row and row["kind"] != "Part Operation":
+        row = row["parent"]
+    return row
 
 
 '''
@@ -903,8 +1030,39 @@ def program_offset(rows, program_row):
     output:
         List of dicts with keys level, kind, name, comment, tool, activity_type
 '''
-def read_tree(ppr_doc):
+def count_programs(ppr_doc):
+    total = 0
+    try:
+        processes = ppr_doc.processes
+        for process_index in range(processes.count):
+            part_operations = processes.item(process_index + 1).children_activities
+            for part_op_index in range(part_operations.count):
+                part_op = part_operations.item(part_op_index + 1)
+                if part_op.type != "ManufacturingSetup":
+                    continue
+                programs = part_op.children_activities
+                for program_index in range(programs.count):                                                      #Only the programs, not the Start and Stop
+                    if programs.item(program_index + 1).type == "ManufacturingProgram":
+                        total += 1
+    except Exception:
+        pass                                                                                                     #Only used to size the bar
+    return total
+
+
+'''
+    This function walks the machining tree and returns one row per activity.
+
+    Inputs:
+        ppr_doc         The PPRDocument of the active process document
+        report          Optional callable taking (programs done, message). Reading the settings of
+                        every operation takes a while, so the caller can show how far along it is.
+
+    output:
+        List of dicts, one per activity
+'''
+def read_tree(ppr_doc, report=None):
     rows = []
+    done = 0
     processes = ppr_doc.processes
 
     for process_index in range(processes.count):
@@ -916,6 +1074,8 @@ def read_tree(ppr_doc):
             if part_op.type != "ManufacturingSetup":
                 continue
 
+            if report:
+                report(done, f"Reading {part_op.name}")
             part_name, route = find_part_name(part_op)
             stated = read_part_master_and_metal(part_op)                                                          #The part is the authority for metal
             rows.append({
@@ -1007,8 +1167,42 @@ def read_tree(ppr_doc):
                 program_row["tool"] = first_tool                                                                 #Show the program's first tool on its own row
                 program_row["offset"], program_row["offset_attribute"] = program_offset(rows, program_row)
 
+                done += 1
+                if report:
+                    report(done, f"{program.name}")
+
     calibrate_missing(rows)
     return rows
+
+
+'''
+    This function reads the tree behind a progress bar.
+
+    Every operation is asked for its settings one parameter at a time, so a big process takes a
+    while. The bar says what it is on rather than leaving the window looking hung.
+
+    Inputs:
+        ppr_doc         The PPRDocument of the active process document
+        parent          The window to sit over, or None at startup
+
+    output:
+        The rows read
+'''
+def read_tree_with_progress(ppr_doc, parent=None):
+    total = count_programs(ppr_doc)
+    dialog = wx.ProgressDialog("Manage Program Names And Comments",
+                               "Reading the machining tree...".ljust(60),
+                               maximum=max(total, 1), parent=parent,
+                               style=wx.PD_APP_MODAL | wx.PD_AUTO_HIDE | wx.PD_SMOOTH)
+    dialog.SetIcon(_make_icon())
+
+    def report(done, message):
+        dialog.Update(min(done, total) if total else 0, message[:60].ljust(60))
+
+    try:
+        return read_tree(ppr_doc, report)
+    finally:
+        dialog.Destroy()
 
 
 '''
@@ -1042,35 +1236,312 @@ def calibrate_missing(rows):
 
 
 '''
-    This function asks which metal thickness applies to a part operation.
+    This function gathers every metal thickness found across the whole process.
 
-    A die can hold parts of different thickness, and a part can name more than one, so the choice
-    is offered with the name each came from rather than decided in code.
+    Each thickness becomes one row, carrying the body name it was read from, so a die holding
+    parts of different thickness shows them all and each part operation is pointed at the one
+    that applies to it.
 
     Inputs:
-        parent          The parent window
-        row             The part operation row
+        rows            The rows read from the tree
 
     output:
-        None - the row is updated in place
+        List of dicts with keys value, source and custom
 '''
-def choose_metal(parent, row):
-    metals = row.get("metals") or {}
-    if len(metals) < 2:
-        return
+def collect_metal_rows(rows):
+    metal_rows = []
+    seen = set()
+    for row in rows:
+        if row["kind"] != "Part Operation":
+            continue
+        for value, sources in sorted((row.get("metals") or {}).items(), key=lambda item: float(item[0])):
+            if value in seen:
+                continue
+            seen.add(value)
+            master = parse_master_and_metal(sources[0])["master"] or row.get("master")                            #The same body name states both
+            metal_rows.append({"value": value, "master": master or "", "source": sources[0], "custom": False})
+    return metal_rows
 
-    values = sorted(metals, key=lambda value: float(value))
-    choices = [f"{value}mm   -   {metals[value][0]}" for value in values]
-    dialog = wx.SingleChoiceDialog(
-        parent,
-        f"{row['name']}\n\nThis part names more than one metal thickness.\n"
-        f"Which applies to this part operation?",
-        "Metal thickness", choices)
-    dialog.SetSize((760, 320))
-    if dialog.ShowModal() == wx.ID_OK:
-        row["metal"] = values[dialog.GetSelection()]
-        row["metal_note"] = f"{row['metal']}mm chosen from {len(values)} stated in the part"
-    dialog.Destroy()
+
+class MetalDialog(wx.Dialog):
+    """Lists every metal thickness found, and says what applies to each part operation."""
+
+    NAME, CODE, METAL, MASTER, SPOTTING, BUILT_IN, USE = range(7)                                                #Columns of the lower grid
+    SPOTTING_MODES = ("", "built in", "at the machine")
+
+    def __init__(self, parent, part_ops, metal_rows):
+        super().__init__(parent, title="Metal thicknesses", size=(900, 620),
+                         style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
+        self.part_ops = part_ops
+        self.metal_rows = [dict(entry) for entry in metal_rows]                                                   #Only copied back on OK
+
+        panel = wx.Panel(self)
+        vbox = wx.BoxSizer(wx.VERTICAL)
+
+        vbox.Add(wx.StaticText(panel, label="Thicknesses found in the design parts. Add a row by hand "
+                                            "where a part does not state one."), 0, wx.ALL, 8)
+
+        self.metal_grid = wx.grid.Grid(panel)
+        self.metal_grid.CreateGrid(0, 4)
+        for index, label in enumerate(("Metal mm", "Master", "Where it came from", "Row")):
+            self.metal_grid.SetColLabelValue(index, label)
+        self.metal_grid.SetSelectionMode(wx.grid.Grid.SelectRows)
+        self.metal_grid.Bind(wx.grid.EVT_GRID_CELL_CHANGED, self._on_metal_edited)
+        vbox.Add(self.metal_grid, 1, wx.EXPAND | wx.ALL, 8)
+
+        buttons = wx.BoxSizer(wx.HORIZONTAL)
+        for label, handler in (("Add row", self._on_add), ("Delete row", self._on_delete)):
+            button = wx.Button(panel, label=label)
+            button.Bind(wx.EVT_BUTTON, handler)
+            buttons.Add(button, 0, wx.RIGHT, 6)
+        self.delete_note = wx.StaticText(panel, label="Only rows added by hand can be deleted.")
+        self.delete_note.SetForegroundColour(wx.Colour(90, 90, 90))
+        buttons.Add(self.delete_note, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 8)
+        vbox.Add(buttons, 0, wx.LEFT | wx.BOTTOM, 8)
+
+        vbox.Add(wx.StaticLine(panel), 0, wx.EXPAND | wx.ALL, 4)
+        vbox.Add(wx.StaticText(panel, label="Which row above applies to each part operation. Pick one in "
+                                            "the last column and its thickness and master are used."),
+                 0, wx.ALL, 8)
+
+        self.setup_grid = wx.grid.Grid(panel)
+        self.setup_grid.CreateGrid(len(part_ops), 7)
+        for index, label in enumerate(("Part operation", "Code", "Metal mm", "Master",
+                                       "Spotting mm", "Spotting", "Use")):
+            self.setup_grid.SetColLabelValue(index, label)
+        for row_index, row in enumerate(part_ops):
+            self.setup_grid.SetCellValue(row_index, self.NAME, row["name"] or "")
+            self.setup_grid.SetCellValue(row_index, self.CODE,
+                                         row.get("code") or die_part_code(row["name"]))                          #Suggested from the name, editable
+            self.setup_grid.SetCellValue(row_index, self.SPOTTING, row.get("spotting") or "")
+            self.setup_grid.SetCellValue(row_index, self.BUILT_IN, row.get("spotting_mode") or "")
+            self.setup_grid.SetCellEditor(row_index, self.MASTER, wx.grid.GridCellChoiceEditor(
+                list(TEMPLATES["masters"]), False))
+            self.setup_grid.SetCellEditor(row_index, self.BUILT_IN, wx.grid.GridCellChoiceEditor(
+                list(self.SPOTTING_MODES), False))
+            self.setup_grid.SetReadOnly(row_index, self.NAME, True)
+            self.setup_grid.SetReadOnly(row_index, self.METAL, True)                                             #Filled in from whatever row is picked
+        self.setup_grid.Bind(wx.grid.EVT_GRID_CELL_CHANGED, self._on_use_chosen)
+        self.setup_grid.Bind(wx.grid.EVT_GRID_SELECT_CELL, self._on_select_cell)                                 #Open dropdowns on a single click
+        vbox.Add(self.setup_grid, 1, wx.EXPAND | wx.ALL, 8)
+
+        panel.SetSizer(vbox)
+
+        bottom = wx.StdDialogButtonSizer()
+        ok_button = wx.Button(self, wx.ID_OK, "OK")
+        ok_button.SetDefault()
+        bottom.AddButton(ok_button)
+        bottom.AddButton(wx.Button(self, wx.ID_CANCEL))
+        bottom.Realize()
+
+        frame = wx.BoxSizer(wx.VERTICAL)
+        frame.Add(panel, 1, wx.EXPAND)
+        frame.Add(bottom, 0, wx.ALIGN_RIGHT | wx.ALL, 8)
+        self.SetSizer(frame)
+
+        self._fill_metal_grid()
+        for row_index, row in enumerate(part_ops):                                                               #Every part operation is filled the same way
+            own = row.get("metal")
+            if not own and len(row.get("metals") or {}) == 1:
+                own = next(iter(row["metals"]))                                                                  #Its own part states just the one
+            if not own:
+                continue
+            for label, entry in zip(self._labels(), self.metal_rows):
+                if entry["value"] == own:
+                    self._use_row(row_index, label)
+                    break
+        self._default_single_row()
+        self.setup_grid.AutoSizeColumns()
+        self.Center()
+
+    def _values(self):
+        return [entry["value"] for entry in self.metal_rows]
+
+    '''
+        This function writes each thickness row the way the dropdown shows it.
+
+        output:
+            A label per row, e.g. "1.5mm   UPPER"
+    '''
+    def _labels(self):
+        return [f"{entry['value']}mm   {entry.get('master') or 'no master'}" for entry in self.metal_rows]
+
+    '''
+        This function fills a part operation's thickness and master from the row it was pointed at.
+
+        Inputs:
+            row_index       The part operation row in the lower grid
+            label           The label of the chosen thickness row, or empty to clear it
+
+        output:
+            None
+    '''
+    def _use_row(self, row_index, label):
+        labels = self._labels()
+        if label not in labels:
+            for column in (self.METAL, self.USE):
+                self.setup_grid.SetCellValue(row_index, column, "")
+            return
+
+        entry = self.metal_rows[labels.index(label)]
+        self.setup_grid.SetCellValue(row_index, self.METAL, entry["value"])
+        self.setup_grid.SetCellValue(row_index, self.USE, label)
+        if entry.get("master"):
+            self.setup_grid.SetCellValue(row_index, self.MASTER, entry["master"])                                #Only where the row states one
+
+    def _on_use_chosen(self, event):
+        if event.GetCol() == self.USE:
+            self._use_row(event.GetRow(), self.setup_grid.GetCellValue(event.GetRow(), self.USE).strip())
+            self.setup_grid.AutoSizeColumns()
+            self.setup_grid.ForceRefresh()
+        event.Skip()
+
+    '''
+        This function drops the list open as soon as the cell is clicked, rather than on a second click.
+    '''
+    def _on_select_cell(self, event):
+        if event.GetCol() in (self.MASTER, self.BUILT_IN, self.USE):
+            wx.CallAfter(self.setup_grid.EnableCellEditControl)                                                   #After the selection settles
+        event.Skip()
+
+    '''
+        This function points every part operation that has no row yet at the only one there is.
+
+        Where the process turns up a single thickness there is nothing to choose between, so
+        making each part operation say so by hand would be busywork.
+
+        output:
+            The number of part operations that were filled in
+    '''
+    def _default_single_row(self):
+        if len(self.metal_rows) != 1:
+            return 0
+        label = self._labels()[0]
+        filled = 0
+        for row_index in range(self.setup_grid.GetNumberRows()):
+            if not self.setup_grid.GetCellValue(row_index, self.USE).strip():
+                self._use_row(row_index, label)
+                filled += 1
+        return filled
+
+    '''
+        This function redraws the thickness rows and re-points the part operation dropdowns at them.
+    '''
+    def _fill_metal_grid(self):
+        difference = len(self.metal_rows) - self.metal_grid.GetNumberRows()
+        if difference > 0:
+            self.metal_grid.AppendRows(difference)
+        elif difference < 0:
+            self.metal_grid.DeleteRows(0, -difference)
+
+        for row_index, entry in enumerate(self.metal_rows):
+            self.metal_grid.SetCellValue(row_index, 0, entry["value"])
+            self.metal_grid.SetCellValue(row_index, 1, entry.get("master") or "not stated")
+            self.metal_grid.SetCellValue(row_index, 2, entry["source"])
+            self.metal_grid.SetCellValue(row_index, 3, "added by hand" if entry["custom"] else "from the part")
+            if entry["custom"]:
+                self.metal_grid.SetCellEditor(row_index, 1, wx.grid.GridCellChoiceEditor(
+                    [""] + list(TEMPLATES["masters"]), False))
+            for column, editable in ((0, entry["custom"]), (1, entry["custom"]),                                 #What the part states is not retyped
+                                     (2, entry["custom"]), (3, False)):
+                self.metal_grid.SetReadOnly(row_index, column, not editable)
+            colour = wx.Colour(255, 242, 204) if entry["custom"] else wx.WHITE
+            for column in range(4):
+                self.metal_grid.SetCellBackgroundColour(row_index, column, colour)
+        self.metal_grid.AutoSizeColumns()
+
+        labels = self._labels()
+        for row_index in range(self.setup_grid.GetNumberRows()):                                                 #Dropdown of whatever rows now exist
+            self.setup_grid.SetCellEditor(row_index, self.USE,
+                                          wx.grid.GridCellChoiceEditor([""] + labels, False))
+            if self.setup_grid.GetCellValue(row_index, self.USE) not in labels:
+                for column in (self.METAL, self.USE):
+                    self.setup_grid.SetCellValue(row_index, column, "")
+        self.setup_grid.AutoSizeColumns()
+        self.metal_grid.ForceRefresh()
+        self.setup_grid.ForceRefresh()
+
+    def _on_metal_edited(self, event):
+        row_index = event.GetRow()
+        if 0 <= row_index < len(self.metal_rows):
+            entry = self.metal_rows[row_index]
+            entry["value"] = self.metal_grid.GetCellValue(row_index, 0).strip()
+            entry["master"] = self.metal_grid.GetCellValue(row_index, 1).strip()
+            entry["source"] = self.metal_grid.GetCellValue(row_index, 2).strip()
+            if entry["master"] == "not stated":
+                entry["master"] = ""
+            self._fill_metal_grid()
+        event.Skip()
+
+    def _on_add(self, event):
+        dialog = wx.TextEntryDialog(self, "Metal thickness in mm:", "Add row", "")
+        value = dialog.GetValue().strip() if dialog.ShowModal() == wx.ID_OK else None
+        dialog.Destroy()
+        if not value:
+            return
+        try:
+            float(value)
+        except ValueError:
+            wx.MessageBox(f"'{value}' is not a number.", "Add row", wx.OK | wx.ICON_WARNING, self)
+            return
+        if value in self._values():
+            wx.MessageBox(f"{value}mm is already listed.", "Add row", wx.OK | wx.ICON_INFORMATION, self)
+            return
+
+        masters = list(TEMPLATES["masters"])
+        choose = wx.SingleChoiceDialog(self, f"{value}mm - which side is master?", "Add row", masters)
+        master = masters[choose.GetSelection()] if choose.ShowModal() == wx.ID_OK else ""
+        choose.Destroy()
+
+        self.metal_rows.append({"value": value, "master": master, "source": "added by hand", "custom": True})
+        self._fill_metal_grid()
+        self._default_single_row()
+
+    def _on_delete(self, event):
+        selected = self.metal_grid.GetSelectedRows() or [self.metal_grid.GetGridCursorRow()]
+        row_index = selected[0] if selected else -1
+        if not (0 <= row_index < len(self.metal_rows)):
+            return
+
+        entry = self.metal_rows[row_index]
+        if not entry["custom"]:
+            wx.MessageBox("That thickness was read from the design part, so it cannot be deleted.\n\n"
+                          "Only rows added by hand can be removed.", "Delete row",
+                          wx.OK | wx.ICON_INFORMATION, self)
+            return
+
+        using = [row["name"] for index, row in enumerate(self.part_ops)
+                 if self.setup_grid.GetCellValue(index, self.METAL) == entry["value"]]
+        if using and wx.MessageBox(f"{entry['value']}mm is in use by:\n\n" + "\n".join(using)
+                                   + "\n\nDelete it anyway? Those part operations will be left "
+                                     "with no thickness.", "Delete row",
+                                   wx.YES_NO | wx.ICON_QUESTION, self) != wx.YES:
+            return
+
+        del self.metal_rows[row_index]
+        self._fill_metal_grid()
+
+    '''
+        This function writes the choices back onto the part operations.
+    '''
+    def apply(self):
+        for row_index, row in enumerate(self.part_ops):
+            row["code"] = self.setup_grid.GetCellValue(row_index, self.CODE).strip()
+            row["spotting"] = self.setup_grid.GetCellValue(row_index, self.SPOTTING).strip()
+            row["spotting_mode"] = self.setup_grid.GetCellValue(row_index, self.BUILT_IN).strip()
+            chosen = self.setup_grid.GetCellValue(row_index, self.METAL).strip()
+            master = self.setup_grid.GetCellValue(row_index, self.MASTER).strip()
+
+            row["metal"] = chosen or None
+            if master:
+                row["master"] = master                                                                           #The row that was picked states both
+            if chosen:
+                entry = next((e for e in self.metal_rows if e["value"] == chosen), None)
+                row["metal_note"] = (f"{chosen}mm added by hand" if entry and entry["custom"]
+                                     else f"{chosen}mm from the part")
+            else:
+                row["metal_note"] = "no thickness chosen"
+        return self.metal_rows
 
 
 class EditDialog(wx.Dialog):
@@ -1122,19 +1593,27 @@ class EditDialog(wx.Dialog):
         else:
             self.machine_choice = None
 
-        self.comment_choice = wx.ComboBox(panel, choices=[""] + self._comment_templates(), style=wx.CB_DROPDOWN)
+        if row["kind"] in ("Part Operation", "Program"):
+            self.comment_choice = wx.TextCtrl(panel, style=wx.TE_MULTILINE, size=(-1, 74))                        #The comment runs to several lines
+        else:
+            self.comment_choice = wx.ComboBox(panel, choices=[""] + self._comment_templates(),
+                                              style=wx.CB_DROPDOWN)
         self.comment_choice.SetValue(self.new_comment or self.current_comment)
-        grid_sizer.Add(wx.StaticText(panel, label="Comment"), 0, wx.ALIGN_CENTER_VERTICAL)
+        grid_sizer.Add(wx.StaticText(panel, label="Comment"), 0, wx.ALIGN_TOP | wx.TOP, 4)
         grid_sizer.Add(self.comment_choice, 1, wx.EXPAND)
 
         vbox.Add(grid_sizer, 0, wx.EXPAND | wx.ALL, 8)
 
+        if row["kind"] == "Part Operation":
+            vbox.Add(self._part_operation_composer(panel), 0, wx.EXPAND | wx.ALL, 8)                             #UPPER IS MASTER / METAL IS 1.5MM
         if row["kind"] == "Program":
             vbox.Add(self._name_builder(panel), 0, wx.EXPAND | wx.ALL, 8)                                        #A104D4503LP01
             vbox.Add(self._composer(panel), 0, wx.EXPAND | wx.ALL, 8)                                            #TOOL DESCRIPTION TO OFFSETMM
 
-        self.preview = wx.StaticText(panel, label="")
+        self.preview = wx.TextCtrl(panel, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.BORDER_NONE,                #Wraps, rather than running off the edge
+                                   size=(-1, 16 * self.PREVIEW_LINES))
         self.preview.SetFont(wx.Font(9, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL))
+        self.preview.SetBackgroundColour(panel.GetBackgroundColour())
         vbox.Add(wx.StaticLine(panel), 0, wx.EXPAND | wx.ALL, 4)
         vbox.Add(self.preview, 0, wx.EXPAND | wx.ALL, 8)
         vbox.AddStretchSpacer()                                                                                  #Keeps the buttons at the bottom when resized
@@ -1167,9 +1646,6 @@ class EditDialog(wx.Dialog):
         Sizing it before would leave the Stage button below the bottom edge.
     '''
     def _fit_to_content(self):
-        self.preview.Wrap(-1)
-        self.GetSizer().Layout() if self.GetSizer() else None
-
         panel = self.GetChildren()[0]
         panel.GetSizer().Layout()
         best = panel.GetSizer().GetMinSize()
@@ -1184,17 +1660,86 @@ class EditDialog(wx.Dialog):
         self.Layout()
 
     '''
+        This function builds the multi line comment a part operation carries.
+
+        The comment is several lines - the job description, which side is master, the metal
+        thickness, the profile thickness - so they are ticked rather than typed. The master and
+        the metal are already known from the design part, so those lines come out filled in.
+    '''
+    def _part_operation_composer(self, panel):
+        box = wx.StaticBoxSizer(wx.VERTICAL, panel, "Compose comment")
+
+        inner = wx.FlexGridSizer(0, 2, 6, 8)
+        inner.AddGrowableCol(1, 1)
+        self.job_choice = wx.ComboBox(panel, choices=[""] + TEMPLATES["job_descriptions"], style=wx.CB_DROPDOWN)
+        inner.Add(wx.StaticText(panel, label="Job description"), 0, wx.ALIGN_CENTER_VERTICAL)
+        inner.Add(self.job_choice, 1, wx.EXPAND)
+        box.Add(inner, 0, wx.EXPAND | wx.ALL, 6)
+
+        master = self.row.get("master")
+        metal = self.row.get("metal")
+
+        self.line_checks = []
+        for key, label, known in (
+                ("master", f"{master} IS MASTER" if master else "UPPER IS MASTER", bool(master)),
+                ("metal", f"METAL IS {metal}MM" if metal else "METAL IS **.**MM", bool(metal))):
+            check = wx.CheckBox(panel, label=label + ("" if known else "   (not read from the part)"))
+            check.SetValue(known)                                                                                #What the part states is ticked to start with
+            check.Bind(wx.EVT_CHECKBOX, self._on_change)
+            self.line_checks.append((key, check, label))
+            box.Add(check, 0, wx.LEFT | wx.BOTTOM, 12)
+
+        profiles = wx.BoxSizer(wx.HORIZONTAL)                                                                    #Nothing in the part states this one - type it
+        self.profiles_check = wx.CheckBox(panel, label="PROFILES ARE")
+        self.profiles_check.Bind(wx.EVT_CHECKBOX, self._on_change)
+        self.profiles_text = wx.TextCtrl(panel, size=(60, -1))
+        self.profiles_text.Bind(wx.EVT_TEXT, self._on_change)
+        profiles.Add(self.profiles_check, 0, wx.ALIGN_CENTER_VERTICAL)
+        profiles.Add(self.profiles_text, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 6)
+        profiles.Add(wx.StaticText(panel, label="MM"), 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 4)
+        box.Add(profiles, 0, wx.LEFT | wx.BOTTOM, 12)
+
+        build_button = wx.Button(panel, label="Build comment")
+        build_button.Bind(wx.EVT_BUTTON, self._on_build_part_operation_comment)
+        box.Add(build_button, 0, wx.LEFT | wx.BOTTOM, 12)
+
+        self.job_choice.Bind(wx.EVT_TEXT, self._on_change)
+        return box
+
+    '''
+        This function assembles the ticked lines into the comment box.
+    '''
+    def _on_build_part_operation_comment(self, event):
+        lines = []
+        job = self.job_choice.GetValue().strip()
+        if job:
+            lines.append(job)
+        for key, check, label in self.line_checks:
+            if check.GetValue():
+                lines.append(label)
+
+        if self.profiles_check.GetValue():
+            value = self.profiles_text.GetValue().strip()
+            lines.append(f"PROFILES ARE {value}MM" if value else "PROFILES ARE **.**MM")
+
+        if not lines:
+            wx.MessageBox("Tick a line or pick a job description first.", "Compose comment",
+                          wx.OK | wx.ICON_INFORMATION, self)
+            return
+
+        self.comment_choice.SetValue("\n".join(lines))
+        self._update_preview()
+
+    '''
         This function builds the program name from the job settings and a program number.
     '''
     def _name_builder(self, panel):
         box = wx.StaticBoxSizer(wx.HORIZONTAL, panel, "Build program name")
 
-        stem = job_stem(self.settings)
+        part_op = part_operation_of(self.row)
+        stem = job_stem(self.settings, part_op)                                                                  #The code comes from this part operation
         current_number = program_number_of(self.row["name"], stem)                                                #None where CATIA named the program
         if current_number is None:
-            part_op = self.row
-            while part_op and part_op["kind"] != "Part Operation":
-                part_op = part_op["parent"]
             current_number = next_program_number(self.rows, part_op, stem)                                        #Carry on from the highest in use
 
         self.number_text = wx.TextCtrl(panel, value=str(current_number), size=(50, -1))
@@ -1224,17 +1769,15 @@ class EditDialog(wx.Dialog):
             number = int(self.number_text.GetValue().strip())
         except ValueError:
             return ""
-        pieces = (self.settings.get("initial", ""), self.settings.get("project", ""),
-                  self.settings.get("die", ""), self.settings.get("revision", ""),
-                  self.settings.get("code", ""))
-        if not all(pieces):
-            return ""
-        return program_name_token(*pieces, number)
+        part_op = part_operation_of(self.row)
+        stem = job_stem(self.settings, part_op)
+        return f"{stem}{number:02d}" if stem else ""
 
     def _on_use_built_name(self, event):
         built = self._built_name()
         if not built:
-            wx.MessageBox("Fill in initial, project, die, revision and code in the Job bar first.",
+            wx.MessageBox("Fill in Initial, Project, Die and Rev in the Job bar, and the Code for "
+                          "this part operation in [Metal thicknesses].",
                           "Program name", wx.OK | wx.ICON_INFORMATION, self)
             return
         self.name_choice.SetValue(built)
@@ -1280,7 +1823,7 @@ class EditDialog(wx.Dialog):
             self.offset_text.SetValue(f"{measured:.1f}")
             offset_label = "M/C offset mm (from operations)"
         else:
-            side, ruled, note = self._offset_context(self.row["comment"] or self.row["name"])                    #Nothing measured - fall back to the rule
+            part, ruled, note = self._offset_context(self.row["comment"] or self.row["name"])                    #Nothing measured - fall back to the rule
             if ruled is not None:
                 self.offset_text.SetValue(f"{ruled:.1f}")
                 offset_label = "M/C offset mm (from the stage rule)"
@@ -1322,53 +1865,75 @@ class EditDialog(wx.Dialog):
         return TEMPLATES["descriptions"]
 
     '''
-        This function works out the side and offset that apply to the row being edited.
+        This function works out the offset that applies to the row being edited.
 
         output:
-            Tuple of (side or None, offset or None, note explaining the offset)
+            Tuple of (what the part is, offset or None, note explaining the offset)
     '''
     def _offset_context(self, description):
         part_op = self.row
         while part_op and part_op["kind"] != "Part Operation":
             part_op = part_op["parent"]
 
-        side = side_for_die_part(part_op["name"]) if part_op else None
-        if side is None and part_op:
-            side = part_op.get("side")                                                                           #Answered once per job for prefix-less cams
-        if side is None and self.row["kind"] == "Part Operation":
-            side = side_for_die_part(self.name_choice.GetValue())
+        part = upper_or_lower(part_op["name"]) if part_op else None
+        if part is None and self.row["kind"] == "Part Operation":
+            part = upper_or_lower(self.name_choice.GetValue())                                                    #The name being given to it now
+
+        master = (part_op.get("master") if part_op else None)                                                    #Set per part operation in [Metal thicknesses]
 
         stage, nominal = stage_for_description(description)
         if nominal is None:
-            return side, None, "no stage in the description"
+            return part, None, "no stage in the description"
 
-        master = (part_op.get("master") if part_op else None) or self.settings.get("master", "UPPER")
-        metal_text = (part_op.get("metal") if part_op else None)                                                  #Read from this part, not from the job bar
-        if metal_text is None:
+        if not master:
+            return part, None, f"{stage} +{nominal} - no master set, set one with [Metal thicknesses]"
+
+        metal_text = (part_op.get("metal") if part_op else None)                                                  #This part operation's own, never another's
+        if not metal_text:
             note = (part_op or {}).get("metal_note") or "no metal thickness for this part"
-            return side, None, f"{stage} +{nominal} - {note}, so no offset"
+            return part, None, f"{stage} +{nominal} - {note}, set one with [Metal thicknesses], so no offset"
 
         try:
             metal = float(metal_text)
         except ValueError:
-            return side, None, f"{stage} +{nominal} - metal '{metal_text}' is not a number, so no offset"
+            return part, None, f"{stage} +{nominal} - metal '{metal_text}' is not a number, so no offset"
 
-        offset = offset_for(nominal, side, master, metal)
-        if offset is None:
-            return side, None, f"{stage} +{nominal} - side of this part is not known, so no offset"
+        spotting = self._spotting_allowance(part_op)                                                             #Only where it is built into the programs
+        offset = offset_for(nominal, part, master, metal, spotting)
+        extra = f", plus {spotting} spotting built in" if spotting else ""
+
         if master == "BOTH":
-            return side, offset, f"{stage} nominal {nominal:+.1f}, master BOTH - nominal both sides"
-        if side == master:
-            return side, offset, f"{stage} nominal {nominal:+.1f}, {side} is master - nominal"
-        return side, offset, f"{stage} nominal {nominal:+.1f}, {side} is not master - less {metal} metal"
+            return part, offset, f"{stage} nominal {nominal:+.1f}, master BOTH - nominal{extra}"
+        if offset is None:
+            return part, None, (f"{stage} +{nominal} - the name does not say whether this is an upper "
+                                f"or a lower part, so no offset")
+        if part == master:
+            return part, offset, (f"{stage} nominal {nominal:+.1f}, {part} part and {master} is master - "
+                                  f"nominal{extra}")
+        return part, offset, (f"{stage} nominal {nominal:+.1f}, {part} part and {master} is master - "
+                              f"less {metal} metal{extra}")
 
     '''
-        This function fills the stage offset when a stage is picked by hand.
+        This function reads the spotting allowance that is built into the programs.
+
+        An allowance the operator holds off at the machine changes no offset here, so it counts
+        as nothing.
+
+        output:
+            The allowance in mm, or 0.0
     '''
+    def _spotting_allowance(self, part_op):
+        if not part_op or part_op.get("spotting_mode") != "built in":
+            return 0.0
+        try:
+            return float(part_op.get("spotting") or 0)
+        except ValueError:
+            return 0.0
+
     def _on_stage(self, event):
         nominal = STAGE_NOMINALS.get(self.stage_choice.GetValue().strip().upper())
         if nominal is not None:
-            self.stage_text.SetValue(f"{nominal:.1f}")
+            self.stage_text.SetValue(f"{nominal + self._spotting_allowance(part_operation_of(self.row)):.1f}")
         self._update_preview()
         event.Skip()
 
@@ -1377,10 +1942,11 @@ class EditDialog(wx.Dialog):
         if stage:
             self.stage_choice.SetValue(stage)                                                                    #The description says which stage it is
         if nominal is not None:
-            self.stage_text.SetValue(f"{nominal:.1f}")                                                           #The stage offset does not move when metal comes off
+            spotting = self._spotting_allowance(part_operation_of(self.row))                                     #Material left on for hand work
+            self.stage_text.SetValue(f"{nominal + spotting:.1f}")                                                #The stage offset does not move when metal comes off
 
         if self.row.get("offset") is None:                                                                       #Only fall back to the rule where the operations gave nothing
-            side, offset, note = self._offset_context(self.description_choice.GetValue())
+            part, offset, note = self._offset_context(self.description_choice.GetValue())
             if offset is not None:
                 self.offset_text.SetValue(f"{offset:.1f}")                                                       #Still editable - not every job uses every stage
         self._update_preview()
@@ -1410,10 +1976,15 @@ class EditDialog(wx.Dialog):
         machine_offset, ok = self._read_offset(self.offset_text, "M/C offset")
         if not ok:
             return
+        part_op = part_operation_of(self.row)
+        note = spotting_note((part_op or {}).get("spotting"),
+                             (part_op or {}).get("spotting_mode") == "built in") \
+            if (part_op or {}).get("spotting_mode") else ""
+
         self.comment_choice.SetValue(
             compose_program_comment(self.tool_choice.GetValue().strip(),
                                     self.description_choice.GetValue().strip(),
-                                    stage_offset, machine_offset))
+                                    stage_offset, machine_offset, note))
         self._update_preview()
 
     def _on_change(self, event):
@@ -1441,20 +2012,22 @@ class EditDialog(wx.Dialog):
         name = self._composed_name()
 
         comment = self.comment_choice.GetValue().strip()
+        shown = (comment or "(cleared - will not be written)").replace("\n", "\n          ")                     #Line up the second and later lines
         lines = [f"Name    : {name or '(cleared - will not be written)'}"
                  + ("   unchanged" if name == self.current_name else ""),
-                 f"Comment : {comment or '(cleared - will not be written)'}"
-                 + ("   unchanged" if comment == self.current_comment else "")]
+                 f"Comment : {shown}"
+                 + ("   unchanged" if same_text(comment, self.current_comment) else "")]
 
         if self.row["kind"] == "Program":
             built = self._built_name()
-            self.built_name.SetLabel(built or "fill Initial, Project, Die, Rev and Code in the Job bar")
+            self.built_name.SetLabel(built or "fill Initial, Project, Die and Rev, and the Code "
+                                              "for this part operation")
 
         if self.row["kind"] == "Program":
-            side, offset, note = self._offset_context(self.description_choice.GetValue())
+            part, offset, note = self._offset_context(self.description_choice.GetValue())
             measured = self.row.get("offset")
             lines.append("")
-            lines.append(f"Side    : {side or 'not known'}")
+            lines.append(f"Part    : {part or 'the name does not say'}")
             stage = self.stage_choice.GetValue().strip() or None
             nominal, _ = self._read_offset(self.stage_text, "Stage offset", quiet=True)
             lines.append(f"Stage   : {stage or 'not known'}"
@@ -1471,9 +2044,7 @@ class EditDialog(wx.Dialog):
                      placeholders_in(name) or placeholders_in(self.comment_choice.GetValue())
                      else "Nothing is written until Apply.")
 
-        while len(lines) < self.PREVIEW_LINES:                                                                   #Fixed height, so the dialog never has to resize
-            lines.append("")
-        self.preview.SetLabel("\n".join(lines[:self.PREVIEW_LINES]))
+        self.preview.SetValue("\n".join(lines))
 
     '''
         This function asks for any placeholder numbers, then stages the result.
@@ -1490,7 +2061,7 @@ class EditDialog(wx.Dialog):
             return
 
         self.new_name = "" if name == self.current_name else name                                                 #Only what actually differs is staged
-        self.new_comment = "" if comment == self.current_comment else comment
+        self.new_comment = "" if same_text(comment, self.current_comment) else comment
         if self.machine_choice is not None:
             self.settings["machine"] = self.machine_choice.GetValue().strip()
         event.Skip()
@@ -1518,26 +2089,305 @@ class EditDialog(wx.Dialog):
         return text
 
 
+class TemplateEditor(wx.Dialog):
+    """Adds, edits, reorders and removes the entries in the template lists."""
+
+    def __init__(self, parent, settings_dir):
+        super().__init__(parent, title="Edit templates", size=(880, 620),
+                         style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
+        self.settings_dir = settings_dir
+        self.working = json.loads(json.dumps(TEMPLATES))                                                         #Edited here, only copied back on Save
+
+        panel = wx.Panel(self)
+        outer = wx.BoxSizer(wx.HORIZONTAL)
+
+        self.list_choice = wx.ListBox(panel, choices=[label for _, label in TEMPLATE_LISTS], size=(200, -1))
+        self.list_choice.SetSelection(0)
+        self.list_choice.Bind(wx.EVT_LISTBOX, self._on_list_chosen)
+        outer.Add(self.list_choice, 0, wx.EXPAND | wx.ALL, 8)
+
+        right = wx.BoxSizer(wx.VERTICAL)
+        self.caption = wx.StaticText(panel, label="")
+        right.Add(self.caption, 0, wx.ALL, 6)
+
+        self.entries = wx.ListBox(panel, style=wx.LB_SINGLE)
+        self.entries.Bind(wx.EVT_LISTBOX_DCLICK, self._on_edit)
+        right.Add(self.entries, 1, wx.EXPAND | wx.ALL, 6)
+
+        buttons = wx.BoxSizer(wx.HORIZONTAL)
+        for label, handler in (("Add", self._on_add), ("Edit", self._on_edit), ("Remove", self._on_remove),
+                               ("Move up", self._on_up), ("Move down", self._on_down),
+                               ("Sort", self._on_sort), ("Reset this list", self._on_reset_list)):
+            button = wx.Button(panel, label=label)
+            button.Bind(wx.EVT_BUTTON, handler)
+            buttons.Add(button, 0, wx.RIGHT, 4)
+        right.Add(buttons, 0, wx.ALL, 6)
+        outer.Add(right, 1, wx.EXPAND)
+
+        panel.SetSizer(outer)
+
+        self.use_defaults = wx.CheckBox(self, label="Use the entries built into the script")
+        self.use_defaults.SetValue(TEMPLATE_STATE["use_defaults"])
+        self.use_defaults.SetToolTip("Untick to keep only the entries you have added, so the "
+                                     "shipped lists do not appear in the dropdowns.")
+        self.use_defaults.Bind(wx.EVT_CHECKBOX, self._on_use_defaults)
+
+        bottom = wx.BoxSizer(wx.HORIZONTAL)
+        for label, handler in (("Import...", self._on_import), ("Export...", self._on_export)):
+            button = wx.Button(self, label=label)
+            button.Bind(wx.EVT_BUTTON, handler)
+            bottom.Add(button, 0, wx.RIGHT, 4)
+        reset_all = wx.Button(self, label="Reset every list to defaults")
+        reset_all.Bind(wx.EVT_BUTTON, self._on_reset_all)
+        bottom.Add(reset_all, 0, wx.RIGHT, 8)
+        bottom.Add(self.use_defaults, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
+        bottom.AddStretchSpacer()
+        save = wx.Button(self, wx.ID_OK, "Save")
+        save.SetDefault()
+        bottom.Add(save, 0, wx.RIGHT, 4)
+        bottom.Add(wx.Button(self, wx.ID_CANCEL), 0)
+
+        frame = wx.BoxSizer(wx.VERTICAL)
+        frame.Add(panel, 1, wx.EXPAND)
+        frame.Add(bottom, 0, wx.EXPAND | wx.ALL, 8)
+        self.SetSizer(frame)
+
+        self._show_list()
+        self.Center()
+
+    def _key(self):
+        return TEMPLATE_LISTS[self.list_choice.GetSelection()][0]
+
+    def _show_list(self):
+        key = self._key()
+        self.entries.Set(self.working[key])
+        label = dict(TEMPLATE_LISTS)[key]
+        self.caption.SetLabel(f"{label} - {len(self.working[key])} entr"
+                              f"{'y' if len(self.working[key]) == 1 else 'ies'}")
+
+    def _on_list_chosen(self, event):
+        self._show_list()
+
+    def _ask(self, title, value=""):
+        dialog = wx.TextEntryDialog(self, "Entry:", title, value)
+        dialog.SetSize((560, 180))
+        text = dialog.GetValue().strip() if dialog.ShowModal() == wx.ID_OK else None
+        dialog.Destroy()
+        return text
+
+    def _on_add(self, event):
+        text = self._ask("Add entry")
+        if not text:
+            return
+        key = self._key()
+        if text in self.working[key]:
+            wx.MessageBox("That entry is already in the list.", "Add", wx.OK | wx.ICON_INFORMATION, self)
+            return
+        self.working[key].append(text)
+        self._show_list()
+        self.entries.SetSelection(len(self.working[key]) - 1)
+
+    def _on_edit(self, event):
+        index = self.entries.GetSelection()
+        if index == wx.NOT_FOUND:
+            return
+        key = self._key()
+        text = self._ask("Edit entry", self.working[key][index])
+        if not text:
+            return
+        self.working[key][index] = text
+        self._show_list()
+        self.entries.SetSelection(index)
+
+    def _on_remove(self, event):
+        index = self.entries.GetSelection()
+        if index == wx.NOT_FOUND:
+            return
+        key = self._key()
+        entry = self.working[key][index]
+        if wx.MessageBox(f"Remove '{entry}'?", "Remove", wx.YES_NO | wx.ICON_QUESTION, self) != wx.YES:
+            return
+        del self.working[key][index]
+        self._show_list()
+
+    def _move(self, step):
+        index = self.entries.GetSelection()
+        key = self._key()
+        if index == wx.NOT_FOUND or not (0 <= index + step < len(self.working[key])):
+            return
+        entries = self.working[key]
+        entries[index], entries[index + step] = entries[index + step], entries[index]
+        self._show_list()
+        self.entries.SetSelection(index + step)
+
+    def _on_up(self, event):
+        self._move(-1)
+
+    def _on_down(self, event):
+        self._move(1)
+
+    def _on_sort(self, event):
+        key = self._key()
+        self.working[key] = sorted(self.working[key])
+        self._show_list()
+
+    def _on_reset_list(self, event):
+        key = self._key()
+        label = dict(TEMPLATE_LISTS)[key]
+        if wx.MessageBox(f"Put {label} back to the entries the script ships with?",
+                         "Reset", wx.YES_NO | wx.ICON_QUESTION, self) != wx.YES:
+            return
+        self.working[key] = list(DEFAULT_TEMPLATES[key])
+        self._show_list()
+
+    def _on_reset_all(self, event):
+        if wx.MessageBox("Put every list back to the entries the script ships with?\n\n"
+                         "Anything added or edited is lost.", "Reset",
+                         wx.YES_NO | wx.ICON_QUESTION, self) != wx.YES:
+            return
+        self.working = json.loads(json.dumps(DEFAULT_TEMPLATES))
+        self._show_list()
+
+    '''
+        This function takes the shipped entries out of the lists, or puts them back.
+
+        Unticking leaves only what was added by hand, so a shop that names things its own way is
+        not made to scroll past entries it never uses. The shipped lists are still held, so
+        ticking again restores them and nothing added by hand is lost either way.
+    '''
+    def _on_use_defaults(self, event):
+        if self.use_defaults.GetValue():
+            for key, _ in TEMPLATE_LISTS:
+                added = [entry for entry in self.working[key] if entry not in DEFAULT_TEMPLATES[key]]
+                self.working[key] = list(DEFAULT_TEMPLATES[key]) + added                                          #Shipped first, then anything added
+            self._show_list()
+            return
+
+        kept = sum(len([e for e in self.working[key] if e not in DEFAULT_TEMPLATES[key]])
+                   for key, _ in TEMPLATE_LISTS)
+        if wx.MessageBox("Take the entries built into the script out of every list, leaving only "
+                         f"what you have added?\n\nThat leaves {kept} entr"
+                         f"{'y' if kept == 1 else 'ies'} across all lists. Ticking the box again "
+                         "puts the shipped entries back.",
+                         "Use the entries built into the script",
+                         wx.YES_NO | wx.ICON_QUESTION, self) != wx.YES:
+            self.use_defaults.SetValue(True)
+            return
+
+        for key, _ in TEMPLATE_LISTS:
+            self.working[key] = [entry for entry in self.working[key] if entry not in DEFAULT_TEMPLATES[key]]
+        self._show_list()
+
+    '''
+        This function writes the lists out to a file that can be given to someone else.
+    '''
+    def _on_export(self, event):
+        dialog = wx.FileDialog(self, "Export templates", wildcard="JSON files (*.json)|*.json",
+                               defaultFile="program_templates.json",
+                               style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT)
+        if dialog.ShowModal() != wx.ID_OK:
+            dialog.Destroy()
+            return
+        path = dialog.GetPath()
+        dialog.Destroy()
+
+        content = {key: self.working[key] for key, _ in TEMPLATE_LISTS}
+        content["_use_defaults"] = self.use_defaults.GetValue()
+        try:
+            with open(path, "w", encoding="utf-8") as handle:
+                json.dump(content, handle, indent=2)
+        except Exception as error:
+            wx.MessageBox(f"It could not be written:\n\n{error}", "Export", wx.OK | wx.ICON_ERROR, self)
+            return
+        wx.MessageBox(f"Written to:\n\n{path}", "Export", wx.OK | wx.ICON_INFORMATION, self)
+
+    '''
+        This function reads lists back in from a file.
+
+        Only the lists the file actually holds are taken, so a file carrying just the tools can be
+        imported without disturbing anything else.
+    '''
+    def _on_import(self, event):
+        dialog = wx.FileDialog(self, "Import templates", wildcard="JSON files (*.json)|*.json",
+                               style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST)
+        if dialog.ShowModal() != wx.ID_OK:
+            dialog.Destroy()
+            return
+        path = dialog.GetPath()
+        dialog.Destroy()
+
+        try:
+            with open(path, "r", encoding="utf-8") as handle:
+                content = json.load(handle)
+        except Exception as error:
+            wx.MessageBox(f"It could not be read:\n\n{error}", "Import", wx.OK | wx.ICON_ERROR, self)
+            return
+
+        known = {key for key, _ in TEMPLATE_LISTS}
+        found = {key: value for key, value in (content or {}).items()
+                 if key in known and isinstance(value, list) and all(isinstance(e, str) for e in value)}
+        if not found:
+            wx.MessageBox("There are no template lists in that file.", "Import",
+                          wx.OK | wx.ICON_WARNING, self)
+            return
+
+        labels = dict(TEMPLATE_LISTS)
+        summary = "\n".join(f"   {labels[key]}: {len(value)} entr{'y' if len(value) == 1 else 'ies'}"
+                            for key, value in sorted(found.items()))
+        choice = wx.MessageBox(f"The file holds:\n\n{summary}\n\n"
+                               f"Yes replaces those lists with what the file holds.\n"
+                               f"No adds the entries that are not already there.",
+                               "Import", wx.YES_NO | wx.CANCEL | wx.ICON_QUESTION, self)
+        if choice == wx.CANCEL:
+            return
+
+        for key, value in found.items():
+            if choice == wx.YES:
+                self.working[key] = list(value)
+            else:
+                self.working[key] += [entry for entry in value if entry not in self.working[key]]
+
+        if "_use_defaults" in (content or {}):
+            self.use_defaults.SetValue(bool(content["_use_defaults"]))
+        self._show_list()
+        wx.MessageBox(f"{len(found)} list(s) imported. Press Save to keep them.", "Import",
+                      wx.OK | wx.ICON_INFORMATION, self)
+
+    '''
+        This function copies the edited lists back and saves them.
+    '''
+    def save(self):
+        for key, _ in TEMPLATE_LISTS:
+            TEMPLATES[key] = self.working[key]
+        TEMPLATE_STATE["use_defaults"] = self.use_defaults.GetValue()
+        return save_templates(self.settings_dir)
+
+
 class RenumberDialog(wx.Dialog):
-    """Renumbers the programs, in sequence from a starting number or by hand."""
+    """Renumbers the programs, part operation by part operation."""
+
+    HEADER_COLOUR = wx.Colour(157, 195, 230)                                                                     #Matches the part operation rows in the main grid
+
+    NAME, START, STEP, NUMBER, NEW_NAME = range(5)                                                               #Columns
 
     def __init__(self, parent, program_rows, settings):
-        super().__init__(parent, title="Renumber programs", size=(820, 560))
-        self.program_rows = program_rows
+        super().__init__(parent, title="Renumber programs", size=(860, 620),
+                         style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
         self.settings = settings
+
+        # One entry per grid row - a part operation heading, or one of its programs. The numbering
+        # is per part operation, so the programs sit under their own heading rather than in one list.
+        self.lines = []
+        for row in program_rows:
+            part_op = part_operation_of(row)
+            if not any(line[0] == "header" and line[1] is part_op for line in self.lines):
+                self.lines.append(("header", part_op))
+            self.lines.append(("program", row))
 
         panel = wx.Panel(self)
         vbox = wx.BoxSizer(wx.VERTICAL)
 
         top = wx.BoxSizer(wx.HORIZONTAL)
-        top.Add(wx.StaticText(panel, label="Start at"), 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 6)
-        self.start_text = wx.TextCtrl(panel, value="1", size=(50, -1))
-        top.Add(self.start_text, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 6)
-
-        top.Add(wx.StaticText(panel, label="Step"), 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 12)
-        self.step_text = wx.TextCtrl(panel, value="1", size=(50, -1))
-        top.Add(self.step_text, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 6)
-
         self.rebuild_check = wx.CheckBox(panel, label="Rebuild the whole name from the job settings")
         self.rebuild_check.SetValue(True)                                                                        #Off leaves the name alone but for its number
         top.Add(self.rebuild_check, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 16)
@@ -1547,20 +2397,29 @@ class RenumberDialog(wx.Dialog):
         top.Add(sequence_button, 0, wx.LEFT, 12)
         vbox.Add(top, 0, wx.ALL, 8)
 
-        note = wx.StaticText(panel, label="Dividers are skipped. Type in the Number column to set one by hand.")
+        note = wx.StaticText(panel, label="Each part operation has its own Start and Step, on its blue row. "
+                                          "Dividers are skipped. Type in the Number column to set one by hand.")
         vbox.Add(note, 0, wx.LEFT | wx.BOTTOM, 10)
 
         self.grid = wx.grid.Grid(panel)
-        self.grid.CreateGrid(len(program_rows), 3)
-        for index, label in enumerate(("Current name", "Number", "New name")):
+        self.grid.CreateGrid(len(self.lines), 5)
+        for index, label in enumerate(("Current name", "Start", "Step", "Number", "New name")):
             self.grid.SetColLabelValue(index, label)
-        stem = job_stem(settings)
-        for row_index, row in enumerate(program_rows):
-            number = program_number_of(row["name"], stem)                                                         #Blank where CATIA named it, so its counter is not mistaken for a number
-            self.grid.SetCellValue(row_index, 0, row["name"] or "")
-            self.grid.SetCellValue(row_index, 1, str(number) if number is not None else "")
-            self.grid.SetReadOnly(row_index, 0, True)
-            self.grid.SetReadOnly(row_index, 2, True)
+
+        for row_index, (kind, row) in enumerate(self.lines):
+            if kind == "header":
+                self.grid.SetCellValue(row_index, self.NAME, (row["name"] if row else "(no part operation)"))
+                self.grid.SetCellValue(row_index, self.START, "1")                                               #This part operation's own numbering
+                self.grid.SetCellValue(row_index, self.STEP, "1")
+                for column in range(5):
+                    self.grid.SetReadOnly(row_index, column, column not in (self.START, self.STEP))
+                    self.grid.SetCellBackgroundColour(row_index, column, self.HEADER_COLOUR)
+                continue
+            number = program_number_of(row["name"], job_stem(settings, part_operation_of(row)))                  #Blank where CATIA named it
+            self.grid.SetCellValue(row_index, self.NAME, "    " + (row["name"] or ""))
+            self.grid.SetCellValue(row_index, self.NUMBER, str(number) if number is not None else "")
+            for column in (self.NAME, self.START, self.STEP, self.NEW_NAME):
+                self.grid.SetReadOnly(row_index, column, True)
         self.grid.Bind(wx.grid.EVT_GRID_CELL_CHANGED, self._on_number_typed)
         self._refresh_names()
         self.grid.AutoSizeColumns()
@@ -1578,21 +2437,25 @@ class RenumberDialog(wx.Dialog):
         self.Center()
 
     '''
-        This function fills the Number column in sequence from the starting number.
+        This function fills the Number column in sequence, restarting for every part operation.
     '''
     def _on_sequence(self, event):
-        try:
-            number = int(self.start_text.GetValue().strip())
-            step = int(self.step_text.GetValue().strip())
-        except ValueError:
-            wx.MessageBox("Start and step must be whole numbers.", "Renumber", wx.OK | wx.ICON_WARNING, self)
-            return
-
-        for row_index, row in enumerate(self.program_rows):
-            if is_divider(row["name"]):
-                self.grid.SetCellValue(row_index, 1, "")                                                          #A heading carries no number
+        number, step = 1, 1
+        for row_index, (kind, row) in enumerate(self.lines):
+            if kind == "header":
+                try:
+                    number = int(self.grid.GetCellValue(row_index, self.START).strip())                          #This part operation's own start
+                    step = int(self.grid.GetCellValue(row_index, self.STEP).strip())
+                except ValueError:
+                    name = self.grid.GetCellValue(row_index, self.NAME)
+                    wx.MessageBox(f"Start and step must be whole numbers - see {name}.",
+                                  "Renumber", wx.OK | wx.ICON_WARNING, self)
+                    return
                 continue
-            self.grid.SetCellValue(row_index, 1, str(number))
+            if is_divider(row["name"]):
+                self.grid.SetCellValue(row_index, self.NUMBER, "")                                               #A heading carries no number
+                continue
+            self.grid.SetCellValue(row_index, self.NUMBER, str(number))
             number += step
         self._refresh_names()
 
@@ -1605,24 +2468,22 @@ class RenumberDialog(wx.Dialog):
     '''
     def _refresh_names(self):
         rebuild = self.rebuild_check.GetValue()
-        pieces = (self.settings.get("initial", ""), self.settings.get("project", ""),
-                  self.settings.get("die", ""), self.settings.get("revision", ""),
-                  self.settings.get("code", ""))
-
-        for row_index, row in enumerate(self.program_rows):
-            text = self.grid.GetCellValue(row_index, 1).strip()
+        for row_index, (kind, row) in enumerate(self.lines):
+            if kind == "header":
+                continue
+            text = self.grid.GetCellValue(row_index, self.NUMBER).strip()
             if not text or is_divider(row["name"]):
-                self.grid.SetCellValue(row_index, 2, "")
+                self.grid.SetCellValue(row_index, self.NEW_NAME, "")
                 continue
             try:
                 number = int(text)
             except ValueError:
-                self.grid.SetCellValue(row_index, 2, "not a number")
+                self.grid.SetCellValue(row_index, self.NEW_NAME, "not a number")
                 continue
 
-            stem = job_stem(self.settings)
-            if rebuild and all(pieces):
-                new_name = program_name_token(*pieces, number)
+            stem = job_stem(self.settings, part_operation_of(row))
+            if rebuild and stem:
+                new_name = f"{stem}{number:02d}"
             elif program_number_of(row["name"], stem) is not None:
                 new_name = f"{stem}{number:02d}"                                                                 #Keep the name, change the number
             elif stem:
@@ -1630,7 +2491,7 @@ class RenumberDialog(wx.Dialog):
             else:
                 existing, _ = split_program_number(row["name"])
                 new_name = f"{existing}{number:02d}" if existing else f"{number:02d}"
-            self.grid.SetCellValue(row_index, 2, new_name)
+            self.grid.SetCellValue(row_index, self.NEW_NAME, new_name)
         self.grid.ForceRefresh()
 
     '''
@@ -1641,8 +2502,10 @@ class RenumberDialog(wx.Dialog):
     '''
     def staged_names(self):
         names = {}
-        for row_index, row in enumerate(self.program_rows):
-            new_name = self.grid.GetCellValue(row_index, 2).strip()
+        for row_index, (kind, row) in enumerate(self.lines):
+            if kind == "header":
+                continue
+            new_name = self.grid.GetCellValue(row_index, self.NEW_NAME).strip()
             if new_name and new_name != "not a number" and new_name != row["name"]:
                 names[id(row)] = new_name
         return names
@@ -1670,13 +2533,14 @@ class TreeFrame(wx.Frame):
         self.settings = settings
         self.settings_dir = settings_dir
         self.ppr_document = ppr_document                                                                         #Kept so the tree can be read again
+        self.metal_rows = collect_metal_rows(rows)
 
         panel = wx.Panel(self)
         vbox = wx.BoxSizer(wx.VERTICAL)
 
-        header = wx.StaticText(panel, label=self._job_summary(job_info))
-        header.SetFont(wx.Font(9, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL))
-        vbox.Add(header, 0, wx.ALL, 8)
+        self.header = wx.StaticText(panel, label=self._job_summary())
+        self.header.SetFont(wx.Font(9, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL))
+        vbox.Add(self.header, 0, wx.ALL, 8)
 
         vbox.Add(self._job_bar(panel), 0, wx.EXPAND | wx.ALL, 6)
 
@@ -1694,10 +2558,14 @@ class TreeFrame(wx.Frame):
 
         buttons = wx.BoxSizer(wx.HORIZONTAL)
         for label, handler in (("Edit selected row", self._on_edit_row),
+                               ("Metal thicknesses", self._on_metal),
                                ("Renumber programs", self._on_renumber),
                                ("Refresh from CATIA", self._on_refresh),
                                ("Clear staged edit", self._on_clear),
                                ("Apply staged edits to CATIA", self._on_apply),
+                               ("Edit templates", self._on_templates),
+                               ("Clear saved settings", self._on_clear_settings),
+                               ("Help", self._on_help),
                                ("Close", self._on_close)):
             button = wx.Button(panel, label=label)
             button.Bind(wx.EVT_BUTTON, handler)
@@ -1755,18 +2623,12 @@ class TreeFrame(wx.Frame):
         box = wx.StaticBoxSizer(wx.HORIZONTAL, panel, "Job")
         self.fields = {}
         for key, label, width in (("initial", "Initial", 40), ("project", "Project", 60),
-                                  ("die", "Die", 60), ("revision", "Rev", 40), ("code", "Code", 50),
-                                  ("metal", "Metal mm", 60)):
+                                  ("die", "Die", 60), ("revision", "Rev", 40)):
             box.Add(wx.StaticText(panel, label=label), 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 8)
             field = wx.TextCtrl(panel, value=str(self.settings.get(key, "")), size=(width, -1))
             self.fields[key] = field
             box.Add(field, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 4)
 
-        box.Add(wx.StaticText(panel, label="Master"), 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 8)
-        self.master_choice = wx.Choice(panel, choices=TEMPLATES["masters"])
-        master = self.settings.get("master", "UPPER")
-        self.master_choice.SetSelection(TEMPLATES["masters"].index(master) if master in TEMPLATES["masters"] else 0)
-        box.Add(self.master_choice, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 4)
         return box
 
     '''
@@ -1775,7 +2637,6 @@ class TreeFrame(wx.Frame):
     def _read_job_bar(self):
         for key, field in self.fields.items():
             self.settings[key] = field.GetValue().strip()
-        self.settings["master"] = self.master_choice.GetStringSelection()
 
     def _fill_grid(self):
         for row_index, row in enumerate(self.rows):
@@ -1784,12 +2645,14 @@ class TreeFrame(wx.Frame):
             is_operation = row["kind"] == "Operation"                                                            #Only operations carry these settings
             parameters = row.get("parameters") or {}
             missing = (row.get("missing") or []) if is_operation else []
+            one_line = re.sub(r"\s*[\r\n]+\s*", " / ", row["comment"] or "").strip()                              #A part operation comment is several lines
             values = ((row["kind"], operation_label(row["activity_type"]), indent + (row["name"] or ""),
-                       row["comment"] or "", row["tool"] or "")
+                       one_line, row["tool"] or "")
                       + tuple(parameters.get(label, "") or ("missing" if label in missing else "")
                               for label in PARAMETER_LABELS)
                       + (stage or "", "" if nominal is None else f"{nominal:+.1f}",
-                         row["new_name"], row["new_comment"]))
+                         row["new_name"],
+                         re.sub(r"\s*[\r\n]+\s*", " / ", row["new_comment"]).strip()))
             for column, value in enumerate(values):
                 self.grid.SetCellValue(row_index, column, value)
 
@@ -1842,6 +2705,225 @@ class TreeFrame(wx.Frame):
         dialog.Destroy()
 
     '''
+        This function opens the metal thickness table.
+    '''
+    def _on_metal(self, event):
+        part_ops = [row for row in self.rows if row["kind"] == "Part Operation"]
+        if not part_ops:
+            self.status.SetLabel("There are no part operations.")
+            return
+
+        dialog = MetalDialog(self, part_ops, self.metal_rows)
+        if dialog.ShowModal() == wx.ID_OK:
+            self.metal_rows = dialog.apply()
+            self.header.SetLabel(self._job_summary())
+            self.Layout()
+            chosen = sum(1 for row in part_ops if row["metal"])
+            self.status.SetLabel(f"{chosen} of {len(part_ops)} part operation(s) have a metal thickness.")
+        dialog.Destroy()
+
+    '''
+        This function opens the template editor and takes on whatever was saved.
+    '''
+    def _on_templates(self, event):
+        dialog = TemplateEditor(self, self.settings_dir)
+        if dialog.ShowModal() == wx.ID_OK:
+            written = dialog.save()
+            self.status.SetLabel("Templates saved." if written else
+                                 "Templates changed for this run, but the file could not be written.")
+        dialog.Destroy()
+
+    '''
+        This function deletes the saved settings and puts the templates back to the defaults.
+    '''
+    def _on_clear_settings(self, event):
+        if wx.MessageBox("Delete the saved settings and put every template list back to the "
+                         "entries the script ships with?\n\n"
+                         f"{self.settings_dir}\n\n"
+                         "The document is not touched.", "Clear saved settings",
+                         wx.YES_NO | wx.ICON_QUESTION, self) != wx.YES:
+            return
+
+        removed = []
+        for name in ("settings.json", "templates.json"):
+            path = os.path.join(self.settings_dir, name)
+            try:
+                if os.path.exists(path):
+                    os.remove(path)
+                    removed.append(name)
+            except Exception as error:
+                wx.MessageBox(f"{name} could not be deleted:\n\n{error}", "Clear saved settings",
+                              wx.OK | wx.ICON_WARNING, self)
+                return
+
+        for key, value in DEFAULT_TEMPLATES.items():
+            TEMPLATES[key] = json.loads(json.dumps(value))
+
+        for key, field in self.fields.items():
+            field.SetValue("")
+        self.settings.update({key: "" for key in REMEMBERED_SETTINGS})
+
+        self.status.SetLabel(f"Cleared {', '.join(removed) if removed else 'nothing - there was nothing saved'}. "
+                             f"Templates are back to the defaults.")
+
+    '''
+        This function shows the help window.
+    '''
+    def _on_help(self, event):
+        help_text = (
+            "MANAGE PROGRAM NAMES AND COMMENTS\n"
+            "--------------------------------------------------------------------------\n"
+            " Lists the machining tree of the open CATProcess and sets the names and\n"
+            " comments of its part operations, programs and operations.\n\n"
+            " Edits are staged and shown in the last two columns. Nothing reaches the\n"
+            " document until [Apply staged edits to CATIA] is pressed, and only values\n"
+            " that differ from what is already there are written.\n\n"
+
+            "BUTTONS\n"
+            "--------------------------------------------------------------------------\n"
+            " [Edit selected row]    Sets the name and comment of the selected activity.\n"
+            "                        Double clicking a row does the same.\n"
+            " [Metal thicknesses]    Lists every thickness found in the design parts and\n"
+            "                        says which applies to each part operation. Rows can\n"
+            "                        be added by hand where a part does not state one.\n"
+            " [Renumber programs]    Numbers the programs in sequence, or by hand.\n"
+            " [Refresh from CATIA]   Reads the whole tree again. Staged edits are lost.\n"
+            " [Clear staged edit]    Drops the staged values on the selected row.\n"
+            " [Apply staged edits]   Writes every staged value to the document.\n"
+            " [Edit templates]       Adds, edits, reorders and removes the entries in\n"
+            "                        the dropdown lists.\n"
+            " [Clear saved settings] Deletes the saved settings and puts every template\n"
+            "                        list back to the entries the script ships with.\n"
+            " [Help]                 Opens this window.\n\n"
+
+            "THE JOB BAR\n"
+            "--------------------------------------------------------------------------\n"
+            " Initial   Programmer initial. Typed once and remembered.\n"
+            " Project   Read from the CATPart name, e.g. TJ104 gives 104.\n"
+            " Die       Read from the CATPart name, e.g. D45.\n"
+            " Rev       Read from straight after the die number, D45_03 gives 03.\n"
+            " Code      Die part code. Suggested from the die part name - LOWER POST\n"
+            "           gives LP - and editable.\n"
+            " Master    Which side is cut to nominal, where the part does not say.\n\n"
+            " Metal thickness is not here - it belongs to the part, not the job. Use\n"
+            " [Metal thicknesses].\n\n"
+            " A die number found only as an OP number is reported unconfirmed, since\n"
+            " OP 40 can be D30. Confirm it before generating names.\n\n"
+
+            "PROGRAM NAMES\n"
+            "--------------------------------------------------------------------------\n"
+            " Programs are named as one token:\n\n"
+            "     A   104   D45   03   LP   01\n"
+            "     |   |     |     |    |    +-- program number\n"
+            "     |   |     |     |    +------- die part code\n"
+            "     |   |     |     +------------ revision\n"
+            "     |   |     +------------------ die number\n"
+            "     |   +------------------------ project number\n"
+            "     +---------------------------- programmer initial\n\n"
+            " Set the program number in the edit window and press [Use as name], or\n"
+            " number a whole process at once with [Renumber programs].\n\n"
+            " Dividers - programs named *** LIKE THIS *** - carry no number and are\n"
+            " skipped when renumbering.\n\n"
+            " A program CATIA named itself, Manufacturing Program.14, ends in CATIA's\n"
+            " own activity counter, not a program number. It is ignored and the next\n"
+            " free number is offered instead.\n\n"
+
+            "PROGRAM COMMENTS\n"
+            "--------------------------------------------------------------------------\n"
+            " Composed rather than typed:\n\n"
+            "     16BN SEMI-FINISH SWEEP TO +0.3MM\n"
+            "     16BN FINISH SWEEP TO 0.0MM (M/C: -1.5MM)\n\n"
+            " Tool          Taken from the program's tool change. A ball nose closes\n"
+            "               up, so T4 16 BN becomes 16BN.\n"
+            " Description   Picked from the list.\n"
+            " TO ...MM      The stage. Rough +2.0 or +0.7, semi-finish +0.3, finish\n"
+            "               0.0, Z check 0.0. This does not move when metal comes off.\n"
+            " (M/C: ...MM)  What the operations actually machine to, read from their\n"
+            "               Offset on part. Shown only when it differs from the stage.\n\n"
+
+            "THE OFFSET RULE\n"
+            "--------------------------------------------------------------------------\n"
+            " The master side is cut to nominal. The other side has the metal taken\n"
+            " off it. BOTH means no metal comes off either side.\n\n"
+            "     Master    Upper parts        Lower parts\n"
+            "     UPPER     nominal            nominal - metal\n"
+            "     LOWER     nominal - metal    nominal\n"
+            "     BOTH      nominal            nominal\n\n"
+            " So an upper cam is cut to nominal where UPPER is master, and has the\n"
+            " metal taken out of it where LOWER is.\n\n"
+            " Upper or lower comes from the part operation's name - name it UPPER PAD\n"
+            " and it is an upper part. There is no separate setting for it, because\n"
+            " the name already says it.\n\n"
+            " A name that says neither - ROLLER CAM POS_01, CAM PAD POS_02 - could be\n"
+            " either, so no offset is worked out. Name it UPPER ROLLER CAM or LOWER\n"
+            " ROLLER CAM and it will be.\n\n"
+            " The master is set per part operation in [Metal thicknesses].\n\n"
+            " The rule is only a fallback. Where the operations state an Offset on\n"
+            " part that figure is used instead, and the rule is used to check it.\n\n"
+
+            "METAL THICKNESS\n"
+            "--------------------------------------------------------------------------\n"
+            " Read from the design part, from the name of the body holding the master\n"
+            " panel:\n\n"
+            "     MASTER PANEL LH CP02 REV11 - UPPER IS MASTER - METAL IS 1.5mm\n\n"
+            " Metal belongs to the panel, so it is read per part operation. Two die\n"
+            " parts of different thickness each get their own. Where one part names\n"
+            " more than one thickness the choice is offered, with the body name each\n"
+            " came from.\n\n"
+
+            "COLUMN COLOURS\n"
+            "--------------------------------------------------------------------------\n"
+            " Blue        Part operation.\n"
+            " Pale blue   Manufacturing program.\n"
+            " Cream       Operation.\n"
+            " Amber       Divider - a program carrying a *** heading ***.\n"
+            " Green       Staged, waiting for Apply.\n"
+            " Red text    A setting this operation type should have but does not. A\n"
+            "             setting counts as missing only where another operation of\n"
+            "             the same type has one, so a pencil trace is not reported\n"
+            "             for the stepover it never had.\n\n"
+
+            "PLACEHOLDERS\n"
+            "--------------------------------------------------------------------------\n"
+            " A template carrying **.**MM, ***mm, 0.*mm or POS_## asks for the number\n"
+            " when the edit is staged. The template's own spelling of the unit is\n"
+            " kept, so DROP ***mm becomes DROP 3mm.\n\n"
+
+            "TEMPLATES\n"
+            "--------------------------------------------------------------------------\n"
+            " Every dropdown is fed by a list that [Edit templates] can change - die\n"
+            " parts, machines, job descriptions, part operation comments, masters,\n"
+            " dividers, operation descriptions, tools and die numbers.\n\n"
+            " Entries can be added, edited, reordered, sorted and removed. Saving\n"
+            " writes them to templates.json; the lists built into the script are the\n"
+            " fallback, so a list can always be put back with [Reset this list].\n\n"
+
+            "SETTINGS PERSISTENCE\n"
+            "--------------------------------------------------------------------------\n"
+            " Two files, in:\n"
+            "   %APPDATA%\\pycatia_scripts\\Manage_Program_Names_And_Comments\\\n\n"
+            "   settings.json    The programmer initial and the machine. Nothing else.\n"
+            "   templates.json   The template lists, once they have been edited.\n\n"
+            " Project, die, revision, metal and master belong to the document and are\n"
+            " read from it every run, so a part name that fails to parse can never\n"
+            " inherit the last job's die number.\n\n"
+            " [Clear saved settings] deletes both files and puts the templates back.\n\n"
+
+            "NOTES\n"
+            "--------------------------------------------------------------------------\n"
+            " The settings columns are the ones Export_Process_Table_Parameters writes\n"
+            " to Excel, read by parameter name rather than by index.\n\n"
+            " Applying writes to the document but does not save it. Save in CATIA to\n"
+            " keep the changes."
+        )
+        dialog = dialogs.ScrolledMessageDialog(self, help_text, "Help")
+        dialog.text.SetFont(wx.Font(10, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL))
+        dialog.SetSize((680, 620))
+        dialog.CenterOnParent()
+        dialog.ShowModal()
+        dialog.Destroy()
+
+    '''
         This function reads the whole tree again from the document.
 
         Staged edits are lost, because they were worked out against activities that may no longer
@@ -1865,20 +2947,18 @@ class TreeFrame(wx.Frame):
         chosen = {row["name"]: row["metal"] for row in self.rows                                                  #Keep the metal that was picked by hand
                   if row["kind"] == "Part Operation" and len(row.get("metals") or {}) > 1}
 
-        wx.BeginBusyCursor()
         try:
-            rows = read_tree(self.ppr_document)
+            rows = read_tree_with_progress(self.ppr_document, self)
         except Exception as error:
-            wx.EndBusyCursor()
             wx.MessageBox(f"The document could not be read:\n\n{error}", "Refresh", wx.OK | wx.ICON_ERROR, self)
             return
-        wx.EndBusyCursor()
 
         for row in rows:
             if row["kind"] == "Part Operation" and row["name"] in chosen and chosen[row["name"]]:
                 row["metal"] = chosen[row["name"]]
 
         self.rows = rows
+        self.metal_rows = collect_metal_rows(rows)                                                               #The parts may have changed too
         difference = len(rows) - self.grid.GetNumberRows()
         if difference > 0:
             self.grid.AppendRows(difference)
@@ -1886,6 +2966,8 @@ class TreeFrame(wx.Frame):
             self.grid.DeleteRows(0, -difference)
 
         self._fill_grid()
+        self.header.SetLabel(self._job_summary())
+        self.Layout()
         self.status.SetLabel(f"Read again from the document - {len(rows)} row(s). "
                              f"Staged edits were cleared.")
 
@@ -1956,6 +3038,8 @@ class TreeFrame(wx.Frame):
                 failures.append(f"{row['kind']} {row['name']}: {error}")
 
         self._fill_grid()
+        self.header.SetLabel(self._job_summary())                                                                #Names may have changed
+        self.Layout()
         if failures:
             wx.MessageBox("Written: {0}\n\nFailed:\n{1}".format(written, "\n".join(failures)),
                           "Apply", wx.OK | wx.ICON_WARNING, self)
@@ -1966,23 +3050,41 @@ class TreeFrame(wx.Frame):
         save_settings(self.settings_dir, self.settings)
         self.Close()
 
-    def _job_summary(self, job_info):
-        if not job_info:
+    '''
+        This function writes the block above the grid, one entry per part operation.
+
+        Metal and master belong to the part, not to the job, so a process holding several parts
+        of different thickness shows each one with its own figures rather than a single value
+        that could only be right for one of them.
+
+        output:
+            The text to show
+    '''
+    def _job_summary(self):
+        setups = [row for row in self.rows if row["kind"] == "Part Operation"]
+        if not setups:
             return "No part operations found."
-        lines = []
-        for info in job_info:
-            parsed = info["parsed"]
+
+        blocks = []
+        for row in setups:
+            parsed = parse_part_name(row["part_name"])
             die = parsed["die"] or "not found"
             if not parsed["confirmed"] and parsed["op"]:
-                die = f"{die}  (only OP {parsed['op']} present - die number must be confirmed)"
-            lines.append(
-                f"{info['setup']}\n"
-                f"    CATPart  : {info['part_name'] or 'not found'}   [{info['route']}]\n"
-                f"    Job      : {parsed['job'] or 'not found'}\n"
-                f"    Die      : {die}\n"
-                f"    Revision : {parsed['revision'] or 'not found'}"
+                die = f"{die} (only OP {parsed['op']} present - confirm the die number)"
+
+            metal = f"{row['metal']}mm" if row["metal"] else "not known - no offsets"
+            if len(row.get("metals") or {}) > 1:
+                metal += f"  (chosen from {', '.join(sorted(row['metals']))})"
+
+            blocks.append(
+                f"{row['name']}\n"
+                f"    CATPart : {row['part_name'] or 'not found'}\n"
+                f"    Job {parsed['job'] or '?'}   Die {die}   Rev {parsed['revision'] or '?'}\n"
+                f"    Metal {metal}   Master {row['master'] or 'not stated'}"
+                + (f"   Spotting {row['spotting']}mm {row['spotting_mode']}"
+                   if row.get("spotting") and row.get("spotting_mode") else "")
             )
-        return "\n".join(lines)
+        return "\n".join(blocks)
 
 
 if __name__ == "__main__":
@@ -2006,7 +3108,7 @@ if __name__ == "__main__":
             os.makedirs(settings_dir)                                                                            #User templates will live here
 
         print("\n Reading the machining tree...\n")
-        rows = read_tree(ppr_document)
+        rows = read_tree_with_progress(ppr_document)
 
         job_info = []
         for row in rows:
@@ -2055,6 +3157,7 @@ if __name__ == "__main__":
             print("\n No part operations found in this document.\n")
             exit()
 
+        load_templates(settings_dir)                                                                             #User entries sit on top of the built in lists
         settings = load_settings(settings_dir)
         for info in job_info:                                                                                    #Prefill from the part name, still editable
             parsed = info["parsed"]
@@ -2068,13 +3171,9 @@ if __name__ == "__main__":
             if row["kind"] != "Part Operation":
                 continue
 
-            if len(row["metals"]) > 1:
-                choose_metal(None, row)                                                                          #A die can hold parts of different thickness
-
-            side = side_for_die_part(row["name"]) or "not known"
             print(f"   {row['name']}")
             print(f"     master {row['master'] or 'not stated'}, "
-                  f"metal {row['metal'] + 'mm' if row['metal'] else 'not known'}, side {side}")
+                  f"metal {row['metal'] + 'mm' if row['metal'] else 'not known'}")
             for value, sources in sorted(row["metals"].items()):
                 mark = "  <- chosen" if value == row["metal"] and len(row["metals"]) > 1 else ""
                 for source in sources:
@@ -2082,14 +3181,10 @@ if __name__ == "__main__":
             if row["metal_note"]:
                 print(f"       note: {row['metal_note']}")
             if not row["metal"]:
-                print("       no offsets will be worked out for this part operation")
+                print("       set one with [Metal thicknesses], or no offsets are worked out")
 
-            if row["master"]:
-                settings["master"] = row["master"]
-            if row["metal"]:
-                settings["metal"] = row["metal"]
-            if not settings.get("code"):
-                settings["code"] = die_part_code(row["name"])                                                    #A suggestion - it stays editable in the Job bar
+            if not row.get("code"):
+                row["code"] = die_part_code(row["name"])                                                         #Suggested, editable in [Metal thicknesses]
 
         frame = TreeFrame(rows, job_info, settings, settings_dir, ppr_document)
         frame.Show()
