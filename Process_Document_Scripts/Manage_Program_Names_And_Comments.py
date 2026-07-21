@@ -688,7 +688,8 @@ def find_part_name(part_op):
         True where they say the same thing
 '''
 def same_text(left, right):
-    tidy = lambda text: (text or "").replace("\r\n", "\n").replace("\r", "\n").strip()
+    def tidy(text):
+        return (text or "").replace("\r\n", "\n").replace("\r", "\n").strip()
     return tidy(left) == tidy(right)
 
 
