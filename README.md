@@ -169,6 +169,7 @@ Or, if using [CatiaMenuWin32](https://github.com/KaiUR/CatiaMenuWin32), use the 
 | `Export_Process_Table_Parameters.py` | Export machining program parameters to Excel (includes operation type, tool, stepover, tolerances, depths, offsets) |
 | `Export_ResourceList.py` | Export names of all resources in a process document to CSV |
 | `Export_Tool_List_From_Process.py` | Export all cutting tools from a process document to Excel |
+| `Manage_Program_Names_And_Comments.py` | Review the machining tree and set program and operation names and comments from template lists; builds program names, renumbers them in sequence and composes comments with the machined offset |
 | `Manage_Tooling_Catalog.py` | Spreadsheet-style editor for NC tooling catalogs; edit tools in a grid and build the .catalog |
 | `Rename_Operations_From_Tool_Name.py` | Automatically rename each operation to match the assigned tool name |
 
