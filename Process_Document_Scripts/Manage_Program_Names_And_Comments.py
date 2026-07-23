@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Manage_Program_Names_And_Comments.py
-    Version:        1.1
+    Version:        1.2
     Code:           Python3.10.4, Pycatia 0.10.0
     Release:        V5R32
     Purpose:        Review and set the names and comments of manufacturing programs and operations.
@@ -13,6 +13,8 @@
                     renumbered in sequence, and program comments composed as TOOL DESCRIPTION TO 0.0MM
                     (M/C: -0.7MM), the machined figure coming from the operations and the stage from the job.
                     Job details are read from the CATPart name and the metal thickness from the design part.
+                    Stepover, depth of cut and part offset are checked against editable limits and shown on
+                    red where they are off. Several rows can be selected and edited together as a group.
                     Edits are staged in place over the current values; nothing is written until Apply is pressed.
     dependencies = [
                     "pycatia",
@@ -31,6 +33,13 @@
                                   the operation description filled in when a row is reopened, and
                                   PPInstruction activities given their name and their PP words
                                   syntax from two template lists of the user's own.
+                    23.07.26 1.2: Contour stepover read from Minimum step distance and its depth
+                                  of cut from Maximum depth of cut, the CATIA Roughing operation
+                                  shown as Roughing with its pass overlap as the stepover,
+                                  stepover / depth of cut / part offset checked against editable
+                                  limits and shown on red where off, several rows editable at
+                                  once as a group, any known tool stripped from a prefilled
+                                  description, and the buttons grouped by colour.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -208,6 +217,91 @@ PARAMETER_COLUMNS = (
 
 PARAMETER_LABELS = tuple(label for label, _ in PARAMETER_COLUMNS)
 
+# Operation types whose settings live under different parameter names. A contour driven
+# operation's stepover is its Minimum step distance - the Maximum distance it also carries is a
+# discretization figure that only looks like one - and its depth of cut is Maximum depth of cut,
+# because the Multi-Pass depth stays set while Multi-Pass itself is off.
+PARAMETER_OVERRIDES = {
+    "M3xBetweenContour": {
+        "Stepover": ("Minimum step distance",),
+        "Depth of Cut": ("Maximum depth of cut",),
+    },
+}
+
+# The CATIA Roughing operation - M3xHardMaterial - states its stepover as a pass overlap: a mode
+# and two values, of which the mode says which one is in force. A ratio is shown as a percentage
+# of the tool diameter, a length as the distance it is.
+ROUGHING_TYPE = "M3xHardMaterial"
+OVERLAP_MODE = "Pass overlap mode"
+OVERLAP_RATIO = "Pass overlap (diameter ratio)"
+OVERLAP_LENGTH = "Pass overlap (length)"
+
+# The values the settings are checked against, editable under [Edit limits]. Stepover limits are
+# per machining stage, the stage read from the operation's comment or name, or its program's.
+# The CATIA Roughing operation is checked on its own two rules instead - its pass overlap and
+# its depth of cut - whatever stage its program belongs to. A value off its list is shown on red.
+DEFAULT_LIMITS = {
+    "stepover": {"ROUGHING": [3.0, 2.0, 1.0], "SEMI-FINISH": [1.5, 1.0], "FINISH": [1.0, 0.5]},
+    "roughing_overlap": [50.0],
+    "roughing_depth_of_cut": [1.0, 1.5, 2.0],
+}
+
+LIMITS = json.loads(json.dumps(DEFAULT_LIMITS))                                                                  #Replaced by whatever limits.json holds
+
+
+'''
+    This function loads the saved limits, where the user has changed them.
+
+    Inputs:
+        settings_dir    The folder settings live in
+
+    output:
+        None - LIMITS is updated in place, so every reference to it sees the change
+'''
+def load_limits(settings_dir):
+    path = os.path.join(settings_dir, "limits.json")
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            saved = json.load(handle)
+    except Exception:
+        return                                                                                                   #No file yet, or an unreadable one - the defaults stand
+
+    for key, value in saved.items():
+        if key in LIMITS and isinstance(value, type(LIMITS[key])):
+            LIMITS[key] = value
+
+
+'''
+    This function saves the limits.
+
+    Inputs:
+        settings_dir    The folder settings live in
+
+    output:
+        True where it was written
+'''
+def save_limits(settings_dir):
+    try:
+        with open(os.path.join(settings_dir, "limits.json"), "w", encoding="utf-8") as handle:
+            json.dump(LIMITS, handle, indent=2)
+        return True
+    except Exception:
+        return False
+
+
+'''
+    This function says whether a value sits on a list of allowed values.
+
+    Inputs:
+        value           The value to check
+        choices         The allowed values
+
+    output:
+        True where it matches one, within a hair
+'''
+def value_allowed(value, choices):
+    return any(abs(value - choice) <= 0.001 for choice in choices)
+
 
 '''
     This function turns an activity type into the short operation label.
@@ -225,6 +319,8 @@ def operation_label(activity_type):
     label = (activity_type or "").replace("Manufacturing", "")
     if label == "M3xBitangency":
         return "PencilTrace"
+    if label == "M3xHardMaterial":
+        return "Roughing"                                                                                        #What the CATIA dialog calls it
     if label.startswith("M3x"):
         return label[3:]
     return label
@@ -248,7 +344,9 @@ def numeric_value(text):
     This function reads the settings of one operation.
 
     Every parameter is walked once and matched on its name, so an operation type whose parameters
-    sit at different indices still reports its settings.
+    sit at different indices still reports its settings. Types listed in PARAMETER_OVERRIDES have
+    some settings read from other parameter names, and the Roughing operation's stepover is put
+    together from its pass overlap mode and whichever of the two overlap values that mode is on.
 
     Inputs:
         activity        A manufacturing operation activity
@@ -258,6 +356,14 @@ def numeric_value(text):
 '''
 def read_operation_parameters(activity):
     values = {label: "" for label in PARAMETER_LABELS}
+
+    try:
+        activity_type = activity.type
+    except Exception:
+        activity_type = ""
+    overrides = PARAMETER_OVERRIDES.get(activity_type, {})
+    columns = tuple((label, overrides.get(label, needles)) for label, needles in PARAMETER_COLUMNS)
+    overlap = {}                                                                                                 #The Roughing operation's pass overlap pieces
 
     try:
         parameters = activity.parameters
@@ -271,7 +377,14 @@ def read_operation_parameters(activity):
             name = parameter.name
         except Exception:
             continue
-        for label, needles in PARAMETER_COLUMNS:
+        if activity_type == ROUGHING_TYPE:
+            for key in (OVERLAP_MODE, OVERLAP_RATIO, OVERLAP_LENGTH):
+                if key in name and key not in overlap:
+                    try:
+                        overlap[key] = parameter.value_as_string()
+                    except Exception:
+                        pass
+        for label, needles in columns:
             if values[label]:
                 continue                                                                                         #First match wins, as in the export script
             if any(needle in name for needle in needles):
@@ -279,6 +392,13 @@ def read_operation_parameters(activity):
                     values[label] = parameter.value_as_string()
                 except Exception:
                     pass
+
+    if activity_type == ROUGHING_TYPE and not values["Stepover"]:
+        mode = overlap.get(OVERLAP_MODE, "")                                                                     #M3xRatio, or one of the length modes
+        if "Ratio" in mode and overlap.get(OVERLAP_RATIO):
+            values["Stepover"] = overlap[OVERLAP_RATIO] + "%"                                                    #A percentage of the tool diameter
+        elif "Length" in mode and overlap.get(OVERLAP_LENGTH):
+            values["Stepover"] = overlap[OVERLAP_LENGTH]
 
     missing = [label for label in PARAMETER_LABELS if not values[label]]
     return values, missing
@@ -497,6 +617,10 @@ def compose_program_comment(tool, description, stage_offset, machine_offset=None
     behind are taken off. A comment written some other way has no offsets to cut, and keeps
     whatever text it carries.
 
+    Any recognised tool is stripped, not only the one the row detected - a comment carrying the
+    tool the program used to run would otherwise keep it in the description, and composing would
+    then write both tools in front of it.
+
     Inputs:
         comment         The comment on the program, staged or current
         tool            The tool token the row detected, e.g. "32BN"
@@ -513,9 +637,13 @@ def description_from_comment(comment, tool):
     if offsets != -1:
         text = text[:offsets]
 
-    token = (tool or "").strip()
-    if token and text.upper().startswith(token.upper()):
-        text = text[len(token):]
+    tokens = [token.strip() for token in [tool] + TEMPLATES["tools"] if token and token.strip()]
+    for token in sorted(set(tokens), key=len, reverse=True):                                                     #Longest first - 32 DEPO R8 before 32BN
+        if text.upper().startswith(token.upper() + " ") or text.upper() == token.upper():
+            text = text[len(token):]
+            break
+    else:
+        text = re.sub(r"^\d+(?:[.-]\w+)?\s*BN\b\s*", "", text, flags=re.IGNORECASE)                              #A ball nose not on the list - 16BN FINISH SWEEP
 
     return text.strip()
 
@@ -1160,6 +1288,100 @@ def program_offset(rows, program_row):
 
 
 '''
+    This function works out the stage an operation belongs to.
+
+    Its own comment or name is read first, then its program's, so an operation named after its
+    tool still checks against the stage the program says it is cutting. A name CATIA gave the
+    operation itself - Roughing.1, Sweeping.3 - is its type with a counter, not a statement of
+    the stage, so it is not read as one.
+
+    Inputs:
+        row             An operation row
+
+    output:
+        Tuple of (stage name, nominal stock in mm), or (None, None) where no stage is stated
+'''
+def stage_of_row(row):
+    name = effective_name(row)
+    if re.fullmatch(re.escape(operation_label(row["activity_type"])) + r"\.\d+", name.strip()):
+        name = ""                                                                                                #CATIA's own default name says the type, not the stage
+    stage, nominal = stage_for_description(effective_comment(row) or name)
+    if stage is None and row.get("parent") is not None:
+        parent = row["parent"]
+        stage, nominal = stage_for_description(effective_comment(parent) or effective_name(parent))
+    return stage, nominal
+
+
+'''
+    This function checks an operation's settings against the limits.
+
+    Three things are looked at. The stepover has to sit on the allowed list for the operation's
+    stage. The CATIA Roughing operation is instead held to its own two rules - a pass overlap on
+    the allowed percentages and a depth of cut on the allowed depths. And the Offset on part has
+    to match what the stage rule works out from the part operation's master, metal and spotting.
+    Anything that cannot be worked out - no stage, no master, no metal - is not checked, so a
+    row is only marked where the value is genuinely off.
+
+    Inputs:
+        row             An operation row
+        part_op         The part operation it sits under, or None
+
+    output:
+        Dict of column label to a short reason, empty where everything checks out
+'''
+def check_operation(row, part_op):
+    bad = {}
+    if row["kind"] != "Operation":
+        return bad
+    parameters = row.get("parameters") or {}
+    stage, nominal = stage_of_row(row)
+
+    stepover_text = parameters.get("Stepover") or ""
+    stepover = numeric_value(stepover_text)
+    if row["activity_type"] == ROUGHING_TYPE:
+        if stepover_text.endswith("%"):
+            if stepover is not None and not value_allowed(stepover, LIMITS["roughing_overlap"]):
+                bad["Stepover"] = "pass overlap should be " + ", ".join(
+                        f"{choice:g}%" for choice in LIMITS["roughing_overlap"])
+        elif stepover_text:
+            bad["Stepover"] = "a length, where a pass overlap percentage is expected"
+
+        depth = numeric_value(parameters.get("Depth of Cut"))
+        if depth is not None and not value_allowed(depth, LIMITS["roughing_depth_of_cut"]):
+            bad["Depth of Cut"] = "should be " + ", ".join(
+                    f"{choice:g}" for choice in LIMITS["roughing_depth_of_cut"])
+    else:
+        key = (stage or "").replace("SEMI FINISH", "SEMI-FINISH")                                                #The older templates' spelling of the same stage
+        choices = LIMITS["stepover"].get(key)
+        if choices and stepover is not None and not value_allowed(stepover, choices):
+            bad["Stepover"] = "should be " + ", ".join(f"{choice:g}" for choice in choices)
+
+    measured = row.get("offset")
+    if measured is not None and nominal is not None and part_op:
+        part = upper_or_lower(effective_name(part_op))
+        master = part_op.get("master")
+        try:
+            metal = float(part_op.get("metal")) if part_op.get("metal") else None
+        except ValueError:
+            metal = None
+        spotting = 0.0
+        if part_op.get("spotting_mode") == "built in":
+            try:
+                spotting = float(part_op.get("spotting") or 0)
+            except ValueError:
+                spotting = 0.0
+
+        expected = None
+        if master == "BOTH" or (part and master and part == master):
+            expected = nominal + spotting                                                                        #The metal never comes into it on the master side
+        elif part and master and metal is not None:
+            expected = offset_for(nominal, part, master, metal, spotting)
+        if expected is not None and abs(expected - measured) > 0.001:
+            bad["Offset on Part"] = f"the stage rule gives {format_offset(expected)}"
+    return bad
+
+
+'''
     This function walks the machining tree and returns one row per activity.
 
     Inputs:
@@ -1690,13 +1912,16 @@ class MetalDialog(wx.Dialog):
 
 
 class EditDialog(wx.Dialog):
-    """Gives one activity a name and a comment from the template lists."""
+    """Gives one activity - or a selected group of them - a name and a comment from the
+    template lists."""
 
     PREVIEW_LINES = 9                                                                                            #The most the preview ever shows, for a program
 
-    def __init__(self, parent, row, settings, rows=None):
-        super().__init__(parent, title=f"Set {row['kind'].lower()} - {row['name']}",
-                         style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
+    def __init__(self, parent, row, settings, rows=None, group=None):
+        self.group = group if group and len(group) > 1 else None                                                 #None for the ordinary single-row edit
+        title = (f"Set {len(self.group)} {row['kind'].lower()}s - from {row['name']}" if self.group
+                 else f"Set {row['kind'].lower()} - {row['name']}")
+        super().__init__(parent, title=title, style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
         self.row = row
         self.settings = settings
         self.rows = rows or [row]                                                                                #Needed to see which numbers are already in use
@@ -1707,9 +1932,25 @@ class EditDialog(wx.Dialog):
         self.new_instruction = row.get("new_instruction") or ""
         self.current_instruction = row.get("instruction") or ""
         self.is_instruction = row["activity_type"] in INSTRUCTION_TYPES
+        self.composed = None                                                                                     #What Build comment last wrote, so a group knows to recompose
+        self.built_used = False                                                                                  #Whether [Use as name] was pressed - a group numbers on from it
+        self.name_prefill = self.new_name or self.current_name                                                   #A group only takes what was actually changed
+        self.comment_prefill = self.new_comment or self.current_comment
+        self.instruction_prefill = self.new_instruction or self.current_instruction
 
         panel = wx.Panel(self)
         vbox = wx.BoxSizer(wx.VERTICAL)
+
+        if self.group:
+            note = (f"Editing {len(self.group)} programs. A built name numbers on in sequence from "
+                    f"here, a composed comment is built again for each program with its own tool "
+                    f"and offset, and only what is changed below is applied. Dividers keep their "
+                    f"names." if row["kind"] == "Program" else
+                    f"Editing {len(self.group)} rows. Only what is changed below is applied, the "
+                    f"same to every one.")
+            group_note = wx.StaticText(panel, label=note)
+            group_note.SetForegroundColour(wx.Colour(0, 97, 0))
+            vbox.Add(group_note, 0, wx.ALL, 8)
 
         summary = f"Now:  {row['name']}\n      {row['comment'] or '(no comment)'}"
         if row["kind"] == "Operation":
@@ -1939,6 +2180,7 @@ class EditDialog(wx.Dialog):
                           "Program name", wx.OK | wx.ICON_INFORMATION, self)
             return
         self.name_choice.SetValue(built)
+        self.built_used = True                                                                                   #An explicit ask - a group renumbers even from the same name
         self._update_preview()
 
     '''
@@ -2043,16 +2285,19 @@ class EditDialog(wx.Dialog):
     '''
         This function works out the offset that applies to the row being edited.
 
+        Inputs:
+            description     The description the stage is read from
+            row             The row to work it out for - the dialog's own where not given
+
         output:
             Tuple of (what the part is, offset or None, note explaining the offset)
     '''
-    def _offset_context(self, description):
-        part_op = self.row
-        while part_op and part_op["kind"] != "Part Operation":
-            part_op = part_op["parent"]
+    def _offset_context(self, description, row=None):
+        row = row or self.row
+        part_op = part_operation_of(row)
 
         part = upper_or_lower(effective_name(part_op)) if part_op else None                                      #A staged rename decides the side too
-        if part is None and self.row["kind"] == "Part Operation":
+        if part is None and row is self.row and row["kind"] == "Part Operation":
             part = upper_or_lower(self.name_choice.GetValue())                                                    #The name being given to it now
 
         master = (part_op.get("master") if part_op else None)                                                    #Set per part operation in [Metal thicknesses]
@@ -2161,6 +2406,7 @@ class EditDialog(wx.Dialog):
             compose_program_comment(self.tool_choice.GetValue().strip(),
                                     self.description_choice.GetValue().strip(),
                                     stage_offset, machine_offset, note))
+        self.composed = self.comment_choice.GetValue()                                                           #A group recomposes this per row rather than copying it
         self._update_preview()
 
     def _on_change(self, event):
@@ -2241,6 +2487,10 @@ class EditDialog(wx.Dialog):
         if comment is None:
             return
 
+        self.final_name = name                                                                                   #The group path works from these, not the diffs
+        self.final_comment = comment
+        self.final_instruction = ""
+
         self.new_name = "" if name == self.current_name else name                                                 #Only what actually differs is staged
         self.new_comment = "" if same_text(comment, self.current_comment) else comment
 
@@ -2248,6 +2498,7 @@ class EditDialog(wx.Dialog):
             instruction = self._resolve_placeholders(self.instruction_choice.GetValue().strip(), "PP instruction")
             if instruction is None:
                 return
+            self.final_instruction = instruction
             self.new_instruction = "" if instruction == self.current_instruction else instruction
 
         if self.machine_choice is not None:
@@ -2275,6 +2526,84 @@ class EditDialog(wx.Dialog):
             else:
                 text = fill_placeholder(text, placeholder, value)
         return text
+
+    '''
+        This function composes the group comment for one row.
+
+        The description, stage and stage offset are shared across the group - they are what the
+        group has in common - but the tool and the machined offset are the row's own, so one
+        program's tool is never written into another's comment.
+
+        Inputs:
+            row             A program row from the group
+
+        output:
+            The comment for that row
+    '''
+    def compose_for(self, row):
+        stage_offset, _ = self._read_offset(self.stage_text, "Stage offset", quiet=True)
+        machine_offset = row.get("offset")                                                                       #What this row's operations actually machine to
+        if machine_offset is None:
+            _, machine_offset, _ = self._offset_context(self.description_choice.GetValue(), row)                 #Nothing measured - the stage rule for this row
+        part_op = part_operation_of(row)
+        note = spotting_note((part_op or {}).get("spotting"),
+                             (part_op or {}).get("spotting_mode") == "built in") \
+            if (part_op or {}).get("spotting_mode") else ""
+        tool = row["tool"] or self.tool_choice.GetValue().strip()
+        return compose_program_comment(tool, self.description_choice.GetValue().strip(),
+                                       stage_offset, machine_offset, note)
+
+    '''
+        This function stages the dialog's result onto every row of the group.
+
+        Only what was actually changed in the dialog is applied, so opening a group and staging
+        with the name untouched does not rename every program to the first one's name. A built
+        program name numbers on in sequence from the number it carries, skipping dividers, and a
+        comment built with the composer is composed again for each row rather than copied.
+
+        output:
+            The number of rows staged
+    '''
+    def apply_group(self):
+        name_changed = bool(self.final_name) and (self.final_name != self.name_prefill
+                                                  or self.built_used)
+        comment_changed = not same_text(self.final_comment, self.comment_prefill)
+        composed = bool(self.final_comment) and same_text(self.final_comment, self.composed)
+        instruction_changed = (self.instruction_choice is not None
+                               and self.final_instruction != self.instruction_prefill)
+
+        number = None
+        if name_changed and self.row["kind"] == "Program":
+            number = program_number_of(self.final_name,
+                                       job_stem(self.settings, part_operation_of(self.row)))                     #None where the name is not a built one
+
+        staged = 0
+        for row in self.group:
+            if name_changed:
+                name = self.final_name
+                if number is not None:
+                    if is_divider(effective_name(row)):
+                        name = None                                                                              #A heading keeps its name and takes no number
+                    else:
+                        stem = job_stem(self.settings, part_operation_of(row))
+                        if stem:
+                            name = f"{stem}{number:02d}"
+                            number += 1
+                if name is not None:
+                    row["new_name"] = "" if name == row["name"] else name
+
+            recompose = composed and self.row["kind"] == "Program"
+            if (comment_changed or recompose) and not (recompose and is_divider(effective_name(row))):
+                comment = self.compose_for(row) if recompose else self.final_comment                             #A heading machines nothing - no composed comment
+                row["new_comment"] = "" if same_text(comment, row["comment"]) else comment
+
+            if instruction_changed and row["activity_type"] in INSTRUCTION_TYPES:
+                row["new_instruction"] = ("" if self.final_instruction == (row.get("instruction") or "")
+                                          else self.final_instruction)
+
+            if is_staged(row):
+                staged += 1
+        return staged
 
 
 class TemplateEditor(wx.Dialog):
@@ -2554,6 +2883,94 @@ class TemplateEditor(wx.Dialog):
         return save_templates(self.settings_dir)
 
 
+class LimitsDialog(wx.Dialog):
+    """Edits the allowed values the settings are checked against."""
+
+    FIELDS = (                                                                                                   #(limits key, stage key or None, label)
+        ("stepover", "ROUGHING", "Roughing stepover mm"),
+        ("stepover", "SEMI-FINISH", "Semi-finish stepover mm"),
+        ("stepover", "FINISH", "Finish stepover mm"),
+        ("roughing_overlap", None, "Roughing operation pass overlap %"),
+        ("roughing_depth_of_cut", None, "Roughing operation depth of cut mm"),
+    )
+
+    def __init__(self, parent, settings_dir):
+        super().__init__(parent, title="Edit limits", style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
+        self.settings_dir = settings_dir
+
+        panel = wx.Panel(self)
+        vbox = wx.BoxSizer(wx.VERTICAL)
+
+        vbox.Add(wx.StaticText(panel, label="The allowed values, as comma separated lists. A stepover, "
+                                            "depth of cut or offset off its list is shown on red in "
+                                            "the grid.\nThe stage limits go by the operation's stage; "
+                                            "the Roughing rows are the CATIA Roughing operation, "
+                                            "whatever its stage."), 0, wx.ALL, 8)
+
+        grid_sizer = wx.FlexGridSizer(0, 2, 6, 8)
+        grid_sizer.AddGrowableCol(1, 1)
+        self.fields = {}
+        for key, stage, label in self.FIELDS:
+            values = LIMITS[key][stage] if stage else LIMITS[key]
+            field = wx.TextCtrl(panel, value=", ".join(f"{value:g}" for value in values), size=(220, -1))
+            self.fields[(key, stage)] = field
+            grid_sizer.Add(wx.StaticText(panel, label=label), 0, wx.ALIGN_CENTER_VERTICAL)
+            grid_sizer.Add(field, 1, wx.EXPAND)
+        vbox.Add(grid_sizer, 0, wx.EXPAND | wx.ALL, 8)
+
+        reset_button = wx.Button(panel, label="Reset to defaults")
+        reset_button.Bind(wx.EVT_BUTTON, self._on_reset)
+        vbox.Add(reset_button, 0, wx.LEFT | wx.BOTTOM, 8)
+
+        buttons = wx.StdDialogButtonSizer()
+        save_button = wx.Button(panel, wx.ID_OK, "Save")
+        save_button.SetDefault()
+        buttons.AddButton(save_button)
+        buttons.AddButton(wx.Button(panel, wx.ID_CANCEL))
+        buttons.Realize()
+        vbox.Add(buttons, 0, wx.ALIGN_RIGHT | wx.ALL, 8)
+
+        panel.SetSizer(vbox)
+        frame = wx.BoxSizer(wx.VERTICAL)
+        frame.Add(panel, 1, wx.EXPAND)
+        self.SetSizer(frame)
+        frame.Fit(self)
+        self.Bind(wx.EVT_BUTTON, self._on_ok, id=wx.ID_OK)
+        self.Center()
+
+    def _on_reset(self, event):
+        for key, stage, _ in self.FIELDS:
+            values = DEFAULT_LIMITS[key][stage] if stage else DEFAULT_LIMITS[key]
+            self.fields[(key, stage)].SetValue(", ".join(f"{value:g}" for value in values))
+
+    '''
+        This function reads the fields back, refusing anything that is not a list of numbers.
+    '''
+    def _on_ok(self, event):
+        parsed = {}
+        for key, stage, label in self.FIELDS:
+            text = self.fields[(key, stage)].GetValue()
+            try:
+                values = [float(piece) for piece in text.replace(";", ",").split(",") if piece.strip()]
+            except ValueError:
+                wx.MessageBox(f"'{text}' is not a list of numbers - see {label}.", "Edit limits",
+                              wx.OK | wx.ICON_WARNING, self)
+                return
+            if not values:
+                wx.MessageBox(f"{label} cannot be empty - every check needs at least one value.",
+                              "Edit limits", wx.OK | wx.ICON_WARNING, self)
+                return
+            parsed[(key, stage)] = values
+
+        for (key, stage), values in parsed.items():
+            if stage:
+                LIMITS[key][stage] = values
+            else:
+                LIMITS[key] = values
+        self.saved = save_limits(self.settings_dir)
+        event.Skip()
+
+
 class RenumberDialog(wx.Dialog):
     """Renumbers the programs, part operation by part operation."""
 
@@ -2719,6 +3136,15 @@ class TreeFrame(wx.Frame):
     DIVIDER_COLOUR = wx.Colour(255, 230, 153)                                                                    #*** heading *** programs
     STAGED_COLOUR = wx.Colour(169, 224, 178)                                                                     #A value waiting to be written
     STAGED_MARK_COLOUR = wx.Colour(112, 173, 122)                                                                #Row marker, so staged rows are findable at a glance
+    BAD_COLOUR = wx.Colour(255, 199, 206)                                                                        #A value off the allowed list, or an offset off the rule
+    BAD_TEXT_COLOUR = wx.Colour(156, 0, 6)
+
+    BUTTON_GROUPS = (                                                                                            #The buttons, grouped by function and coloured to match
+        ("editing", wx.Colour(189, 215, 238)),
+        ("staging", wx.Colour(198, 224, 180)),
+        ("settings", wx.Colour(255, 230, 153)),
+        ("window", None),
+    )
 
     def __init__(self, rows, job_info, settings, settings_dir, ppr_document=None):
         super().__init__(None, title="Manage Program Names And Comments", size=(1400, 760))
@@ -2751,23 +3177,33 @@ class TreeFrame(wx.Frame):
         vbox.Add(self._legend(panel), 0, wx.LEFT | wx.RIGHT, 5)
 
         buttons = wx.BoxSizer(wx.HORIZONTAL)
-        for label, handler in (("Edit selected row", self._on_edit_row),
-                               ("Metal thicknesses", self._on_metal),
-                               ("Renumber programs", self._on_renumber),
-                               ("Refresh from CATIA", self._on_refresh),
-                               ("Clear staged edit", self._on_clear),
-                               ("Apply staged edits to CATIA", self._on_apply),
-                               ("Edit templates", self._on_templates),
-                               ("Clear saved settings", self._on_clear_settings),
-                               ("Help", self._on_help),
-                               ("Close", self._on_close)):
-            button = wx.Button(panel, label=label)
-            button.Bind(wx.EVT_BUTTON, handler)
-            buttons.Add(button, 0, wx.RIGHT, 6)
+        groups = {
+            "editing": (("Edit selected rows", self._on_edit_row),
+                        ("Metal thicknesses", self._on_metal),
+                        ("Renumber programs", self._on_renumber)),
+            "staging": (("Clear staged edit", self._on_clear),
+                        ("Apply staged edits to CATIA", self._on_apply)),
+            "settings": (("Edit templates", self._on_templates),
+                         ("Edit limits", self._on_limits),
+                         ("Clear saved settings", self._on_clear_settings)),
+            "window": (("Refresh from CATIA", self._on_refresh),
+                       ("Help", self._on_help),
+                       ("Close", self._on_close)),
+        }
+        for group_index, (group, colour) in enumerate(self.BUTTON_GROUPS):
+            for label, handler in groups[group]:
+                button = wx.Button(panel, label=label)
+                if colour is not None:
+                    button.SetBackgroundColour(colour)
+                button.Bind(wx.EVT_BUTTON, handler)
+                buttons.Add(button, 0, wx.RIGHT, 6)
+            if group_index < len(self.BUTTON_GROUPS) - 1:
+                buttons.AddSpacer(12)                                                                            #A gap between the groups
         vbox.Add(buttons, 0, wx.ALL, 8)
 
-        self.status = wx.StaticText(panel, label="Double click a row to set its name and comment. "
-                                                 "Nothing is written until Apply is pressed.")
+        self.status = wx.StaticText(panel, label="Double click a row to set its name and comment, or "
+                                                 "select several with Ctrl or Shift and press [Edit "
+                                                 "selected rows]. Nothing is written until Apply is pressed.")
         vbox.Add(self.status, 0, wx.ALL, 8)
 
         panel.SetSizer(vbox)
@@ -2800,6 +3236,7 @@ class TreeFrame(wx.Frame):
                               (self.ROW_COLOURS["Program"], "Program"),
                               (self.ROW_COLOURS["Operation"], "Operation"),
                               (self.STAGED_COLOUR, "Staged, waiting for Apply"),
+                              (self.BAD_COLOUR, "Off the limits, or offset off the rule"),
                               (wx.WHITE, "Missing setting shown in red")):
             patch = wx.Panel(panel, size=(16, 16))
             patch.SetBackgroundColour(colour)
@@ -2868,6 +3305,13 @@ class TreeFrame(wx.Frame):
                 self.grid.SetCellTextColour(row_index, column,
                                             wx.Colour(0, 97, 0) if staged else wx.BLACK)
 
+            bad = check_operation(row, part_operation_of(row)) if is_operation else {}                           #Values off the limits go on red
+            for offset_index, label in enumerate(PARAMETER_LABELS):
+                if label in bad:
+                    column = len(self.COLUMNS) - 2 - len(PARAMETER_LABELS) + offset_index
+                    self.grid.SetCellBackgroundColour(row_index, column, self.BAD_COLOUR)
+                    self.grid.SetCellTextColour(row_index, column, self.BAD_TEXT_COLOUR)
+
             if is_staged(row):                                                                                   #Mark the whole row so staged edits are easy to find
                 self.grid.SetCellBackgroundColour(row_index, 0, self.STAGED_MARK_COLOUR)
         self.grid.AutoSizeColumns()
@@ -2880,19 +3324,54 @@ class TreeFrame(wx.Frame):
         cursor = self.grid.GetGridCursorRow()
         return cursor if 0 <= cursor < len(self.rows) else None
 
+    '''
+        This function lists every selected row, in grid order.
+
+        output:
+            List of row indices - the cursor row where nothing is selected
+    '''
+    def _selected_rows(self):
+        selected = sorted(index for index in set(self.grid.GetSelectedRows())
+                          if 0 <= index < len(self.rows))
+        if selected:
+            return selected
+        cursor = self.grid.GetGridCursorRow()
+        return [cursor] if 0 <= cursor < len(self.rows) else []
+
+    '''
+        This function edits the selected rows - one on its own, or several as a group.
+
+        A group is edited through one dialog and staged onto every selected row. The rows have
+        to be of one kind, because a program's comment is composed and an operation's is not,
+        and applying one kind's edit to the other would write the wrong shape of comment.
+    '''
     def _on_edit_row(self, event):
-        row_index = event.GetRow() if hasattr(event, "GetRow") else self._selected_row()
-        if row_index is None or not (0 <= row_index < len(self.rows)):
+        indices = self._selected_rows()
+        if hasattr(event, "GetRow") and 0 <= event.GetRow() < len(self.rows) \
+                and event.GetRow() not in indices:
+            indices = [event.GetRow()]                                                                           #A double click lands on the row it hit
+        if not indices:
             self.status.SetLabel("Select a row first.")
             return
 
+        selected_rows = [self.rows[index] for index in indices]
+        kinds = sorted({row["kind"] for row in selected_rows})
+        if len(kinds) > 1:
+            self.status.SetLabel("Select rows of one kind to edit them together - the selection "
+                                 "mixes " + " and ".join(kind.lower() + "s" for kind in kinds) + ".")
+            return
+
         self._read_job_bar()
-        row = self.rows[row_index]
-        dialog = EditDialog(self, row, self.settings, self.rows)
+        row = selected_rows[0]
+        dialog = EditDialog(self, row, self.settings, self.rows,
+                            group=selected_rows if len(selected_rows) > 1 else None)
         if dialog.ShowModal() == wx.ID_OK:
-            row["new_name"] = dialog.new_name
-            row["new_comment"] = dialog.new_comment
-            row["new_instruction"] = dialog.new_instruction
+            if len(selected_rows) > 1:
+                dialog.apply_group()
+            else:
+                row["new_name"] = dialog.new_name
+                row["new_comment"] = dialog.new_comment
+                row["new_instruction"] = dialog.new_instruction
             self._fill_grid()
             self.status.SetLabel(f"Staged - {sum(1 for r in self.rows if is_staged(r))} "
                                  f"row(s) waiting to be applied.")
@@ -2911,6 +3390,7 @@ class TreeFrame(wx.Frame):
         if dialog.ShowModal() == wx.ID_OK:
             self.metal_rows = dialog.apply()
             self.header.SetLabel(self._job_summary())
+            self._fill_grid()                                                                                    #The offset checks go by the metal and master
             self.Layout()
             chosen = sum(1 for row in part_ops if row["metal"])
             self.status.SetLabel(f"{chosen} of {len(part_ops)} part operation(s) have a metal thickness.")
@@ -2928,18 +3408,29 @@ class TreeFrame(wx.Frame):
         dialog.Destroy()
 
     '''
+        This function opens the limits editor and re-runs the checks with whatever was saved.
+    '''
+    def _on_limits(self, event):
+        dialog = LimitsDialog(self, self.settings_dir)
+        if dialog.ShowModal() == wx.ID_OK:
+            self._fill_grid()                                                                                    #The red cells go by the limits
+            self.status.SetLabel("Limits saved." if getattr(dialog, "saved", False) else
+                                 "Limits changed for this run, but the file could not be written.")
+        dialog.Destroy()
+
+    '''
         This function deletes the saved settings and puts the templates back to the defaults.
     '''
     def _on_clear_settings(self, event):
-        if wx.MessageBox("Delete the saved settings and put every template list back to the "
-                         "entries the script ships with?\n\n"
+        if wx.MessageBox("Delete the saved settings and put every template list and limit back "
+                         "to what the script ships with?\n\n"
                          f"{self.settings_dir}\n\n"
                          "The document is not touched.", "Clear saved settings",
                          wx.YES_NO | wx.ICON_QUESTION, self) != wx.YES:
             return
 
         removed = []
-        for name in ("settings.json", "templates.json"):
+        for name in ("settings.json", "templates.json", "limits.json"):
             path = os.path.join(self.settings_dir, name)
             try:
                 if os.path.exists(path):
@@ -2952,13 +3443,16 @@ class TreeFrame(wx.Frame):
 
         for key, value in DEFAULT_TEMPLATES.items():
             TEMPLATES[key] = json.loads(json.dumps(value))
+        for key, value in DEFAULT_LIMITS.items():
+            LIMITS[key] = json.loads(json.dumps(value))
 
         for key, field in self.fields.items():
             field.SetValue("")
         self.settings.update({key: "" for key in REMEMBERED_SETTINGS})
 
+        self._fill_grid()                                                                                        #The red cells go by the limits
         self.status.SetLabel(f"Cleared {', '.join(removed) if removed else 'nothing - there was nothing saved'}. "
-                             f"Templates are back to the defaults.")
+                             f"Templates and limits are back to the defaults.")
 
     '''
         This function shows the help window.
@@ -2977,22 +3471,49 @@ class TreeFrame(wx.Frame):
 
             "BUTTONS\n"
             "--------------------------------------------------------------------------\n"
-            " [Edit selected row]    Sets the name and comment of the selected activity.\n"
-            "                        Double clicking a row does the same.\n"
+            " Grouped by colour: blue edits rows, green handles the staged edits,\n"
+            " amber holds the settings, grey the window itself.\n\n"
+            " [Edit selected rows]   Sets the name and comment of the selected rows.\n"
+            "                        Double clicking a row does the same. Select several\n"
+            "                        rows of one kind with Ctrl or Shift to edit them as\n"
+            "                        a group: only what is changed in the dialog is\n"
+            "                        applied, a built program name numbers on in\n"
+            "                        sequence, and a composed comment is built again for\n"
+            "                        each program with its own tool and offset.\n"
             " [Metal thicknesses]    Lists every thickness found in the design parts and\n"
             "                        says which applies to each part operation. Rows can\n"
             "                        be added by hand where a part does not state one.\n"
             " [Renumber programs]    Numbers the programs in sequence, or by hand.\n"
-            " [Refresh from CATIA]   Reads the whole tree again. Staged edits are lost.\n"
             " [Clear staged edit]    Drops the staged values on the selected row, so it\n"
             "                        shows what the document holds again.\n"
             " [Apply staged edits]   Writes every staged value to the document, without\n"
             "                        asking again.\n"
             " [Edit templates]       Adds, edits, reorders and removes the entries in\n"
             "                        the dropdown lists.\n"
+            " [Edit limits]          Sets the allowed stepover, pass overlap, and depth\n"
+            "                        of cut values the checks go by.\n"
             " [Clear saved settings] Deletes the saved settings and puts every template\n"
-            "                        list back to the entries the script ships with.\n"
+            "                        list and limit back to what the script ships with.\n"
+            " [Refresh from CATIA]   Reads the whole tree again. Staged edits are lost.\n"
             " [Help]                 Opens this window.\n\n"
+
+            "CHECKS\n"
+            "--------------------------------------------------------------------------\n"
+            " Three settings are checked, and a value that is off goes on red:\n\n"
+            "   Stepover        Has to sit on the allowed list for the operation's\n"
+            "                   stage - roughing 3, 2 or 1, semi-finish 1.5 or 1,\n"
+            "                   finish 1 or 0.5. The stage is read from the operation's\n"
+            "                   comment or name, or failing that its program's.\n"
+            "   Roughing op     The CATIA Roughing operation is checked on its own two\n"
+            "                   rules instead, whatever its stage: a pass overlap of\n"
+            "                   50% and a depth of cut of 1, 1.5 or 2. Its stepover\n"
+            "                   column shows the pass overlap, a ratio as a percentage\n"
+            "                   of the tool diameter.\n"
+            "   Offset on part  Has to match what the stage rule works out from the\n"
+            "                   part operation's master, metal and spotting.\n\n"
+            " Anything that cannot be worked out - no stage, no master, no metal - is\n"
+            " not checked, so a red cell is always a value that is genuinely off. All\n"
+            " the allowed values are editable under [Edit limits].\n\n"
 
             "THE JOB BAR\n"
             "--------------------------------------------------------------------------\n"
@@ -3091,6 +3612,9 @@ class TreeFrame(wx.Frame):
             " Amber       Divider - a program carrying a *** heading ***.\n"
             " Green       A staged Name or Comment, shown in place and waiting for\n"
             "             Apply. The darker mark on the Level column finds the row.\n"
+            " Red cell    A stepover or depth of cut off the allowed values, or an\n"
+            "             Offset on part that does not match the stage rule. See\n"
+            "             CHECKS and [Edit limits].\n"
             " Red text    A setting this operation type should have but does not. A\n"
             "             setting counts as missing only where another operation of\n"
             "             the same type has one, so a pencil trace is not reported\n"
@@ -3113,14 +3637,16 @@ class TreeFrame(wx.Frame):
 
             "SETTINGS PERSISTENCE\n"
             "--------------------------------------------------------------------------\n"
-            " Two files, in:\n"
+            " Three files, in:\n"
             "   %APPDATA%\\pycatia_scripts\\Manage_Program_Names_And_Comments\\\n\n"
             "   settings.json    The programmer initial and the machine. Nothing else.\n"
-            "   templates.json   The template lists, once they have been edited.\n\n"
+            "   templates.json   The template lists, once they have been edited.\n"
+            "   limits.json      The allowed values the checks go by, once edited.\n\n"
             " Project, die, revision, metal and master belong to the document and are\n"
             " read from it every run, so a part name that fails to parse can never\n"
             " inherit the last job's die number.\n\n"
-            " [Clear saved settings] deletes both files and puts the templates back.\n\n"
+            " [Clear saved settings] deletes all three files and puts the templates\n"
+            " and limits back.\n\n"
 
             "NOTES\n"
             "--------------------------------------------------------------------------\n"
@@ -3374,6 +3900,7 @@ if __name__ == "__main__":
             exit()
 
         load_templates(settings_dir)                                                                             #User entries sit on top of the built in lists
+        load_limits(settings_dir)                                                                                #The values the checks go by
         settings = load_settings(settings_dir)
         for info in job_info:                                                                                    #Prefill from the part name, still editable
             parsed = info["parsed"]
