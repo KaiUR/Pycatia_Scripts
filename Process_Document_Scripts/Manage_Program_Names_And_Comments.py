@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Manage_Program_Names_And_Comments.py
-    Version:        1.2
+    Version:        1.3
     Code:           Python3.10.4, Pycatia 0.10.0
     Release:        V5R32
     Purpose:        Review and set the names and comments of manufacturing programs and operations.
@@ -40,6 +40,9 @@
                                   limits and shown on red where off, several rows editable at
                                   once as a group, any known tool stripped from a prefilled
                                   description, and the buttons grouped by colour.
+                    24.07.26 1.3: Contour stepover read from Maximum distance again, the same
+                                  parameter Export_Process_Table_Parameters reads - the 1.2
+                                  change to Minimum step distance was wrong.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -218,12 +221,11 @@ PARAMETER_COLUMNS = (
 PARAMETER_LABELS = tuple(label for label, _ in PARAMETER_COLUMNS)
 
 # Operation types whose settings live under different parameter names. A contour driven
-# operation's stepover is its Minimum step distance - the Maximum distance it also carries is a
-# discretization figure that only looks like one - and its depth of cut is Maximum depth of cut,
-# because the Multi-Pass depth stays set while Multi-Pass itself is off.
+# operation's depth of cut is Maximum depth of cut, because the Multi-Pass depth stays set
+# while Multi-Pass itself is off. Its stepover is Maximum distance like every other type,
+# the same parameter Export_Process_Table_Parameters reads.
 PARAMETER_OVERRIDES = {
     "M3xBetweenContour": {
-        "Stepover": ("Minimum step distance",),
         "Depth of Cut": ("Maximum depth of cut",),
     },
 }
