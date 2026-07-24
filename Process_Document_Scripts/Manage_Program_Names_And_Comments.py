@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Manage_Program_Names_And_Comments.py
-    Version:        1.4
+    Version:        1.5
     Code:           Python3.10.4, Pycatia 0.10.0
     Release:        V5R32
     Purpose:        Review and set the names and comments of manufacturing programs and operations.
@@ -48,6 +48,14 @@
                                   semi-finish and finish operations - 1mm and 0.5mm - while
                                   Maximum distance and Minimum step distance, the 1.3 and 1.2
                                   guesses, sit still whatever the dialog holds.
+                    24.07.26 1.5: Settings read much faster. Where each setting sat is remembered
+                                  per operation type and probed directly on the next operation of
+                                  that type, each probed index checked by name before its value is
+                                  trusted, and the full walk stops early once everything wanted
+                                  has been found. A thin blank band sits before each part
+                                  operation after the first, so each one reads as its own group,
+                                  and the summary above the grid shows two part operations and
+                                  scrolls for the rest rather than growing the window.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -245,6 +253,14 @@ OVERLAP_MODE = "Pass overlap mode"
 OVERLAP_RATIO = "Pass overlap (diameter ratio)"
 OVERLAP_LENGTH = "Pass overlap (length)"
 
+# Where each setting sat, remembered per operation type and parameter count. Operations of one
+# type lay their parameters out identically, so the first one read walks the whole list and the
+# ones after it probe only the remembered indices - a handful of round trips to CATIA instead of
+# hundreds. Every probed index is still checked by name before its value is trusted, which is
+# what separates this from reading fixed indices; a name that no longer matches throws the entry
+# away and the whole list is walked again.
+PARAMETER_INDEX_CACHE = {}
+
 # The values the settings are checked against, editable under [Edit limits]. Stepover limits are
 # per machining stage, the stage read from the operation's comment or name, or its program's.
 # The CATIA Roughing operation is checked on its own two rules instead - its pass overlap and
@@ -350,12 +366,67 @@ def numeric_value(text):
 
 
 '''
+    This function reads the settings of one operation off remembered parameter indices.
+
+    The indices were learned from a full walk of an earlier operation of the same type. Each one
+    is checked by name before its value is taken, so a layout that differs from the remembered
+    one is caught and handed back for a full walk rather than silently misread. Indices
+    remembered as absent are skipped - the walk searched the whole list and found nothing.
+
+    Inputs:
+        parameters      The activity's parameters collection
+        cached          The remembered entry - labels and overlap dicts of name to index
+        columns         Tuple of (label, needles) in force for the activity's type
+        values          Dict of label to value string, filled in place
+        overlap         Dict of the Roughing operation's pass overlap pieces, filled in place
+
+    output:
+        True where every remembered index still matched its name, False where a full walk is needed
+'''
+def read_cached_parameters(parameters, cached, columns, values, overlap):
+    needles_by_label = dict(columns)
+    for label, index in cached["labels"].items():
+        if index is None:
+            continue                                                                                             #Absent on this operation type
+        try:
+            parameter = parameters.item(index + 1)
+            name = parameter.name
+        except Exception:
+            return False
+        if not any(needle in name for needle in needles_by_label.get(label, ())):
+            return False                                                                                         #The layout moved - the whole list must be walked
+        try:
+            values[label] = parameter.value_as_string()
+        except Exception:
+            pass
+    for key, index in cached["overlap"].items():
+        if index is None:
+            continue
+        try:
+            parameter = parameters.item(index + 1)
+            name = parameter.name
+        except Exception:
+            return False
+        if key not in name:
+            return False                                                                                         #The layout moved - the whole list must be walked
+        try:
+            overlap[key] = parameter.value_as_string()
+        except Exception:
+            pass
+    return True
+
+
+'''
     This function reads the settings of one operation.
 
     Every parameter is walked once and matched on its name, so an operation type whose parameters
     sit at different indices still reports its settings. Types listed in PARAMETER_OVERRIDES have
     some settings read from other parameter names, and the Roughing operation's stepover is put
     together from its pass overlap mode and whichever of the two overlap values that mode is on.
+
+    The walk stops as soon as everything wanted has a value, and where it sat is remembered in
+    PARAMETER_INDEX_CACHE so the next operation of the same type probes those indices directly
+    instead of walking hundreds of parameters - see the note on the cache for why that is safe.
 
     Inputs:
         activity        A manufacturing operation activity
@@ -373,6 +444,7 @@ def read_operation_parameters(activity):
     overrides = PARAMETER_OVERRIDES.get(activity_type, {})
     columns = tuple((label, overrides.get(label, needles)) for label, needles in PARAMETER_COLUMNS)
     overlap = {}                                                                                                 #The Roughing operation's pass overlap pieces
+    wanted_overlap = (OVERLAP_MODE, OVERLAP_RATIO, OVERLAP_LENGTH) if activity_type == ROUGHING_TYPE else ()
 
     try:
         parameters = activity.parameters
@@ -380,27 +452,42 @@ def read_operation_parameters(activity):
     except Exception:
         return values, list(PARAMETER_LABELS)                                                                    #No parameters at all - everything is missing
 
-    for index in range(count):
-        try:
-            parameter = parameters.item(index + 1)
-            name = parameter.name
-        except Exception:
-            continue
-        if activity_type == ROUGHING_TYPE:
-            for key in (OVERLAP_MODE, OVERLAP_RATIO, OVERLAP_LENGTH):
+    cache_key = (activity_type, count)
+    cached = PARAMETER_INDEX_CACHE.get(cache_key)
+    if cached is not None and not read_cached_parameters(parameters, cached, columns, values, overlap):
+        PARAMETER_INDEX_CACHE.pop(cache_key, None)                                                               #The layout moved - forget it and walk
+        values = {label: "" for label in PARAMETER_LABELS}
+        overlap = {}
+        cached = None
+
+    if cached is None:
+        found = {"labels": {label: None for label in PARAMETER_LABELS},
+                 "overlap": {key: None for key in wanted_overlap}}
+        for index in range(count):
+            try:
+                parameter = parameters.item(index + 1)
+                name = parameter.name
+            except Exception:
+                continue
+            for key in wanted_overlap:
                 if key in name and key not in overlap:
+                    found["overlap"][key] = index
                     try:
                         overlap[key] = parameter.value_as_string()
                     except Exception:
                         pass
-        for label, needles in columns:
-            if values[label]:
-                continue                                                                                         #First match wins, as in the export script
-            if any(needle in name for needle in needles):
-                try:
-                    values[label] = parameter.value_as_string()
-                except Exception:
-                    pass
+            for label, needles in columns:
+                if values[label]:
+                    continue                                                                                     #First match wins, as in the export script
+                if any(needle in name for needle in needles):
+                    found["labels"][label] = index
+                    try:
+                        values[label] = parameter.value_as_string()
+                    except Exception:
+                        pass
+            if all(values.values()) and len(overlap) == len(wanted_overlap):
+                break                                                                                            #Everything wanted has a value - stop walking
+        PARAMETER_INDEX_CACHE[cache_key] = found
 
     if activity_type == ROUGHING_TYPE and not values["Stepover"]:
         mode = overlap.get(OVERLAP_MODE, "")                                                                     #M3xRatio, or one of the length modes
@@ -1554,8 +1641,9 @@ def read_tree(ppr_doc, report=None):
 '''
     This function reads the tree behind a progress bar.
 
-    Every operation is asked for its settings one parameter at a time, so a big process takes a
-    while. The bar says what it is on rather than leaving the window looking hung.
+    The first operation of each type is asked for its settings one parameter at a time; the rest
+    go through PARAMETER_INDEX_CACHE, so most of the wait is the first few operations. The bar
+    says what it is on rather than leaving the window looking hung.
 
     Inputs:
         ppr_doc         The PPRDocument of the active process document
@@ -3129,6 +3217,46 @@ class RenumberDialog(wx.Dialog):
         return names
 
 
+'''
+    This function puts a spacer row before every part operation after the first.
+
+    The spacer is a display row only - blank, thin and white, so each part operation reads as its
+    own group with a visible break above it. It carries the keys the grid and the staging checks
+    touch, all empty, and its kind keeps it out of everything that works on real rows - editing,
+    numbering, applying and counting all pick rows by kind.
+
+    Inputs:
+        rows            The rows read from the document
+
+    output:
+        A new list with the spacers in place
+'''
+def insert_spacers(rows):
+    spaced = []
+    for row in rows:
+        if row["kind"] == "Part Operation" and spaced:
+            spaced.append({
+                "level": 0,
+                "kind": "Spacer",
+                "name": "",
+                "comment": "",
+                "tool": "",
+                "activity_type": "",
+                "part_name": "",
+                "part_name_route": "",
+                "activity": None,
+                "parent": None,
+                "new_name": "",
+                "new_comment": "",
+                "instruction": "",
+                "new_instruction": "",
+                "offset": None,
+                "offset_attribute": "",
+            })
+        spaced.append(row)
+    return spaced
+
+
 class TreeFrame(wx.Frame):
     """The machining tree, the staged edits, and the button that writes them."""
 
@@ -3147,6 +3275,8 @@ class TreeFrame(wx.Frame):
     STAGED_MARK_COLOUR = wx.Colour(112, 173, 122)                                                                #Row marker, so staged rows are findable at a glance
     BAD_COLOUR = wx.Colour(255, 199, 206)                                                                        #A value off the allowed list, or an offset off the rule
     BAD_TEXT_COLOUR = wx.Colour(156, 0, 6)
+    SPACER_HEIGHT = 12                                                                                           #The thin blank band between part operations
+    SUMMARY_LINES = 8                                                                                            #Two part operations - the summary scrolls past this
 
     BUTTON_GROUPS = (                                                                                            #The buttons, grouped by function and coloured to match
         ("editing", wx.Colour(189, 215, 238)),
@@ -3158,6 +3288,7 @@ class TreeFrame(wx.Frame):
     def __init__(self, rows, job_info, settings, settings_dir, ppr_document=None):
         super().__init__(None, title="Manage Program Names And Comments", size=(1400, 760))
         self.SetIcon(_make_icon())
+        rows = insert_spacers(rows)                                                                              #A blank band before each part operation after the first
         self.rows = rows
         self.settings = settings
         self.settings_dir = settings_dir
@@ -3167,9 +3298,11 @@ class TreeFrame(wx.Frame):
         panel = wx.Panel(self)
         vbox = wx.BoxSizer(wx.VERTICAL)
 
-        self.header = wx.StaticText(panel, label=self._job_summary())
+        self.header = wx.TextCtrl(panel, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.BORDER_NONE)                 #Scrolls rather than growing the window
         self.header.SetFont(wx.Font(9, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL))
-        vbox.Add(self.header, 0, wx.ALL, 8)
+        self.header.SetBackgroundColour(panel.GetBackgroundColour())                                             #Reads as a label, not a text box
+        self._update_summary()
+        vbox.Add(self.header, 0, wx.EXPAND | wx.ALL, 8)
 
         vbox.Add(self._job_bar(panel), 0, wx.EXPAND | wx.ALL, 6)
 
@@ -3280,6 +3413,16 @@ class TreeFrame(wx.Frame):
 
     def _fill_grid(self):
         for row_index, row in enumerate(self.rows):
+            if row["kind"] == "Spacer":                                                                          #The blank band between part operations
+                for column in range(len(self.COLUMNS)):
+                    self.grid.SetCellValue(row_index, column, "")
+                    self.grid.SetCellBackgroundColour(row_index, column, wx.WHITE)
+                    self.grid.SetCellTextColour(row_index, column, wx.BLACK)
+                self.grid.SetRowSize(row_index, self.SPACER_HEIGHT)
+                self.grid.SetRowLabelValue(row_index, "")                                                        #No row number either - it is not a row to work on
+                continue
+            self.grid.SetRowSize(row_index, self.grid.GetDefaultRowSize())                                       #Back to full height - refresh reuses the grid rows
+            self.grid.SetRowLabelValue(row_index, str(row_index + 1))
             indent = "    " * row["level"]
             name, comment = effective_name(row), effective_comment(row)                                          #What the row is heading for, not what it leaves
             stage, nominal = stage_for_description(comment or name)
@@ -3359,6 +3502,7 @@ class TreeFrame(wx.Frame):
         if hasattr(event, "GetRow") and 0 <= event.GetRow() < len(self.rows) \
                 and event.GetRow() not in indices:
             indices = [event.GetRow()]                                                                           #A double click lands on the row it hit
+        indices = [index for index in indices if self.rows[index]["kind"] != "Spacer"]                           #The blank bands are not rows to edit
         if not indices:
             self.status.SetLabel("Select a row first.")
             return
@@ -3398,7 +3542,7 @@ class TreeFrame(wx.Frame):
         dialog = MetalDialog(self, part_ops, self.metal_rows)
         if dialog.ShowModal() == wx.ID_OK:
             self.metal_rows = dialog.apply()
-            self.header.SetLabel(self._job_summary())
+            self._update_summary()
             self._fill_grid()                                                                                    #The offset checks go by the metal and master
             self.Layout()
             chosen = sum(1 for row in part_ops if row["metal"])
@@ -3661,6 +3805,9 @@ class TreeFrame(wx.Frame):
             "--------------------------------------------------------------------------\n"
             " The settings columns are the ones Export_Process_Table_Parameters writes\n"
             " to Excel, read by parameter name rather than by index.\n\n"
+            " A thin blank band sits before each part operation after the first, so\n"
+            " each one reads as its own group. It is not a row - it cannot be edited\n"
+            " and counts for nothing.\n\n"
             " Applying writes to the document but does not save it. Save in CATIA to\n"
             " keep the changes."
         )
@@ -3705,6 +3852,7 @@ class TreeFrame(wx.Frame):
             if row["kind"] == "Part Operation" and row["name"] in chosen and chosen[row["name"]]:
                 row["metal"] = chosen[row["name"]]
 
+        rows = insert_spacers(rows)                                                                              #A blank band before each part operation after the first
         self.rows = rows
         self.metal_rows = collect_metal_rows(rows)                                                               #The parts may have changed too
         difference = len(rows) - self.grid.GetNumberRows()
@@ -3714,9 +3862,10 @@ class TreeFrame(wx.Frame):
             self.grid.DeleteRows(0, -difference)
 
         self._fill_grid()
-        self.header.SetLabel(self._job_summary())
+        self._update_summary()
         self.Layout()
-        self.status.SetLabel(f"Read again from the document - {len(rows)} row(s). "
+        self.status.SetLabel(f"Read again from the document - "
+                             f"{sum(1 for row in rows if row['kind'] != 'Spacer')} row(s). "
                              f"Staged edits were cleared.")
 
     '''
@@ -3789,7 +3938,7 @@ class TreeFrame(wx.Frame):
                 failures.append(f"{row['kind']} {row['name']}: {error}")
 
         self._fill_grid()
-        self.header.SetLabel(self._job_summary())                                                                #Names may have changed
+        self._update_summary()                                                                #Names may have changed
         self.Layout()
         if failures:
             wx.MessageBox("Written: {0}\n\nFailed:\n{1}".format(written, "\n".join(failures)),
@@ -3800,6 +3949,19 @@ class TreeFrame(wx.Frame):
         self._read_job_bar()
         save_settings(self.settings_dir, self.settings)
         self.Close()
+
+    '''
+        This function puts the summary above the grid, held to a height that cannot squeeze it.
+
+        A process holds any number of part operations and the summary writes four lines for each,
+        so left to itself it would grow until the grid had no room. It is held to SUMMARY_LINES
+        and scrolls past that, sized to what it actually holds where it is shorter.
+    '''
+    def _update_summary(self):
+        text = self._job_summary()
+        self.header.SetValue(text)
+        lines = min(text.count("\n") + 1, self.SUMMARY_LINES)
+        self.header.SetMinSize((-1, self.header.GetCharHeight() * lines + 8))
 
     '''
         This function writes the block above the grid, one entry per part operation.

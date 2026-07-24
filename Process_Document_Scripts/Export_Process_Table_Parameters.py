@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Export_Process_Table_Parameters.py
-    Version:        1.4
+    Version:        1.6
     Code:           Python3.10.4, Pycatia 0.9.5
     Release:        V5R32
     Purpose:        Exports parameters from process table to excel
@@ -29,6 +29,17 @@
                     11.05.26 1.2: Improved Excel formatting — navy header, alternating row bands, centred numeric columns, frozen header row, navy tab colour, explicit column widths.
                     28.05.26 1.3: Added Operation column (between Description and Tool) showing the activity type (Sweep, Pencil, Contour...).
                     03.06.26 1.4: Fix F401: remove unused Activities and Activity imports.
+                    24.07.26 1.5: Contour driven stepover read from Step distance, the dialog value, found by
+                                  scanning the parameter names. The Maximum distance the type also carries sits
+                                  still whatever the dialog holds, so it is no longer written for contour driven.
+                    24.07.26 1.6: Settings matched by parameter name instead of the fixed index list, the same
+                                  way Manage_Program_Names_And_Comments reads them - where each setting sat is
+                                  remembered per operation type and probed directly on the next operation of
+                                  that type, each probed index checked by name before its value is trusted, and
+                                  the full walk stops early once everything wanted has been found. Contour
+                                  driven depth of cut now comes from Maximum depth of cut - the Multi-Pass
+                                  depth stays set while Multi-Pass is off - and the CATIA Roughing operation's
+                                  pass overlap is written as its stepover.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -39,6 +50,184 @@ from pycatia.dmaps_interfaces.process_document import ProcessDocument
 from pycatia.ppr_interfaces.ppr_document import PPRDocument
 import xlsxwriter
 import os
+
+# The settings written to the sheet, matched on the parameter name the same way
+# Manage_Program_Names_And_Comments does. The indices move between operation types, so every
+# parameter is matched by name rather than read at a fixed index.
+PARAMETER_COLUMNS = (
+    ("Stepover", ("Maximum distance",)),
+    ("MC Tolerance", ("Machining tolerance",)),
+    ("Depth of Cut", ("Maximum depth of cut", "Depth of cut by level for Multi-Pas")),
+    ("Offset on Part", ("Offset on part",)),
+    ("Offset on Check", ("Offset on check",)),
+    ("Depth of Cut by Level", ("Depth of cut by level for Multi-Pass",)),
+)
+
+PARAMETER_LABELS = tuple(label for label, _ in PARAMETER_COLUMNS)
+
+# Operation types whose settings live under different parameter names. A contour driven
+# operation's stepover is its Step distance - the dialog value, which a parameter dump shows
+# moving between the semi-finish and finish operations while the Maximum distance the type
+# also carries sits still - and its depth of cut is Maximum depth of cut, because the
+# Multi-Pass depth stays set while Multi-Pass itself is off.
+PARAMETER_OVERRIDES = {
+    "M3xBetweenContour": {
+        "Stepover": ("Step distance",),
+        "Depth of Cut": ("Maximum depth of cut",),
+    },
+}
+
+# The CATIA Roughing operation - M3xHardMaterial - states its stepover as a pass overlap: a mode
+# and two values, of which the mode says which one is in force. A ratio is shown as a percentage
+# of the tool diameter, a length as the distance it is.
+ROUGHING_TYPE = "M3xHardMaterial"
+OVERLAP_MODE = "Pass overlap mode"
+OVERLAP_RATIO = "Pass overlap (diameter ratio)"
+OVERLAP_LENGTH = "Pass overlap (length)"
+
+# Where each setting sat, remembered per operation type and parameter count. Operations of one
+# type lay their parameters out identically, so the first one read walks the whole list and the
+# ones after it probe only the remembered indices - a handful of round trips to CATIA instead of
+# hundreds. Every probed index is still checked by name before its value is trusted, which is
+# what separates this from reading fixed indices; a name that no longer matches throws the entry
+# away and the whole list is walked again.
+PARAMETER_INDEX_CACHE = {}
+
+
+'''
+    This function reads the settings of one operation off remembered parameter indices.
+
+    The indices were learned from a full walk of an earlier operation of the same type. Each one
+    is checked by name before its value is taken, so a layout that differs from the remembered
+    one is caught and handed back for a full walk rather than silently misread. Indices
+    remembered as absent are skipped - the walk searched the whole list and found nothing.
+
+    Inputs:
+        parameters      The activity's parameters collection
+        cached          The remembered entry - labels and overlap dicts of name to index
+        columns         Tuple of (label, needles) in force for the activity's type
+        values          Dict of label to value string, filled in place
+        overlap         Dict of the Roughing operation's pass overlap pieces, filled in place
+
+    output:
+        True where every remembered index still matched its name, False where a full walk is needed
+'''
+def read_cached_parameters(parameters, cached, columns, values, overlap):
+    needles_by_label = dict(columns)
+    for label, index in cached["labels"].items():
+        if index is None:
+            continue                                                                                    #Absent on this operation type
+        try:
+            parameter = parameters.item(index + 1)
+            name = parameter.name
+        except Exception:
+            return False
+        if not any(needle in name for needle in needles_by_label.get(label, ())):
+            return False                                                                                #The layout moved - the whole list must be walked
+        try:
+            values[label] = parameter.value_as_string()
+        except Exception:
+            pass
+    for key, index in cached["overlap"].items():
+        if index is None:
+            continue
+        try:
+            parameter = parameters.item(index + 1)
+            name = parameter.name
+        except Exception:
+            return False
+        if key not in name:
+            return False                                                                                #The layout moved - the whole list must be walked
+        try:
+            overlap[key] = parameter.value_as_string()
+        except Exception:
+            pass
+    return True
+
+
+'''
+    This function reads the settings of one operation.
+
+    Every parameter is walked once and matched on its name, so an operation type whose parameters
+    sit at different indices still reports its settings. Types listed in PARAMETER_OVERRIDES have
+    some settings read from other parameter names, and the Roughing operation's stepover is put
+    together from its pass overlap mode and whichever of the two overlap values that mode is on.
+
+    The walk stops as soon as everything wanted has a value, and where it sat is remembered in
+    PARAMETER_INDEX_CACHE so the next operation of the same type probes those indices directly
+    instead of walking hundreds of parameters - see the note on the cache for why that is safe.
+
+    Inputs:
+        activity        A manufacturing operation activity
+
+    output:
+        Tuple of (dict of label to value string, list of the labels that were not found)
+'''
+def read_operation_parameters(activity):
+    values = {label: "" for label in PARAMETER_LABELS}
+
+    try:
+        activity_type = activity.type
+    except Exception:
+        activity_type = ""
+    overrides = PARAMETER_OVERRIDES.get(activity_type, {})
+    columns = tuple((label, overrides.get(label, needles)) for label, needles in PARAMETER_COLUMNS)
+    overlap = {}                                                                                        #The Roughing operation's pass overlap pieces
+    wanted_overlap = (OVERLAP_MODE, OVERLAP_RATIO, OVERLAP_LENGTH) if activity_type == ROUGHING_TYPE else ()
+
+    try:
+        parameters = activity.parameters
+        count = parameters.count
+    except Exception:
+        return values, list(PARAMETER_LABELS)                                                           #No parameters at all - everything is missing
+
+    cache_key = (activity_type, count)
+    cached = PARAMETER_INDEX_CACHE.get(cache_key)
+    if cached is not None and not read_cached_parameters(parameters, cached, columns, values, overlap):
+        PARAMETER_INDEX_CACHE.pop(cache_key, None)                                                      #The layout moved - forget it and walk
+        values = {label: "" for label in PARAMETER_LABELS}
+        overlap = {}
+        cached = None
+
+    if cached is None:
+        found = {"labels": {label: None for label in PARAMETER_LABELS},
+                 "overlap": {key: None for key in wanted_overlap}}
+        for index in range(count):
+            try:
+                parameter = parameters.item(index + 1)
+                name = parameter.name
+            except Exception:
+                continue
+            for key in wanted_overlap:
+                if key in name and key not in overlap:
+                    found["overlap"][key] = index
+                    try:
+                        overlap[key] = parameter.value_as_string()
+                    except Exception:
+                        pass
+            for label, needles in columns:
+                if values[label]:
+                    continue                                                                            #First match wins
+                if any(needle in name for needle in needles):
+                    found["labels"][label] = index
+                    try:
+                        values[label] = parameter.value_as_string()
+                    except Exception:
+                        pass
+            if all(values.values()) and len(overlap) == len(wanted_overlap):
+                break                                                                                   #Everything wanted has a value - stop walking
+        PARAMETER_INDEX_CACHE[cache_key] = found
+
+    if activity_type == ROUGHING_TYPE and not values["Stepover"]:
+        mode = overlap.get(OVERLAP_MODE, "")                                                            #M3xRatio, or one of the length modes
+        if "Ratio" in mode and overlap.get(OVERLAP_RATIO):
+            values["Stepover"] = overlap[OVERLAP_RATIO] + "%"                                           #A percentage of the tool diameter
+        elif "Length" in mode and overlap.get(OVERLAP_LENGTH):
+            values["Stepover"] = overlap[OVERLAP_LENGTH]
+
+    missing = [label for label in PARAMETER_LABELS if not values[label]]
+    return values, missing
+
 
 '''
     | Due to the inherent design restrictions, PPRDocument and another interface ProcessDocument need to
@@ -106,7 +295,7 @@ if __name__ == "__main__":
     line_format_2_bold = _base(ROW_BG_EVEN, bold=True, size=11)                        #Bold operation row (even) — programme name cell
 
     DEBUG_PARAMS = False                                                                                    #Set to True to print all parameter names and indices for each operation
-                                                                                                            #Useful for discovering indices when adding support for new operation types
+                                                                                                            #Useful for discovering parameter names when adding support for new operation types
                                                                                                             #Set back to False for normal use
 
     used_sheet_names = set()                                                                                 #Track sheet names to avoid duplicates
@@ -200,28 +389,26 @@ if __name__ == "__main__":
                                 worksheet.write_blank(row, _col, None, alt_fmt)                            #Overwrite remaining cells with alternating colour
 
                             for tool_change_index in range(tool_changes.count):                             #Cycle through all activities of program
+                                op_activity = tool_changes.item(tool_change_index + 1)                      #Get the activity once - every item call is a round trip to Catia
 
-                                if tool_changes.item(tool_change_index + 1).type == "ToolChange":           #If activity is Tool Change
+                                if op_activity.type == "ToolChange":                                        #If activity is Tool Change
                                     r_fmt = line_format_1 if global_op_index % 2 == 0 else line_format_2
-                                    worksheet.write(row + tool_change_counter, 3, tool_changes.item(
-                                            tool_change_index + 1).resources.item(1).name.split("(")[0],
+                                    worksheet.write(row + tool_change_counter, 3,
+                                            op_activity.resources.item(1).name.split("(")[0],
                                             r_fmt)                                                          #Write tool name, stripping extra info
                                     tool_change_counter = tool_change_counter + 1                           #Increment tool change count
 
-                                elif tool_changes.item(tool_change_index + 1).type == "Start":              #Skip Start activity
+                                elif op_activity.type == "Start":                                           #Skip Start activity
                                     continue
 
-                                elif tool_changes.item(tool_change_index + 1).type == "Stop":               #Skip Stop activity
+                                elif op_activity.type == "Stop":                                            #Skip Stop activity
                                     continue
 
                                 else:                                                                       #All remaining activities are operations
-                                    tool_changes_parameters = tool_changes.item(
-                                            tool_change_index + 1).parameters                               #Get collection of parameters for current activity
-
                                     r_fmt  = line_format_1 if global_op_index % 2 == 0 else line_format_2  #Alternating row colour
                                     n_fmt  = num_fmt_1     if global_op_index % 2 == 0 else num_fmt_2      #Alternating numeric cell colour
 
-                                    op_type = tool_changes.item(tool_change_index + 1).type                #Operation type (e.g. "ManufacturingM3xSweep")
+                                    op_type = op_activity.type                                             #Operation type (e.g. "M3xSweeping")
                                     op_label = op_type.replace("Manufacturing", "")                        #Strip "Manufacturing" prefix
                                     if op_label == "M3xBitangency":
                                         op_label = "PencilTrace"
@@ -230,44 +417,18 @@ if __name__ == "__main__":
                                     worksheet.write(row + operation_counter, 2, op_label, r_fmt)           #Write operation type
 
                                     if DEBUG_PARAMS:                                                        #If debug mode is on, print all parameter names and indices
-                                        print(f"--- Operation: {tool_changes.item(tool_change_index + 1).name} ---")
-                                        for i in range(tool_changes_parameters.count):                     #Loop through all parameters
-                                            print(f"  [{i}] {tool_changes_parameters.item(i + 1).name}")  #Print index and name
+                                        print(f"--- Operation: {op_activity.name} ---")
+                                        debug_parameters = op_activity.parameters                          #Get collection of parameters for current activity
+                                        for i in range(debug_parameters.count):                            #Loop through all parameters
+                                            print(f"  [{i}] {debug_parameters.item(i + 1).name}")          #Print index and name
 
-                                    for t_parmeter_index in [26,27,73,79,84,90,144,192,195,229,230,232,233,247,252]: #Cycle through relevant parameter indices
-
-                                        if tool_changes_parameters.item(
-                                                t_parmeter_index + 1).name.find("Maximum distance") != -1: #Stepover distance
-                                            worksheet.write(row + operation_counter, 4,
-                                                    tool_changes_parameters.item(t_parmeter_index + 1
-                                                    ).value_as_string(), n_fmt)
-                                        if tool_changes_parameters.item(
-                                                t_parmeter_index + 1).name.find("Machining tolerance") != -1: #Machining tolerance
-                                            worksheet.write(row + operation_counter, 5,
-                                                    tool_changes_parameters.item(t_parmeter_index + 1
-                                                    ).value_as_string(), n_fmt)
-                                        if tool_changes_parameters.item(
-                                                t_parmeter_index + 1).name.find("Maximum depth of cut") != -1 or tool_changes_parameters.item(
-                                                t_parmeter_index + 1).name.find("Depth of cut by level for Multi-Pas") != -1: #Depth of cut
-                                            worksheet.write(row + operation_counter, 6,
-                                                    tool_changes_parameters.item(t_parmeter_index + 1
-                                                    ).value_as_string(), n_fmt)
-                                        if tool_changes_parameters.item(
-                                                t_parmeter_index + 1).name.find("Offset on part") != -1:   #Offset on part
-                                            worksheet.write(row + operation_counter, 7,
-                                                    tool_changes_parameters.item(t_parmeter_index + 1
-                                                    ).value_as_string(), n_fmt)
-                                        if tool_changes_parameters.item(
-                                                t_parmeter_index + 1).name.find("Offset on check") != -1:  #Offset on check
-                                            worksheet.write(row + operation_counter, 8,
-                                                    tool_changes_parameters.item(t_parmeter_index + 1
-                                                    ).value_as_string(), n_fmt)
-                                        if tool_changes_parameters.item(
-                                                t_parmeter_index + 1
-                                                ).name.find("Depth of cut by level for Multi-Pass") != -1: #Depth of cut by level
-                                            worksheet.write(row + operation_counter, 9,
-                                                    tool_changes_parameters.item(t_parmeter_index + 1
-                                                    ).value_as_string(), n_fmt)
+                                    values, _ = read_operation_parameters(op_activity)                     #Settings matched by name, remembered indices probed first
+                                    for column, label in ((4, "Stepover"), (5, "MC Tolerance"),
+                                                          (6, "Depth of Cut"), (7, "Offset on Part"),
+                                                          (8, "Offset on Check"), (9, "Depth of Cut by Level")):
+                                        if values[label]:
+                                            worksheet.write(row + operation_counter, column,
+                                                    values[label], n_fmt)                                  #Absent settings leave the cell blank, as before
                                     operation_counter = operation_counter + 1                               #Add row for next operation
                                     global_op_index = global_op_index + 1                                  #Advance global colour index
 
