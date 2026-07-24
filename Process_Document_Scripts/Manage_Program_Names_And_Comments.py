@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Manage_Program_Names_And_Comments.py
-    Version:        1.3
+    Version:        1.4
     Code:           Python3.10.4, Pycatia 0.10.0
     Release:        V5R32
     Purpose:        Review and set the names and comments of manufacturing programs and operations.
@@ -43,6 +43,11 @@
                     24.07.26 1.3: Contour stepover read from Maximum distance again, the same
                                   parameter Export_Process_Table_Parameters reads - the 1.2
                                   change to Minimum step distance was wrong.
+                    24.07.26 1.4: Contour stepover read from Step distance. A parameter dump
+                                  of a live document shows Step distance moving between the
+                                  semi-finish and finish operations - 1mm and 0.5mm - while
+                                  Maximum distance and Minimum step distance, the 1.3 and 1.2
+                                  guesses, sit still whatever the dialog holds.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -221,11 +226,13 @@ PARAMETER_COLUMNS = (
 PARAMETER_LABELS = tuple(label for label, _ in PARAMETER_COLUMNS)
 
 # Operation types whose settings live under different parameter names. A contour driven
-# operation's depth of cut is Maximum depth of cut, because the Multi-Pass depth stays set
-# while Multi-Pass itself is off. Its stepover is Maximum distance like every other type,
-# the same parameter Export_Process_Table_Parameters reads.
+# operation's stepover is its Step distance - the dialog value, which a parameter dump shows
+# moving between the semi-finish and finish operations while the Maximum distance the type
+# also carries sits still - and its depth of cut is Maximum depth of cut, because the
+# Multi-Pass depth stays set while Multi-Pass itself is off.
 PARAMETER_OVERRIDES = {
     "M3xBetweenContour": {
+        "Stepover": ("Step distance",),
         "Depth of Cut": ("Maximum depth of cut",),
     },
 }
