@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Manage_Program_Names_And_Comments.py
-    Version:        1.5
+    Version:        1.6
     Code:           Python3.10.4, Pycatia 0.10.0
     Release:        V5R32
     Purpose:        Review and set the names and comments of manufacturing programs and operations.
@@ -56,6 +56,19 @@
                                   operation after the first, so each one reads as its own group,
                                   and the summary above the grid shows two part operations and
                                   scrolls for the rest rather than growing the window.
+                    03.09.26 1.6: An M/C column beside Nominal shows the machined offset the
+                                  operations actually leave, next to the stage nominal. A
+                                  Propagate button in the program editor stages the operations
+                                  under a program with a name built from the program's stage and
+                                  each operation's own shape - FINISH SWEEP, FINISH CONTOUR. An
+                                  Auto name and comment button names and comments whole part
+                                  operations at once, asking which ones and for a heading for any
+                                  blank divider, and reporting whatever it could not work out. A
+                                  program or a PP instruction can be added or removed - a PP
+                                  instruction added to whichever program is asked for. The bottom
+                                  row reads like a menu bar: Edit and Add / Remove drop menus, the
+                                  rest are plain buttons, and the window opens wide enough to show
+                                  them all.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -63,7 +76,9 @@
 #Imports
 from pycatia import catia
 from pycatia.dmaps_interfaces.process_document import ProcessDocument
+from pycatia.dmaps_interfaces.activity import Activity
 from pycatia.manufacturing_interfaces.manufacturing_setup import ManufacturingSetup
+from pycatia.manufacturing_interfaces.manufacturing_program import ManufacturingProgram
 from pycatia.knowledge_interfaces.str_param import StrParam
 from pycatia.mec_mod_interfaces.part_document import PartDocument
 from pycatia.ppr_interfaces.ppr_document import PPRDocument
@@ -897,6 +912,70 @@ def stage_for_description(description):
         if stage in text:
             return stage, STAGE_NOMINALS[stage]
     return None, None
+
+
+'''
+    This function reads the cutting shape an operation type describes.
+
+    The description lists name the shape the tool traces - SWEEP, CONTOUR, PENCIL, SCRIBE - and the
+    activity type says which it is. The names are matched the way operation_label writes them, so a
+    Bitangency reads as its pencil trace and a Contour driven operation as a contour.
+
+    Inputs:
+        activity_type   The activity type, e.g. "ManufacturingM3xSweeping"
+
+    output:
+        The shape word, e.g. "SWEEP"
+'''
+def operation_geometry(activity_type):
+    label = operation_label(activity_type).upper()
+    if "CONTOUR" in label:
+        return "CONTOUR"
+    if "PENCIL" in label or "BITANGENCY" in label:
+        return "PENCIL"
+    if "SCRIBE" in label:
+        return "SCRIBE"
+    return "SWEEP"                                                                                                #A sweep is the ordinary cut, and the fallback
+
+
+'''
+    This function picks the operation description that best fits a stage and an operation type.
+
+    An operation is named for its stage and its shape - FINISH SWEEP, SEMI-FINISH CONTOUR - so the
+    two are put together and the closest entry on the descriptions list is taken. A Z check and a
+    Z-level roughing name themselves whatever their shape, so they are handled on their own. Where
+    nothing on the list fits, the composed name is handed back so the operation is still named.
+
+    Inputs:
+        stage           A machining stage, e.g. "FINISH" or "SEMI FINISH"
+        activity_type   The operation's activity type
+
+    output:
+        The description, e.g. "FINISH SWEEP", or an empty string where there is no stage
+'''
+def best_operation_description(stage, activity_type):
+    if not stage:
+        return ""
+    stage = stage.upper().replace("SEMI FINISH", "SEMI-FINISH")                                                   #The descriptions spell it with the hyphen
+    label = operation_label(activity_type).upper()
+
+    if stage == "Z CHECK":
+        candidate = "Z CHECKS"                                                                                    #Named for the check, not the sweep that cuts it
+    elif stage == "Z-LEVEL ROUGHING" or "ZLEVEL" in label.replace("-", ""):
+        candidate = "Z-LEVEL ROUGHING"
+    else:
+        candidate = f"{stage} {operation_geometry(activity_type)}"
+
+    descriptions = TEMPLATES["descriptions"]
+    for entry in descriptions:                                                                                    #An exact entry always wins
+        if entry.upper() == candidate:
+            return entry
+
+    geometry = candidate.split()[-1]
+    for entry in descriptions:                                                                                    #A same stage, same shape variant - OPTIMIZED FINISH SWEEP where the plain one is gone
+        if entry.upper().startswith(stage) and geometry in entry.upper():
+            return entry
+    return candidate                                                                                             #Nothing of this stage on the list - the composed name is right, and stage must not slip
 
 
 '''
@@ -2030,6 +2109,7 @@ class EditDialog(wx.Dialog):
         self.current_instruction = row.get("instruction") or ""
         self.is_instruction = row["activity_type"] in INSTRUCTION_TYPES
         self.composed = None                                                                                     #What Build comment last wrote, so a group knows to recompose
+        self.propagated_ops = {}                                                                                 #Operation row id to the name Propagate worked out
         self.built_used = False                                                                                  #Whether [Use as name] was pressed - a group numbers on from it
         self.name_prefill = self.new_name or self.current_name                                                   #A group only takes what was actually changed
         self.comment_prefill = self.new_comment or self.current_comment
@@ -2346,8 +2426,15 @@ class EditDialog(wx.Dialog):
         inner.Add(self.offset_text, 1, wx.EXPAND)
 
         self.compose_button = wx.Button(panel, label="Build comment")
+        self.propagate_button = wx.Button(panel, label="Propagate to operations")
+        self.propagate_button.SetToolTip("Name every operation under this program from its stage and "
+                                         "its own shape - FINISH SWEEP, FINISH CONTOUR - and stage "
+                                         "this program too.")
+        compose_row = wx.BoxSizer(wx.HORIZONTAL)
+        compose_row.Add(self.compose_button, 0, wx.RIGHT, 6)
+        compose_row.Add(self.propagate_button, 0)
         inner.Add(wx.StaticText(panel, label=""), 0)
-        inner.Add(self.compose_button, 0)
+        inner.Add(compose_row, 0)
 
         box.Add(inner, 0, wx.EXPAND | wx.ALL, 6)
 
@@ -2357,6 +2444,7 @@ class EditDialog(wx.Dialog):
         self.stage_text.Bind(wx.EVT_TEXT, self._on_change)
         self.offset_text.Bind(wx.EVT_TEXT, self._on_change)
         self.compose_button.Bind(wx.EVT_BUTTON, self._on_compose)
+        self.propagate_button.Bind(wx.EVT_BUTTON, self._on_propagate)
         return box
 
     '''
@@ -2571,18 +2659,24 @@ class EditDialog(wx.Dialog):
         self.preview.SetValue("\n".join(lines))
 
     '''
-        This function asks for any placeholder numbers, then stages the result.
+        This function reads the boxes, asks for any placeholder numbers, and works out what is staged.
+
+        Shared by Stage and Propagate, so both settle the program's own name and comment the same
+        way. A cancelled placeholder prompt leaves nothing staged and answers False.
+
+        output:
+            True where the values were settled, False where a placeholder prompt was cancelled
     '''
-    def _on_ok(self, event):
+    def _finalise(self):
         name = self._composed_name()
         comment = self.comment_choice.GetValue().strip()
 
         name = self._resolve_placeholders(name, "name")
         if name is None:
-            return
+            return False
         comment = self._resolve_placeholders(comment, "comment")
         if comment is None:
-            return
+            return False
 
         self.final_name = name                                                                                   #The group path works from these, not the diffs
         self.final_comment = comment
@@ -2594,13 +2688,51 @@ class EditDialog(wx.Dialog):
         if self.instruction_choice is not None:
             instruction = self._resolve_placeholders(self.instruction_choice.GetValue().strip(), "PP instruction")
             if instruction is None:
-                return
+                return False
             self.final_instruction = instruction
             self.new_instruction = "" if instruction == self.current_instruction else instruction
 
         if self.machine_choice is not None:
             self.settings["machine"] = self.machine_choice.GetValue().strip()
-        event.Skip()
+        return True
+
+    '''
+        This function asks for any placeholder numbers, then stages the result.
+    '''
+    def _on_ok(self, event):
+        if self._finalise():
+            event.Skip()
+
+    '''
+        This function names every operation under this program, then stages the program too.
+
+        The stage comes from the program - its Stage box, or failing that whatever stage its comment
+        or name reads as. Each operation is named for that stage and its own shape, so a finish
+        program gives FINISH SWEEP, FINISH CONTOUR, FINISH PENCIL. The names are recorded here and
+        written onto the operation rows by the caller once the dialog closes.
+    '''
+    def _on_propagate(self, event):
+        stage = self.stage_choice.GetValue().strip()
+        if not stage:
+            stage, _ = stage_for_description(self.description_choice.GetValue() or self._staged_text())
+        if not stage:
+            wx.MessageBox("This program has no stage to go by. Pick a Description or a Stage first, "
+                          "so the operations can be named FINISH SWEEP, SEMI-FINISH CONTOUR and the "
+                          "like.", "Propagate to operations", wx.OK | wx.ICON_INFORMATION, self)
+            return
+
+        operations = [row for row in self.rows
+                      if row.get("parent") is self.row and row["kind"] == "Operation"]
+        if not operations:
+            wx.MessageBox("This program has no operations to name.", "Propagate to operations",
+                          wx.OK | wx.ICON_INFORMATION, self)
+            return
+
+        if not self._finalise():                                                                                 #Settle the program's own name and comment first
+            return
+        self.propagated_ops = {id(row): best_operation_description(stage, row["activity_type"])
+                               for row in operations}
+        self.EndModal(wx.ID_OK)
 
     '''
         This function prompts for each placeholder in a template.
@@ -3217,6 +3349,84 @@ class RenumberDialog(wx.Dialog):
         return names
 
 
+class AssignDividersDialog(wx.Dialog):
+    """Gives each empty program a divider heading, so the programs below it know their stage.
+
+    Auto name and comment reads the stage of every real program from the divider above it. A blank
+    program that carries no heading yet leaves the programs below it with no stage, so this asks for
+    one before the naming starts."""
+
+    NAME, PROGRAM, HEADING = range(3)                                                                            #Columns
+
+    def __init__(self, parent, slots):
+        super().__init__(parent, title="Assign divider headings",
+                         style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
+        self.slots = slots                                                                                       #List of (part operation name, program row)
+
+        panel = wx.Panel(self)
+        vbox = wx.BoxSizer(wx.VERTICAL)
+        vbox.Add(wx.StaticText(panel, label="Each empty program is a divider. Give it a heading and "
+                                            "the programs below it, down to the next divider, take "
+                                            "its stage.\nLeave one blank to skip it - the programs "
+                                            "below it are then left for you to name by hand."),
+                 0, wx.ALL, 8)
+
+        self.grid = wx.grid.Grid(panel)
+        self.grid.CreateGrid(len(slots), 3)
+        for index, label in enumerate(("Part operation", "Program", "Heading")):
+            self.grid.SetColLabelValue(index, label)
+
+        dividers = list(TEMPLATES["dividers"])
+        for row_index, (part_name, program_row) in enumerate(slots):
+            current = effective_name(program_row)
+            choices = dividers if not is_divider(current) or current in dividers else [current] + dividers
+            self.grid.SetCellValue(row_index, self.NAME, part_name)
+            self.grid.SetCellValue(row_index, self.PROGRAM, current)
+            self.grid.SetCellEditor(row_index, self.HEADING,
+                                    wx.grid.GridCellChoiceEditor([""] + choices, False))
+            if is_divider(current):
+                self.grid.SetCellValue(row_index, self.HEADING, current)                                         #Already a heading - keep it unless changed
+            self.grid.SetReadOnly(row_index, self.NAME, True)
+            self.grid.SetReadOnly(row_index, self.PROGRAM, True)
+        self.grid.Bind(wx.grid.EVT_GRID_SELECT_CELL, self._on_select_cell)                                       #Open the dropdown on a single click
+        self.grid.AutoSizeColumns()
+        vbox.Add(self.grid, 1, wx.EXPAND | wx.ALL, 8)
+
+        buttons = wx.StdDialogButtonSizer()
+        ok_button = wx.Button(panel, wx.ID_OK, "Use these headings")
+        ok_button.SetDefault()
+        buttons.AddButton(ok_button)
+        buttons.AddButton(wx.Button(panel, wx.ID_CANCEL))
+        buttons.Realize()
+        vbox.Add(buttons, 0, wx.ALIGN_RIGHT | wx.ALL, 8)
+
+        panel.SetSizer(vbox)
+        frame = wx.BoxSizer(wx.VERTICAL)
+        frame.Add(panel, 1, wx.EXPAND)
+        self.SetSizer(frame)
+        self.SetSize((680, min(220 + 26 * len(slots), 620)))
+        self.Center()
+
+    def _on_select_cell(self, event):
+        if event.GetCol() == self.HEADING:
+            wx.CallAfter(self.grid.EnableCellEditControl)
+        event.Skip()
+
+    '''
+        This function hands back the heading chosen for each divider slot.
+
+        output:
+            Dict of program row id to the chosen heading, for the slots that got one
+    '''
+    def headings(self):
+        result = {}
+        for row_index, (_, program_row) in enumerate(self.slots):
+            heading = self.grid.GetCellValue(row_index, self.HEADING).strip()
+            if heading:
+                result[id(program_row)] = heading
+        return result
+
+
 '''
     This function puts a spacer row before every part operation after the first.
 
@@ -3261,7 +3471,8 @@ class TreeFrame(wx.Frame):
     """The machining tree, the staged edits, and the button that writes them."""
 
     COLUMNS = (("Level", "Operation", "Name", "Comment", "PP instruction", "Tool") + PARAMETER_LABELS
-               + ("Stage", "Nominal"))
+               + ("Stage", "Nominal", "M/C"))                                                                    #Nominal is the stage, M/C what the operations actually leave
+    TRAILING_COLUMNS = 3                                                                                          #Stage, Nominal, M/C sit after the parameter block
 
     NAME_COLUMN, COMMENT_COLUMN, INSTRUCTION_COLUMN = 2, 3, 4                                                    #Staged values are shown in place, and coloured
 
@@ -3278,12 +3489,10 @@ class TreeFrame(wx.Frame):
     SPACER_HEIGHT = 12                                                                                           #The thin blank band between part operations
     SUMMARY_LINES = 8                                                                                            #Two part operations - the summary scrolls past this
 
-    BUTTON_GROUPS = (                                                                                            #The buttons, grouped by function and coloured to match
-        ("editing", wx.Colour(189, 215, 238)),
-        ("staging", wx.Colour(198, 224, 180)),
-        ("settings", wx.Colour(255, 230, 153)),
-        ("window", None),
-    )
+    EDIT_COLOUR = wx.Colour(189, 215, 238)                                                                       #Editing and the settings behind it
+    AUTO_COLOUR = wx.Colour(197, 175, 220)                                                                       #Names and comments a whole part operation at once
+    STRUCTURE_COLOUR = wx.Colour(248, 203, 173)                                                                 #Adds or removes programs - written straight away, not staged
+    STAGING_COLOUR_BUTTON = wx.Colour(198, 224, 180)                                                            #The staged edits
 
     def __init__(self, rows, job_info, settings, settings_dir, ppr_document=None):
         super().__init__(None, title="Manage Program Names And Comments", size=(1400, 760))
@@ -3318,30 +3527,37 @@ class TreeFrame(wx.Frame):
 
         vbox.Add(self._legend(panel), 0, wx.LEFT | wx.RIGHT, 5)
 
-        buttons = wx.BoxSizer(wx.HORIZONTAL)
-        groups = {
-            "editing": (("Edit selected rows", self._on_edit_row),
-                        ("Metal thicknesses", self._on_metal),
-                        ("Renumber programs", self._on_renumber)),
-            "staging": (("Clear staged edit", self._on_clear),
-                        ("Apply staged edits to CATIA", self._on_apply)),
-            "settings": (("Edit templates", self._on_templates),
-                         ("Edit limits", self._on_limits),
-                         ("Clear saved settings", self._on_clear_settings)),
-            "window": (("Refresh from CATIA", self._on_refresh),
-                       ("Help", self._on_help),
-                       ("Close", self._on_close)),
-        }
-        for group_index, (group, colour) in enumerate(self.BUTTON_GROUPS):
-            for label, handler in groups[group]:
-                button = wx.Button(panel, label=label)
-                if colour is not None:
-                    button.SetBackgroundColour(colour)
-                button.Bind(wx.EVT_BUTTON, handler)
-                buttons.Add(button, 0, wx.RIGHT, 6)
-            if group_index < len(self.BUTTON_GROUPS) - 1:
-                buttons.AddSpacer(12)                                                                            #A gap between the groups
-        vbox.Add(buttons, 0, wx.ALL, 8)
+        # The bottom row reads like a menu bar: a few headings that drop a menu, and the rest plain
+        # buttons. Editing and the settings behind it sit under Edit; adding and removing programs
+        # under Add / Remove; the staged edits and the window keep their own buttons.
+        edit_menu = (("Edit selected rows", self._on_edit_row),
+                     ("Metal thicknesses", self._on_metal),
+                     ("Renumber programs", self._on_renumber),
+                     None,
+                     ("Edit templates", self._on_templates),
+                     ("Edit limits", self._on_limits),
+                     ("Clear saved settings", self._on_clear_settings))
+        add_remove_menu = (("Add program", self._on_add_program),
+                           ("Add PP instruction", self._on_add_pp_instruction),
+                           None,
+                           ("Remove program", self._on_remove_program),
+                           ("Remove PP instruction", self._on_remove_pp_instruction))
+
+        bar = (("menu", "Edit", self.EDIT_COLOUR, edit_menu),
+               ("button", "Auto name & comment", self.AUTO_COLOUR, self._on_auto_name),
+               ("menu", "Add / Remove", self.STRUCTURE_COLOUR, add_remove_menu),
+               ("button", "Clear staged edits", self.STAGING_COLOUR_BUTTON, self._on_clear),
+               ("button", "Apply staged edits", self.STAGING_COLOUR_BUTTON, self._on_apply),
+               ("button", "Refresh from CATIA", None, self._on_refresh),
+               ("button", "Help", None, self._on_help),
+               ("button", "Close", None, self._on_close))
+
+        self.button_bar = wx.BoxSizer(wx.HORIZONTAL)
+        for kind, label, colour, target in bar:
+            button = (self._menu_button(panel, label, colour, target) if kind == "menu"
+                      else self._action_button(panel, label, colour, target))
+            self.button_bar.Add(button, 0, wx.RIGHT, 6)
+        vbox.Add(self.button_bar, 0, wx.ALL, 8)
 
         self.status = wx.StaticText(panel, label="Double click a row to set its name and comment, or "
                                                  "select several with Ctrl or Shift and press [Edit "
@@ -3353,15 +3569,59 @@ class TreeFrame(wx.Frame):
         self.Center()
 
     '''
-        This function opens the window wide enough to show the grid without scrolling sideways.
+        This function makes a plain button that runs one action.
+    '''
+    def _action_button(self, panel, label, colour, handler):
+        button = wx.Button(panel, label=label)
+        if colour is not None:
+            button.SetBackgroundColour(colour)
+        button.Bind(wx.EVT_BUTTON, handler)
+        return button
+
+    '''
+        This function makes a heading button that drops a menu, so the bottom row reads like a menu bar.
+
+        Inputs:
+            panel           The panel the button sits on
+            label           The heading, e.g. "Edit"
+            colour          The button colour, or None
+            items           Tuple of (text, handler), None standing for a separator
+
+        output:
+            The button
+    '''
+    def _menu_button(self, panel, label, colour, items):
+        button = wx.Button(panel, label=label + "  ▾")                                                      #A small down arrow says it drops a menu
+        if colour is not None:
+            button.SetBackgroundColour(colour)
+
+        def on_click(event, button=button, items=items):
+            menu = wx.Menu()
+            for item in items:
+                if item is None:
+                    menu.AppendSeparator()
+                    continue
+                text, handler = item
+                entry = menu.Append(wx.ID_ANY, text)
+                self.Bind(wx.EVT_MENU, handler, entry)
+            button.PopupMenu(menu, wx.Point(0, button.GetSize().height))                                          #Drops below the button
+            menu.Destroy()
+
+        button.Bind(wx.EVT_BUTTON, on_click)
+        return button
+
+    '''
+        This function opens the window wide enough to show the grid and the whole button bar.
 
         The grid is wide - every setting has a column - so a fixed size would always cut it off
         on one screen or waste space on another. The width the columns actually need is measured
-        and used, held within what the screen can show.
+        and used, and never less than the button bar, so no button is cut off, all held within
+        what the screen can show.
     '''
     def _size_to_grid(self):
         needed = sum(self.grid.GetColSize(column) for column in range(self.grid.GetNumberCols()))
         needed += self.grid.GetRowLabelSize() + 60                                                               #Row labels, borders and the vertical scrollbar
+        needed = max(needed, self.button_bar.GetMinSize().width + 30)                                             #Never narrower than the buttons
 
         screen = wx.Display(wx.Display.GetFromWindow(self) if self.IsShown() else 0).GetClientArea()
         width = max(900, min(needed, screen.width))
@@ -3434,12 +3694,13 @@ class TreeFrame(wx.Frame):
                        one_line, effective_instruction(row), row["tool"] or "")
                       + tuple(parameters.get(label, "") or ("missing" if label in missing else "")
                               for label in PARAMETER_LABELS)
-                      + (stage or "", "" if nominal is None else f"{nominal:+.1f}"))
+                      + (stage or "", "" if nominal is None else f"{nominal:+.1f}",
+                         format_offset(row.get("offset"))))                                                       #The machined offset the operations leave
             for column, value in enumerate(values):
                 self.grid.SetCellValue(row_index, column, value)
 
             for offset_index, label in enumerate(PARAMETER_LABELS):                                              #Missing settings are called out, not left blank
-                column = len(self.COLUMNS) - 2 - len(PARAMETER_LABELS) + offset_index
+                column = len(self.COLUMNS) - self.TRAILING_COLUMNS - len(PARAMETER_LABELS) + offset_index
                 self.grid.SetCellTextColour(row_index, column,
                                             wx.Colour(192, 0, 0) if label in missing else wx.BLACK)
 
@@ -3460,7 +3721,7 @@ class TreeFrame(wx.Frame):
             bad = check_operation(row, part_operation_of(row)) if is_operation else {}                           #Values off the limits go on red
             for offset_index, label in enumerate(PARAMETER_LABELS):
                 if label in bad:
-                    column = len(self.COLUMNS) - 2 - len(PARAMETER_LABELS) + offset_index
+                    column = len(self.COLUMNS) - self.TRAILING_COLUMNS - len(PARAMETER_LABELS) + offset_index
                     self.grid.SetCellBackgroundColour(row_index, column, self.BAD_COLOUR)
                     self.grid.SetCellTextColour(row_index, column, self.BAD_TEXT_COLOUR)
 
@@ -3525,6 +3786,10 @@ class TreeFrame(wx.Frame):
                 row["new_name"] = dialog.new_name
                 row["new_comment"] = dialog.new_comment
                 row["new_instruction"] = dialog.new_instruction
+            for operation in self.rows:                                                                           #Propagate named the operations under the program
+                name = dialog.propagated_ops.get(id(operation))
+                if name is not None:
+                    operation["new_name"] = "" if name == operation["name"] else name
             self._fill_grid()
             self.status.SetLabel(f"Staged - {sum(1 for r in self.rows if is_staged(r))} "
                                  f"row(s) waiting to be applied.")
@@ -3624,31 +3889,70 @@ class TreeFrame(wx.Frame):
 
             "BUTTONS\n"
             "--------------------------------------------------------------------------\n"
-            " Grouped by colour: blue edits rows, green handles the staged edits,\n"
-            " amber holds the settings, grey the window itself.\n\n"
-            " [Edit selected rows]   Sets the name and comment of the selected rows.\n"
-            "                        Double clicking a row does the same. Select several\n"
-            "                        rows of one kind with Ctrl or Shift to edit them as\n"
-            "                        a group: only what is changed in the dialog is\n"
-            "                        applied, a built program name numbers on in\n"
-            "                        sequence, and a composed comment is built again for\n"
-            "                        each program with its own tool and offset.\n"
-            " [Metal thicknesses]    Lists every thickness found in the design parts and\n"
-            "                        says which applies to each part operation. Rows can\n"
-            "                        be added by hand where a part does not state one.\n"
-            " [Renumber programs]    Numbers the programs in sequence, or by hand.\n"
-            " [Clear staged edit]    Drops the staged values on the selected row, so it\n"
+            " The bottom row reads like a menu bar. Edit and Add / Remove drop a menu;\n"
+            " the rest are plain buttons. Coloured to match: blue for editing, purple\n"
+            " for auto naming, orange for adding and removing, green for the staged\n"
+            " edits, grey for the window.\n\n"
+            " Edit  (menu)\n"
+            "   [Edit selected rows]   Sets the name and comment of the selected rows.\n"
+            "                          Double clicking a row does the same. Select\n"
+            "                          several rows of one kind with Ctrl or Shift to\n"
+            "                          edit them as a group: only what is changed is\n"
+            "                          applied, a built program name numbers on in\n"
+            "                          sequence, and a composed comment is built again\n"
+            "                          for each program with its own tool and offset.\n"
+            "   [Metal thicknesses]    Lists every thickness found in the design parts\n"
+            "                          and says which applies to each part operation.\n"
+            "   [Renumber programs]    Numbers the programs in sequence, or by hand.\n"
+            "   [Edit templates]       Adds, edits, reorders and removes the entries in\n"
+            "                          the dropdown lists.\n"
+            "   [Edit limits]          Sets the allowed stepover, pass overlap and depth\n"
+            "                          of cut values the checks go by.\n"
+            "   [Clear saved settings] Deletes the saved settings and puts every\n"
+            "                          template list and limit back to the shipped ones.\n"
+            " [Auto name & comment]  Names and comments whole part operations at once -\n"
+            "                        see AUTO NAME AND COMMENT below. Everything it works\n"
+            "                        out is staged, so it is reviewed before Apply.\n"
+            " Add / Remove  (menu)\n"
+            "   [Add program]          Creates a blank program under a chosen part\n"
+            "                          operation, named afterwards the ordinary way.\n"
+            "   [Add PP instruction]   Creates a blank PP instruction in a chosen\n"
+            "                          program, set afterwards on its own row.\n"
+            "   [Remove program]       Deletes the selected program, its operations\n"
+            "                          with it.\n"
+            "   [Remove PP instruction] Deletes the selected PP instruction.\n"
+            "   Adding and removing change the document straight away and cannot be\n"
+            "   staged - the tree is read again, so staged edits are confirmed lost.\n"
+            " [Clear staged edits]   Drops the staged values on the selected row, so it\n"
             "                        shows what the document holds again.\n"
             " [Apply staged edits]   Writes every staged value to the document, without\n"
             "                        asking again.\n"
-            " [Edit templates]       Adds, edits, reorders and removes the entries in\n"
-            "                        the dropdown lists.\n"
-            " [Edit limits]          Sets the allowed stepover, pass overlap, and depth\n"
-            "                        of cut values the checks go by.\n"
-            " [Clear saved settings] Deletes the saved settings and puts every template\n"
-            "                        list and limit back to what the script ships with.\n"
             " [Refresh from CATIA]   Reads the whole tree again. Staged edits are lost.\n"
-            " [Help]                 Opens this window.\n\n"
+            " [Help]                 Opens this window.\n"
+            " [Close]                Closes the window.\n\n"
+
+            "AUTO NAME AND COMMENT\n"
+            "--------------------------------------------------------------------------\n"
+            " Names and comments whole part operations at once, the way the first was\n"
+            " done by hand. It asks which part operations to work on - all by default.\n\n"
+            " Empty programs are read as dividers. A heading is asked for each one, and\n"
+            " the programs below it, down to the next divider, take its stage. A blank\n"
+            " left in that list skips the divider and the programs under it.\n\n"
+            " Each real program is then given a name built from the job, a comment\n"
+            " composed from its tool, stage and machined offset, and its operations are\n"
+            " named for the stage and their own shape - FINISH SWEEP, FINISH CONTOUR.\n\n"
+            " Everything is staged, not written. Whatever could not be worked out - a\n"
+            " job not filled in, a program with no divider above it, a program with no\n"
+            " tool - is listed at the end with what to do, and left for you.\n\n"
+            " The [Propagate to operations] button in the program editor does the same\n"
+            " to one program: it names every operation under it from the program's\n"
+            " stage and each operation's shape, and stages the program too.\n\n"
+            " Both read the live template lists, so a divider heading, description or\n"
+            " tool added under [Edit templates] is used at once. The stage itself is not\n"
+            " from a list, though - a heading gives a stage only where it carries a word\n"
+            " the script knows: Z-LEVEL, Z CHECK, SEMI-FINISH, ROUGHING or FINISH. A\n"
+            " heading without one - *** ADDITIONAL PROGRAMS *** - leaves the programs\n"
+            " under it with no stage, reported rather than named to the wrong one.\n\n"
 
             "CHECKS\n"
             "--------------------------------------------------------------------------\n"
@@ -3710,8 +4014,10 @@ class TreeFrame(wx.Frame):
             " Description   Picked from the list.\n"
             " TO ...MM      The stage. Rough +2.0 or +0.7, semi-finish +0.3, finish\n"
             "               0.0, Z check 0.0. This does not move when metal comes off.\n"
+            "               It is the Nominal column in the grid.\n"
             " (M/C: ...MM)  What the operations actually machine to, read from their\n"
-            "               Offset on part. Shown only when it differs from the stage.\n\n"
+            "               Offset on part. Shown only when it differs from the stage.\n"
+            "               It is the M/C column in the grid, beside Nominal.\n\n"
 
             "PP INSTRUCTIONS\n"
             "--------------------------------------------------------------------------\n"
@@ -3839,6 +4145,24 @@ class TreeFrame(wx.Frame):
             if confirm != wx.YES:
                 return
 
+        count = self._reload_tree()
+        if count >= 0:
+            self.status.SetLabel(f"Read again from the document - {count} row(s). "
+                                 f"Staged edits were cleared.")
+
+    '''
+        This function reads the whole tree again and rebuilds the grid from it.
+
+        A metal thickness that was chosen by hand is carried across, so the choice does not have to
+        be made again. Staged edits are dropped, so the caller warns first where there are any.
+
+        output:
+            The number of real rows read, or -1 where the document could not be read
+    '''
+    def _reload_tree(self):
+        if self.ppr_document is None:
+            return -1
+
         chosen = {row["name"]: row["metal"] for row in self.rows                                                  #Keep the metal that was picked by hand
                   if row["kind"] == "Part Operation" and len(row.get("metals") or {}) > 1}
 
@@ -3846,7 +4170,7 @@ class TreeFrame(wx.Frame):
             rows = read_tree_with_progress(self.ppr_document, self)
         except Exception as error:
             wx.MessageBox(f"The document could not be read:\n\n{error}", "Refresh", wx.OK | wx.ICON_ERROR, self)
-            return
+            return -1
 
         for row in rows:
             if row["kind"] == "Part Operation" and row["name"] in chosen and chosen[row["name"]]:
@@ -3864,9 +4188,7 @@ class TreeFrame(wx.Frame):
         self._fill_grid()
         self._update_summary()
         self.Layout()
-        self.status.SetLabel(f"Read again from the document - "
-                             f"{sum(1 for row in rows if row['kind'] != 'Spacer')} row(s). "
-                             f"Staged edits were cleared.")
+        return sum(1 for row in rows if row["kind"] != "Spacer")
 
     '''
         This function renumbers the programs, staging the new names.
@@ -3887,6 +4209,323 @@ class TreeFrame(wx.Frame):
             self._fill_grid()
             self.status.SetLabel(f"Staged {len(names)} new program name(s). Nothing is written until Apply.")
         dialog.Destroy()
+
+    '''
+        This function reads the operations that sit directly under a program.
+    '''
+    def _operations_under(self, program_row):
+        return [row for row in self.rows if row.get("parent") is program_row and row["kind"] == "Operation"]
+
+    '''
+        This function works out the offset a program's comment should quote as its M/C figure.
+
+        The operations' own Offset on part is used where they state one. Where they do not, the stage
+        rule fills it in from the part operation's master, metal and spotting, the same way the edit
+        dialog does. Where neither is known, there is no M/C figure and the comment reads to the
+        nominal alone.
+
+        Inputs:
+            program_row     The program row
+            nominal         The stage nominal in mm
+            part_op         The part operation the program sits under
+
+        output:
+            The machined offset in mm, or None
+    '''
+    def _machine_offset(self, program_row, nominal, part_op):
+        measured = program_row.get("offset")
+        if measured is not None:
+            return measured
+        if nominal is None or not part_op:
+            return None
+        part = upper_or_lower(effective_name(part_op))
+        master = part_op.get("master")
+        try:
+            metal = float(part_op.get("metal")) if part_op.get("metal") else None
+        except ValueError:
+            metal = None
+        spotting = 0.0
+        if part_op.get("spotting_mode") == "built in":
+            try:
+                spotting = float(part_op.get("spotting") or 0)
+            except ValueError:
+                spotting = 0.0
+        if master == "BOTH":
+            return nominal + spotting
+        if part and master and metal is not None:
+            return offset_for(nominal, part, master, metal, spotting)
+        return None
+
+    '''
+        This function names and comments whole part operations at once, staging the result.
+
+        It works the way the first part operation was done by hand. Empty programs are dividers, and
+        each one's heading is asked for first so the programs below it know their stage. Each real
+        program is then given a name built from the job, a comment composed from its tool, the stage
+        and the machined offset, and its operations named for the stage and their own shape. Anything
+        that could not be worked out - a job not filled in, a stage with no divider above it, a
+        program with no tool - is left for the user and listed at the end with what to do about it.
+
+        Nothing is written: every result is staged, shown green, and applied with the ordinary Apply.
+    '''
+    def _on_auto_name(self, event):
+        self._read_job_bar()
+        part_ops = [row for row in self.rows if row["kind"] == "Part Operation"]
+        if not part_ops:
+            self.status.SetLabel("There are no part operations.")
+            return
+
+        if len(part_ops) > 1:                                                                                    #Which part operations - all by default
+            names = [row["name"] for row in part_ops]
+            chooser = wx.MultiChoiceDialog(self, "Name and comment which part operations?",
+                                           "Auto name and comment", names)
+            chooser.SetSelections(list(range(len(names))))
+            if chooser.ShowModal() != wx.ID_OK:
+                chooser.Destroy()
+                self.status.SetLabel("Auto name and comment cancelled.")
+                return
+            picked = chooser.GetSelections()
+            chooser.Destroy()
+            if not picked:
+                self.status.SetLabel("No part operations chosen.")
+                return
+            part_ops = [part_ops[index] for index in picked]
+
+        slots = []                                                                                               #Every empty program is a divider to be headed
+        for part_op in part_ops:
+            for program_row in [row for row in self.rows
+                                if row["kind"] == "Program" and part_operation_of(row) is part_op]:
+                if not self._operations_under(program_row):
+                    slots.append((part_op["name"], program_row))
+
+        headings = {}
+        if slots:
+            dialog = AssignDividersDialog(self, slots)
+            if dialog.ShowModal() != wx.ID_OK:
+                dialog.Destroy()
+                self.status.SetLabel("Auto name and comment cancelled.")
+                return
+            headings = dialog.headings()
+            dialog.Destroy()
+
+        issues = []
+        for part_op in part_ops:
+            stem = job_stem(self.settings, part_op)
+            if not stem:
+                issues.append(f"{part_op['name']}: the job is not filled in (Initial, Project, Die, Rev "
+                              f"in the Job bar and the Code in [Metal thicknesses]) - the operations "
+                              f"and comments are still done, but the programs keep their names.")
+            if not part_op.get("master"):
+                issues.append(f"{part_op['name']}: no master side set in [Metal thicknesses] - the "
+                              f"machined offset in the comments may be wrong.")
+            if not part_op.get("metal"):
+                issues.append(f"{part_op['name']}: no metal thickness in [Metal thicknesses] - the "
+                              f"machined offset falls back to what the operations state.")
+
+            stage = None
+            number = 1
+            for program_row in [row for row in self.rows
+                                if row["kind"] == "Program" and part_operation_of(row) is part_op]:
+                operations = self._operations_under(program_row)
+                if not operations:                                                                               #A divider slot
+                    heading = headings.get(id(program_row))
+                    if heading:
+                        program_row["new_name"] = "" if heading == program_row["name"] else heading
+                        stage, _ = stage_for_description(heading)
+                    else:
+                        stage = None                                                                             #Skipped - the programs below it need naming by hand
+                    continue
+
+                if stage is None:
+                    issues.append(f"{effective_name(program_row)}: no divider above it gives the stage, "
+                                  f"so it was left alone. Give the divider above it a heading.")
+                    continue
+
+                nominal = STAGE_NOMINALS.get(stage)
+                for operation in operations:
+                    name = best_operation_description(stage, operation["activity_type"])
+                    operation["new_name"] = "" if name == operation["name"] else name
+
+                if stem:
+                    built = f"{stem}{number:02d}"
+                    program_row["new_name"] = "" if built == program_row["name"] else built
+                    number += 1
+
+                tool = program_row["tool"] or ""
+                if not tool:
+                    issues.append(f"{effective_name(program_row)}: no tool detected - its comment is "
+                                  f"written without one.")
+                description = best_operation_description(stage, operations[0]["activity_type"])
+                machine_offset = self._machine_offset(program_row, nominal, part_op)
+                note = spotting_note(part_op.get("spotting"), part_op.get("spotting_mode") == "built in") \
+                    if part_op.get("spotting_mode") else ""
+                comment = compose_program_comment(tool, description, nominal, machine_offset, note)
+                program_row["new_comment"] = "" if same_text(comment, program_row["comment"]) else comment
+
+        self._fill_grid()
+        self._update_summary()
+        self.Layout()
+        if issues:
+            wx.MessageBox("Auto name and comment staged what it could. These were left for you:\n\n  - "
+                          + "\n  - ".join(issues), "Auto name and comment", wx.OK | wx.ICON_INFORMATION, self)
+        self.status.SetLabel(f"Auto name and comment staged edits - "
+                             f"{sum(1 for row in self.rows if is_staged(row))} row(s) waiting. "
+                             f"Review and press Apply.")
+
+    '''
+        This function checks staged edits will not be lost silently before a structural change.
+
+        Adding or removing an activity reads the tree again, which drops staged edits, so the user
+        is asked first where there are any.
+
+        output:
+            True to carry on, False where the user backed out
+    '''
+    def _ok_to_lose_staged(self, title):
+        staged = [row for row in self.rows if is_staged(row)]
+        if not staged:
+            return True
+        return wx.MessageBox(f"{len(staged)} staged edit(s) have not been applied. This reads the "
+                             f"tree again and discards them. Carry on?", title,
+                             wx.YES_NO | wx.ICON_QUESTION, self) == wx.YES
+
+    '''
+        This function asks which part operation to work under, defaulting to the selection.
+
+        output:
+            A part operation row, or None where there is none or the user cancelled
+    '''
+    def _choose_part_operation(self, title, prompt):
+        part_ops = [row for row in self.rows if row["kind"] == "Part Operation"]
+        if not part_ops:
+            self.status.SetLabel("There are no part operations.")
+            return None
+        if len(part_ops) == 1:
+            return part_ops[0]
+        selected = self._selected_row()
+        default = part_operation_of(self.rows[selected]) if selected is not None else None
+        names = [row["name"] for row in part_ops]
+        dialog = wx.SingleChoiceDialog(self, prompt, title, names)
+        if default in part_ops:
+            dialog.SetSelection(part_ops.index(default))
+        chosen = part_ops[dialog.GetSelection()] if dialog.ShowModal() == wx.ID_OK else None
+        dialog.Destroy()
+        return chosen
+
+    '''
+        This function adds a blank program under a part operation.
+
+        The program is created empty and named afterwards through the ordinary edit flow, so the
+        same templates and staging apply. Creating it changes the document straight away - it cannot
+        be staged - so the tree is read again and any staged edits are confirmed lost first.
+    '''
+    def _on_add_program(self, event):
+        part_op = self._choose_part_operation("Add program", "Add a blank program under which part "
+                                                              "operation?")
+        if part_op is None or not self._ok_to_lose_staged("Add program"):
+            return
+        try:
+            Activity(part_op["activity"].com_object).create_child("ManufacturingProgram")
+        except Exception as error:
+            wx.MessageBox(f"The program could not be added:\n\n{error}", "Add program",
+                          wx.OK | wx.ICON_ERROR, self)
+            return
+        count = self._reload_tree()
+        if count >= 0:
+            self.status.SetLabel(f"Added a blank program under {part_op['name']}. Name it, then Apply.")
+
+    '''
+        This function adds a blank PP instruction to a chosen program.
+
+        A PP instruction belongs to a program, not to a part operation, so the program is asked for.
+        It is created empty and set afterwards on its own row in the edit window. Creating it changes
+        the document straight away, so staged edits are confirmed lost first.
+    '''
+    def _on_add_pp_instruction(self, event):
+        programs = [row for row in self.rows
+                    if row["kind"] == "Program" and not is_divider(effective_name(row))]
+        if not programs:
+            self.status.SetLabel("There are no programs to add a PP instruction to.")
+            return
+
+        selected = self._selected_row()
+        default = None
+        if selected is not None:
+            row = self.rows[selected]
+            default = row if row["kind"] == "Program" else (row.get("parent") if row["kind"] == "Operation" else None)
+        labels = [f"{effective_name(row)}   [{(part_operation_of(row) or {}).get('name', '')}]"
+                  for row in programs]
+        dialog = wx.SingleChoiceDialog(self, "Add a blank PP instruction to which program?",
+                                       "Add PP instruction", labels)
+        if default in programs:
+            dialog.SetSelection(programs.index(default))
+        program = programs[dialog.GetSelection()] if dialog.ShowModal() == wx.ID_OK else None
+        dialog.Destroy()
+        if program is None or not self._ok_to_lose_staged("Add PP instruction"):
+            return
+        try:
+            ManufacturingProgram(program["activity"].com_object).add_pp_instruction("")
+        except Exception as error:
+            wx.MessageBox(f"The PP instruction could not be added:\n\n{error}", "Add PP instruction",
+                          wx.OK | wx.ICON_ERROR, self)
+            return
+        count = self._reload_tree()
+        if count >= 0:
+            self.status.SetLabel(f"Added a blank PP instruction to {effective_name(program)}. "
+                                 f"Set it, then Apply.")
+
+    '''
+        This function deletes the selected program from the document, its operations with it.
+    '''
+    def _on_remove_program(self, event):
+        row_index = self._selected_row()
+        row = self.rows[row_index] if row_index is not None else None
+        if row is None or row["kind"] != "Program":
+            self.status.SetLabel("Select a program to remove.")
+            return
+        self._remove_activity(row, "program", "\n\nIts operations go with it.")
+
+    '''
+        This function deletes the selected PP instruction from the document.
+    '''
+    def _on_remove_pp_instruction(self, event):
+        row_index = self._selected_row()
+        row = self.rows[row_index] if row_index is not None else None
+        if row is None or row["kind"] != "Operation" or row["activity_type"] not in INSTRUCTION_TYPES:
+            self.status.SetLabel("Select a PP instruction to remove.")
+            return
+        self._remove_activity(row, "PP instruction", "")
+
+    '''
+        This function deletes one activity from the document, then reads the tree again.
+
+        Deleting is immediate and cannot be undone from here, so it is confirmed first. The tree is
+        read again afterwards, so staged edits are confirmed lost.
+
+        Inputs:
+            row             The row whose activity is deleted
+            what            What it is, for the messages - "program" or "PP instruction"
+            extra           A line added to the confirmation, e.g. that the operations go with it
+    '''
+    def _remove_activity(self, row, what, extra):
+        if wx.MessageBox(f"Delete the {what} '{effective_name(row)}' from the document?{extra}\n\n"
+                         f"This is done straight away and cannot be undone from here.", "Remove",
+                         wx.YES_NO | wx.ICON_WARNING, self) != wx.YES:
+            return
+        if not self._ok_to_lose_staged("Remove"):
+            return
+        try:
+            selection = self.ppr_document.selection
+            selection.clear()
+            selection.add(row["activity"])
+            selection.delete()
+        except Exception as error:
+            wx.MessageBox(f"The {what} could not be removed:\n\n{error}", "Remove",
+                          wx.OK | wx.ICON_ERROR, self)
+            return
+        count = self._reload_tree()
+        if count >= 0:
+            self.status.SetLabel(f"Removed the {what}. {count} row(s) now.")
 
     def _on_clear(self, event):
         row_index = self._selected_row()
