@@ -56,19 +56,27 @@
                                   operation after the first, so each one reads as its own group,
                                   and the summary above the grid shows two part operations and
                                   scrolls for the rest rather than growing the window.
-                    03.09.26 1.6: An M/C column beside Nominal shows the machined offset the
-                                  operations actually leave, next to the stage nominal. A
-                                  Propagate button in the program editor stages the operations
-                                  under a program with a name built from the program's stage and
-                                  each operation's own shape - FINISH SWEEP, FINISH CONTOUR. An
-                                  Auto name and comment button names and comments whole part
-                                  operations at once, asking which ones and for a heading for any
-                                  blank divider, and reporting whatever it could not work out. A
-                                  program or a PP instruction can be added or removed - a PP
-                                  instruction added to whichever program is asked for. The bottom
-                                  row reads like a menu bar: Edit and Add / Remove drop menus, the
-                                  rest are plain buttons, and the window opens wide enough to show
-                                  them all.
+                    03.09.26 1.6: An M/C column beside Nominal shows the machine offset the master
+                                  and metal rule gives - the stage nominal moved to this part's
+                                  side - not the operation's own Offset on part, so a program set
+                                  to the wrong offset still reads what it ought to run to and the
+                                  [Offset on Part] check is what flags it. A Propagate button in
+                                  the program editor stages the operations under a program with a
+                                  name built from the program's stage and each operation's own
+                                  shape - FINISH SWEEP, FINISH CONTOUR. An Auto name and comment
+                                  button names and comments whole part operations at once, asking
+                                  which ones and for a heading for any blank divider, and reporting
+                                  whatever it could not work out. A PP instruction can be added -
+                                  blank, or fully defined with its name, comment and instruction
+                                  set first - or removed, the added one placed by what is selected
+                                  the way CATIA does it: pick the program and it goes in first,
+                                  before any operation; pick an operation and it goes after it. A
+                                  program cannot be created through automation - the V5 automation
+                                  API has no such method - so there is no add or remove for
+                                  programs; make and delete those in CATIA and name them here. The
+                                  bottom row reads like a menu bar: Edit and PP instruction drop
+                                  menus, the rest are plain buttons, and the window opens wide
+                                  enough to show them all.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -76,7 +84,6 @@
 #Imports
 from pycatia import catia
 from pycatia.dmaps_interfaces.process_document import ProcessDocument
-from pycatia.dmaps_interfaces.activity import Activity
 from pycatia.manufacturing_interfaces.manufacturing_setup import ManufacturingSetup
 from pycatia.manufacturing_interfaces.manufacturing_program import ManufacturingProgram
 from pycatia.knowledge_interfaces.str_param import StrParam
@@ -641,6 +648,34 @@ def offset_for(nominal, part, master, metal, spotting=0.0):
     if part == master:
         return nominal + spotting
     return nominal - metal + spotting
+
+
+'''
+    This function gives the machine offset the stage rule works out - what the tool should be driven to.
+
+    This is the M/C figure: the stage nominal moved to the side of this part by the master rule, not
+    the Offset on part the operation happens to hold. So a program whose operation is set to the
+    wrong offset still shows the offset it ought to run to, and the two can be told apart. Where the
+    part side, master or metal is not known, there is no figure rather than a guess.
+
+    Inputs:
+        nominal         The stage nominal in mm
+        part            "UPPER", "LOWER" or None - what this part is
+        master          "UPPER", "LOWER", "BOTH" or None
+        metal           Metal thickness in mm, or None
+        spotting        Spotting allowance built into the programs, in mm
+
+    output:
+        The machine offset in mm, or None where it cannot be worked out
+'''
+def rule_machine_offset(nominal, part, master, metal, spotting=0.0):
+    if nominal is None or not master:
+        return None
+    if master == "BOTH" or (part and part == master):
+        return nominal + spotting                                                                                #The master side, and BOTH, take no metal off
+    if part and metal is not None:
+        return offset_for(nominal, part, master, metal, spotting)
+    return None                                                                                                  #No side, or no metal to take off - nothing to show
 
 
 '''
@@ -3467,6 +3502,58 @@ def insert_spacers(rows):
     return spaced
 
 
+class DefinePPInstructionDialog(wx.Dialog):
+    """Collects a name, comment and PP instruction for a new PP instruction before it is inserted,
+    so a fully defined one can go in in one step rather than being added blank and edited after."""
+
+    def __init__(self, parent, where):
+        super().__init__(parent, title="Define PP instruction", style=wx.DEFAULT_DIALOG_STYLE)
+        panel = wx.Panel(self)
+        vbox = wx.BoxSizer(wx.VERTICAL)
+        vbox.Add(wx.StaticText(panel, label=f"A new PP instruction, {where}. Anything left blank can "
+                                            "be set on its row afterwards."), 0, wx.ALL, 8)
+
+        grid = wx.FlexGridSizer(0, 2, 6, 8)
+        grid.AddGrowableCol(1, 1)
+        self.name_choice = wx.ComboBox(panel, choices=[""] + TEMPLATES["instruction_names"],
+                                       style=wx.CB_DROPDOWN)
+        self.instruction_choice = wx.ComboBox(panel, choices=[""] + TEMPLATES["instructions"],
+                                              style=wx.CB_DROPDOWN)                                               #The PP words the post processor reads
+        self.comment_choice = wx.TextCtrl(panel, style=wx.TE_MULTILINE, size=(320, 60))
+        for label, control in (("Name", self.name_choice),
+                               ("PP instruction", self.instruction_choice),
+                               ("Comment", self.comment_choice)):
+            grid.Add(wx.StaticText(panel, label=label), 0, wx.ALIGN_CENTER_VERTICAL | wx.TOP, 4)
+            grid.Add(control, 1, wx.EXPAND)
+        vbox.Add(grid, 0, wx.EXPAND | wx.ALL, 8)
+
+        buttons = wx.StdDialogButtonSizer()
+        ok_button = wx.Button(panel, wx.ID_OK, "Insert")
+        ok_button.SetDefault()
+        buttons.AddButton(ok_button)
+        buttons.AddButton(wx.Button(panel, wx.ID_CANCEL))
+        buttons.Realize()
+        vbox.Add(buttons, 0, wx.ALIGN_RIGHT | wx.ALL, 8)
+
+        panel.SetSizer(vbox)
+        frame = wx.BoxSizer(wx.VERTICAL)
+        frame.Add(panel, 1, wx.EXPAND)
+        self.SetSizer(frame)
+        frame.Fit(self)
+        self.Center()
+
+    '''
+        This function hands back the name, comment and instruction that were typed.
+
+        output:
+            Tuple of (name, comment, instruction), each stripped
+    '''
+    def values(self):
+        return (self.name_choice.GetValue().strip(),
+                self.comment_choice.GetValue().strip(),
+                self.instruction_choice.GetValue().strip())
+
+
 class TreeFrame(wx.Frame):
     """The machining tree, the staged edits, and the button that writes them."""
 
@@ -3528,8 +3615,10 @@ class TreeFrame(wx.Frame):
         vbox.Add(self._legend(panel), 0, wx.LEFT | wx.RIGHT, 5)
 
         # The bottom row reads like a menu bar: a few headings that drop a menu, and the rest plain
-        # buttons. Editing and the settings behind it sit under Edit; adding and removing programs
-        # under Add / Remove; the staged edits and the window keep their own buttons.
+        # buttons. Editing and the settings behind it sit under Edit; adding and removing a PP
+        # instruction under PP instruction; the staged edits and the window keep their own buttons.
+        # A program cannot be created through automation, so there is no add or remove for programs -
+        # make and delete those in CATIA, and name and organise them here.
         edit_menu = (("Edit selected rows", self._on_edit_row),
                      ("Metal thicknesses", self._on_metal),
                      ("Renumber programs", self._on_renumber),
@@ -3537,15 +3626,14 @@ class TreeFrame(wx.Frame):
                      ("Edit templates", self._on_templates),
                      ("Edit limits", self._on_limits),
                      ("Clear saved settings", self._on_clear_settings))
-        add_remove_menu = (("Add program", self._on_add_program),
-                           ("Add PP instruction", self._on_add_pp_instruction),
-                           None,
-                           ("Remove program", self._on_remove_program),
-                           ("Remove PP instruction", self._on_remove_pp_instruction))
+        pp_menu = (("Add blank", self._on_add_pp_instruction),
+                   ("Add defined...", self._on_add_pp_instruction_defined),
+                   None,
+                   ("Remove", self._on_remove_pp_instruction))
 
         bar = (("menu", "Edit", self.EDIT_COLOUR, edit_menu),
                ("button", "Auto name & comment", self.AUTO_COLOUR, self._on_auto_name),
-               ("menu", "Add / Remove", self.STRUCTURE_COLOUR, add_remove_menu),
+               ("menu", "PP instruction", self.STRUCTURE_COLOUR, pp_menu),
                ("button", "Clear staged edits", self.STAGING_COLOUR_BUTTON, self._on_clear),
                ("button", "Apply staged edits", self.STAGING_COLOUR_BUTTON, self._on_apply),
                ("button", "Refresh from CATIA", None, self._on_refresh),
@@ -3695,7 +3783,7 @@ class TreeFrame(wx.Frame):
                       + tuple(parameters.get(label, "") or ("missing" if label in missing else "")
                               for label in PARAMETER_LABELS)
                       + (stage or "", "" if nominal is None else f"{nominal:+.1f}",
-                         format_offset(row.get("offset"))))                                                       #The machined offset the operations leave
+                         format_offset(self._rule_mc(row, nominal))))                                             #The machine offset the master/metal rule gives
             for column, value in enumerate(values):
                 self.grid.SetCellValue(row_index, column, value)
 
@@ -3889,9 +3977,9 @@ class TreeFrame(wx.Frame):
 
             "BUTTONS\n"
             "--------------------------------------------------------------------------\n"
-            " The bottom row reads like a menu bar. Edit and Add / Remove drop a menu;\n"
+            " The bottom row reads like a menu bar. Edit and PP instruction drop a menu;\n"
             " the rest are plain buttons. Coloured to match: blue for editing, purple\n"
-            " for auto naming, orange for adding and removing, green for the staged\n"
+            " for auto naming, orange for the PP instruction, green for the staged\n"
             " edits, grey for the window.\n\n"
             " Edit  (menu)\n"
             "   [Edit selected rows]   Sets the name and comment of the selected rows.\n"
@@ -3913,16 +4001,20 @@ class TreeFrame(wx.Frame):
             " [Auto name & comment]  Names and comments whole part operations at once -\n"
             "                        see AUTO NAME AND COMMENT below. Everything it works\n"
             "                        out is staged, so it is reviewed before Apply.\n"
-            " Add / Remove  (menu)\n"
-            "   [Add program]          Creates a blank program under a chosen part\n"
-            "                          operation, named afterwards the ordinary way.\n"
-            "   [Add PP instruction]   Creates a blank PP instruction in a chosen\n"
-            "                          program, set afterwards on its own row.\n"
-            "   [Remove program]       Deletes the selected program, its operations\n"
-            "                          with it.\n"
-            "   [Remove PP instruction] Deletes the selected PP instruction.\n"
+            " PP instruction  (menu)\n"
+            "   [Add blank]      Inserts a blank PP instruction, set afterwards on its\n"
+            "                    own row. It is placed by what is selected, the way CATIA\n"
+            "                    does it: pick the program and it goes in first, before\n"
+            "                    any operation; pick an operation and it goes after it.\n"
+            "   [Add defined...] Same placement, but a small dialog takes the name,\n"
+            "                    comment and instruction first, so a fully defined one\n"
+            "                    goes in in one step. Anything left blank is set later.\n"
+            "   [Remove]         Deletes the selected PP instruction.\n"
             "   Adding and removing change the document straight away and cannot be\n"
             "   staged - the tree is read again, so staged edits are confirmed lost.\n"
+            "   A program cannot be created or deleted through automation, so there is\n"
+            "   no add or remove for programs - make and delete those in CATIA, and\n"
+            "   name and organise them here.\n"
             " [Clear staged edits]   Drops the staged values on the selected row, so it\n"
             "                        shows what the document holds again.\n"
             " [Apply staged edits]   Writes every staged value to the document, without\n"
@@ -4015,9 +4107,13 @@ class TreeFrame(wx.Frame):
             " TO ...MM      The stage. Rough +2.0 or +0.7, semi-finish +0.3, finish\n"
             "               0.0, Z check 0.0. This does not move when metal comes off.\n"
             "               It is the Nominal column in the grid.\n"
-            " (M/C: ...MM)  What the operations actually machine to, read from their\n"
-            "               Offset on part. Shown only when it differs from the stage.\n"
-            "               It is the M/C column in the grid, beside Nominal.\n\n"
+            " (M/C: ...MM)  The machine offset the master and metal rule gives - the\n"
+            "               stage nominal moved to this part's side. Shown only when it\n"
+            "               differs from the stage. It is the M/C column in the grid,\n"
+            "               beside Nominal. It is worked out from the rule, not read from\n"
+            "               the operation's Offset on part, so a program set to the wrong\n"
+            "               offset still reads what it ought to run to - the Offset on\n"
+            "               Part cell going red is what flags the operation that is off.\n\n"
 
             "PP INSTRUCTIONS\n"
             "--------------------------------------------------------------------------\n"
@@ -4217,26 +4313,31 @@ class TreeFrame(wx.Frame):
         return [row for row in self.rows if row.get("parent") is program_row and row["kind"] == "Operation"]
 
     '''
-        This function works out the offset a program's comment should quote as its M/C figure.
+        This function works out the M/C offset a row should show - the machine offset the rule gives.
 
-        The operations' own Offset on part is used where they state one. Where they do not, the stage
-        rule fills it in from the part operation's master, metal and spotting, the same way the edit
-        dialog does. Where neither is known, there is no M/C figure and the comment reads to the
-        nominal alone.
+        It is the stage nominal moved to this part's side by the master rule, from the part
+        operation's master, metal and spotting. It is deliberately not the operation's own Offset on
+        part: a program set to the wrong offset still reads the offset it ought to run to, and the
+        [Offset on Part] check is what flags the operation that disagrees. Where the part side,
+        master or metal is not known there is no figure.
 
         Inputs:
-            program_row     The program row
-            nominal         The stage nominal in mm
-            part_op         The part operation the program sits under
+            row             A program or operation row
+            nominal         The stage nominal in mm, or None to work it out from the row's stage
 
         output:
-            The machined offset in mm, or None
+            The machine offset in mm, or None where it cannot be worked out
     '''
-    def _machine_offset(self, program_row, nominal, part_op):
-        measured = program_row.get("offset")
-        if measured is not None:
-            return measured
-        if nominal is None or not part_op:
+    def _rule_mc(self, row, nominal=None):
+        part_op = part_operation_of(row)
+        if part_op is None or row["kind"] not in ("Program", "Operation"):
+            return None
+        if nominal is None:
+            if row["kind"] == "Operation":
+                _, nominal = stage_of_row(row)                                                                    #Its own stage, or its program's
+            else:
+                _, nominal = stage_for_description(effective_comment(row) or effective_name(row))
+        if nominal is None:
             return None
         part = upper_or_lower(effective_name(part_op))
         master = part_op.get("master")
@@ -4250,11 +4351,7 @@ class TreeFrame(wx.Frame):
                 spotting = float(part_op.get("spotting") or 0)
             except ValueError:
                 spotting = 0.0
-        if master == "BOTH":
-            return nominal + spotting
-        if part and master and metal is not None:
-            return offset_for(nominal, part, master, metal, spotting)
-        return None
+        return rule_machine_offset(nominal, part, master, metal, spotting)
 
     '''
         This function names and comments whole part operations at once, staging the result.
@@ -4356,7 +4453,7 @@ class TreeFrame(wx.Frame):
                     issues.append(f"{effective_name(program_row)}: no tool detected - its comment is "
                                   f"written without one.")
                 description = best_operation_description(stage, operations[0]["activity_type"])
-                machine_offset = self._machine_offset(program_row, nominal, part_op)
+                machine_offset = self._rule_mc(program_row, nominal)
                 note = spotting_note(part_op.get("spotting"), part_op.get("spotting_mode") == "built in") \
                     if part_op.get("spotting_mode") else ""
                 comment = compose_program_comment(tool, description, nominal, machine_offset, note)
@@ -4390,100 +4487,103 @@ class TreeFrame(wx.Frame):
                              wx.YES_NO | wx.ICON_QUESTION, self) == wx.YES
 
     '''
-        This function asks which part operation to work under, defaulting to the selection.
+        This function reads where a PP instruction should go from what is selected, the CATIA way.
+
+        Select the program and the instruction goes in first, before any operation; select an
+        operation and it goes straight after that operation.
 
         output:
-            A part operation row, or None where there is none or the user cancelled
+            Tuple of (program row, the activity to place after or None for first, a "where" phrase).
+            The program row is None where the selection is no good, and the phrase is then the reason.
     '''
-    def _choose_part_operation(self, title, prompt):
-        part_ops = [row for row in self.rows if row["kind"] == "Part Operation"]
-        if not part_ops:
-            self.status.SetLabel("There are no part operations.")
-            return None
-        if len(part_ops) == 1:
-            return part_ops[0]
-        selected = self._selected_row()
-        default = part_operation_of(self.rows[selected]) if selected is not None else None
-        names = [row["name"] for row in part_ops]
-        dialog = wx.SingleChoiceDialog(self, prompt, title, names)
-        if default in part_ops:
-            dialog.SetSelection(part_ops.index(default))
-        chosen = part_ops[dialog.GetSelection()] if dialog.ShowModal() == wx.ID_OK else None
-        dialog.Destroy()
-        return chosen
+    def _pp_instruction_target(self):
+        row_index = self._selected_row()
+        row = self.rows[row_index] if row_index is not None else None
+        if row is None or row["kind"] not in ("Program", "Operation"):
+            return None, None, ("Select a program to put the PP instruction first, or an operation "
+                                "to put it after - as you would in CATIA.")
+        if row["kind"] == "Program":
+            program_row, after, where = row, None, f"first in {effective_name(row)}"
+        else:
+            program_row, after, where = row.get("parent"), row["activity"], f"after {effective_name(row)}"
+        if program_row is None or program_row["kind"] != "Program":
+            return None, None, "That row is not inside a program."
+        if is_divider(effective_name(program_row)):
+            return None, None, "A divider carries no operations - pick a real program."
+        return program_row, after, where
 
     '''
-        This function adds a blank program under a part operation.
-
-        The program is created empty and named afterwards through the ordinary edit flow, so the
-        same templates and staging apply. Creating it changes the document straight away - it cannot
-        be staged - so the tree is read again and any staged edits are confirmed lost first.
-    '''
-    def _on_add_program(self, event):
-        part_op = self._choose_part_operation("Add program", "Add a blank program under which part "
-                                                              "operation?")
-        if part_op is None or not self._ok_to_lose_staged("Add program"):
-            return
-        try:
-            Activity(part_op["activity"].com_object).create_child("ManufacturingProgram")
-        except Exception as error:
-            wx.MessageBox(f"The program could not be added:\n\n{error}", "Add program",
-                          wx.OK | wx.ICON_ERROR, self)
-            return
-        count = self._reload_tree()
-        if count >= 0:
-            self.status.SetLabel(f"Added a blank program under {part_op['name']}. Name it, then Apply.")
-
-    '''
-        This function adds a blank PP instruction to a chosen program.
-
-        A PP instruction belongs to a program, not to a part operation, so the program is asked for.
-        It is created empty and set afterwards on its own row in the edit window. Creating it changes
-        the document straight away, so staged edits are confirmed lost first.
+        This function adds a blank PP instruction, placed by what is selected, and set afterwards.
     '''
     def _on_add_pp_instruction(self, event):
-        programs = [row for row in self.rows
-                    if row["kind"] == "Program" and not is_divider(effective_name(row))]
-        if not programs:
-            self.status.SetLabel("There are no programs to add a PP instruction to.")
+        program_row, after, where = self._pp_instruction_target()
+        if program_row is None:
+            self.status.SetLabel(where)                                                                          #The phrase is the reason
+            return
+        self._insert_pp_instruction(program_row, after, where, "", "", "")
+
+    '''
+        This function adds a PP instruction whose name, comment and instruction are set before it goes
+        in, so a fully defined one can be inserted in one step rather than added blank and edited.
+    '''
+    def _on_add_pp_instruction_defined(self, event):
+        program_row, after, where = self._pp_instruction_target()
+        if program_row is None:
+            self.status.SetLabel(where)
+            return
+        dialog = DefinePPInstructionDialog(self, where)
+        chosen = dialog.values() if dialog.ShowModal() == wx.ID_OK else None
+        dialog.Destroy()
+        if chosen is None:
+            return
+        self._insert_pp_instruction(program_row, after, where, *chosen)
+
+    '''
+        This function creates a PP instruction, sets whatever was given, and places it.
+
+        The instruction text is set as the activity is created; the name and comment are set straight
+        after. Creating it changes the document, so staged edits are confirmed lost first, and the
+        tree is read again so the new instruction shows as an ordinary row.
+
+        Inputs:
+            program_row     The program to add it to
+            after           The activity to place it after, or None to place it first
+            where           The phrase for the status line, e.g. "first in ..."
+            name            The activity name, or "" to leave the default
+            comment         The comment, or "" to leave none
+            instruction     The PP words the post processor reads, or "" for a blank one
+    '''
+    def _insert_pp_instruction(self, program_row, after, where, name, comment, instruction):
+        if not self._ok_to_lose_staged("Add PP instruction"):
             return
 
-        selected = self._selected_row()
-        default = None
-        if selected is not None:
-            row = self.rows[selected]
-            default = row if row["kind"] == "Program" else (row.get("parent") if row["kind"] == "Operation" else None)
-        labels = [f"{effective_name(row)}   [{(part_operation_of(row) or {}).get('name', '')}]"
-                  for row in programs]
-        dialog = wx.SingleChoiceDialog(self, "Add a blank PP instruction to which program?",
-                                       "Add PP instruction", labels)
-        if default in programs:
-            dialog.SetSelection(programs.index(default))
-        program = programs[dialog.GetSelection()] if dialog.ShowModal() == wx.ID_OK else None
-        dialog.Destroy()
-        if program is None or not self._ok_to_lose_staged("Add PP instruction"):
-            return
         try:
-            ManufacturingProgram(program["activity"].com_object).add_pp_instruction("")
+            program = ManufacturingProgram(program_row["activity"].com_object)
+            created = program.add_pp_instruction(instruction)                                                    #The argument is the PP words text
+            if name:
+                created.name = name
+            if comment:
+                created.description = comment
         except Exception as error:
             wx.MessageBox(f"The PP instruction could not be added:\n\n{error}", "Add PP instruction",
                           wx.OK | wx.ICON_ERROR, self)
             return
+
+        placed = True
+        try:
+            children = program_row["activity"].children_activities
+            reference = after if after is not None else (children.item(1) if children.count > 1 else None)
+            if reference is not None:                                                                             #First goes after Start, so before any operation
+                program.move_operation(reference, created)
+        except Exception:
+            placed = False                                                                                       #Added, but it could not be moved into place
+
         count = self._reload_tree()
         if count >= 0:
-            self.status.SetLabel(f"Added a blank PP instruction to {effective_name(program)}. "
-                                 f"Set it, then Apply.")
-
-    '''
-        This function deletes the selected program from the document, its operations with it.
-    '''
-    def _on_remove_program(self, event):
-        row_index = self._selected_row()
-        row = self.rows[row_index] if row_index is not None else None
-        if row is None or row["kind"] != "Program":
-            self.status.SetLabel("Select a program to remove.")
-            return
-        self._remove_activity(row, "program", "\n\nIts operations go with it.")
+            defined = "" if (name or comment or instruction) else " blank"
+            tail = "" if placed else " It could not be positioned - move it in CATIA."
+            follow = "" if (name and comment and instruction) else " Fill in the rest on its row, then Apply."
+            self.status.SetLabel(f"Added a{defined} PP instruction {where}.{follow}{tail}")
 
     '''
         This function deletes the selected PP instruction from the document.
