@@ -955,29 +955,67 @@ PART_OP_CHOICES = ("code", "master", "metal", "spotting", "spotting_mode")      
 
 
 '''
-    This function finds the parameter the document's record is kept in.
+    This function gives the full name the record is stored under.
+
+    A parameter's name carries the path of the activity holding it, so the record on the process
+    called Process is Process\\MPNC_SETTINGS.
 
     Inputs:
         process         The process activity
 
     output:
-        Tuple of (the StrParam, its index in the collection), or (None, None)
+        The full name, falling back to the bare one where the activity will not say what it is called
+'''
+def document_parameter_name(process):
+    try:
+        return f"{process.name}\\{DOCUMENT_PARAMETER}"
+    except Exception:
+        return DOCUMENT_PARAMETER
+
+
+'''
+    This function finds the parameter the document's record is kept in.
+
+    The collection is never walked. A real process carries thousands of parameters - 6698 on the job
+    this was written against - and walking them over COM takes fifteen seconds, which the window
+    would spend showing nothing at all, once on opening and again on every save. Parameters.item
+    takes a name and answers in hundredths of a second whether the parameter is there or not, so the
+    name is asked for directly. The full name is tried first and the bare one after it.
+
+    Inputs:
+        process         The process activity
+
+    output:
+        The StrParam, or None where the document holds no record
 '''
 def document_parameter(process):
-    try:
-        parameters = process.parameters
-        count = parameters.count
-    except Exception:
-        return None, None
-
-    for index in range(count):
+    for name in (document_parameter_name(process), DOCUMENT_PARAMETER):
         try:
-            parameter = parameters.item(index + 1)
-            if DOCUMENT_PARAMETER in parameter.name:
-                return StrParam(parameter.com_object), index
+            return StrParam(process.parameters.item(name).com_object)
+        except Exception:
+            continue                                                                                             #Not under that name - a missing one raises
+    return None
+
+
+'''
+    This function removes the parameter the document's record is kept in.
+
+    Removing by name for the same reason as finding by name - the collection is far too big to walk.
+
+    Inputs:
+        process         The process activity
+
+    output:
+        True where it was removed
+'''
+def remove_document_parameter(process):
+    for name in (document_parameter_name(process), DOCUMENT_PARAMETER):
+        try:
+            process.parameters.remove(name)
+            return True
         except Exception:
             continue
-    return None, None
+    return False
 
 
 '''
@@ -990,7 +1028,7 @@ def document_parameter(process):
         Dict of whatever was kept, empty where there is nothing or it cannot be read
 '''
 def read_document_record(process):
-    parameter, _ = document_parameter(process)
+    parameter = document_parameter(process)
     if parameter is None:
         return {}
     try:
@@ -1016,23 +1054,21 @@ def read_document_record(process):
 def write_document_record(process, content):
     blob = json.dumps(content)
 
-    parameter, index = document_parameter(process)
+    parameter = document_parameter(process)
     if parameter is not None:
         try:
             parameter.value = blob
-            written, _ = document_parameter(process)
+            written = document_parameter(process)
             if written is not None and written.value == blob:
                 return True
         except Exception:
             pass
-        try:
-            process.parameters.remove(index + 1)                                                                  #Refused the write - put a fresh one in its place
-        except Exception:
+        if not remove_document_parameter(process):                                                                #Refused the write - put a fresh one in its place
             return False
 
     try:
         process.parameters.create_string(DOCUMENT_PARAMETER, blob)
-        written, _ = document_parameter(process)
+        written = document_parameter(process)
         return written is not None and written.value == blob
     except Exception:
         return False
@@ -4702,18 +4738,15 @@ class TreeFrame(wx.Frame):
         if forget_document_file(self.settings_dir, self.document_path):
             cleared.append(DOCUMENT_FILE)
 
-        if self.process is not None:
-            parameter, index = document_parameter(self.process)
-            if parameter is not None:
-                try:
-                    self.process.parameters.remove(index + 1)
-                    cleared.append(f"the {DOCUMENT_PARAMETER} parameter")
-                except Exception as error:
-                    wx.MessageBox(f"The {DOCUMENT_PARAMETER} parameter could not be removed:\n\n"
-                                  f"{error}\n\nIt is refused while a parameter dialog or the "
-                                  f"specification tree has it open. Close those and try again, or "
-                                  f"delete it in the parameter tree.",
-                                  "Forget this document", wx.OK | wx.ICON_WARNING, self)
+        if self.process is not None and document_parameter(self.process) is not None:
+            if remove_document_parameter(self.process):
+                cleared.append(f"the {DOCUMENT_PARAMETER} parameter")
+            else:
+                wx.MessageBox(f"The {DOCUMENT_PARAMETER} parameter could not be removed.\n\n"
+                              f"It is refused while a parameter dialog or the specification tree "
+                              f"has it open. Close those and try again, or delete it in the "
+                              f"parameter tree.",
+                              "Forget this document", wx.OK | wx.ICON_WARNING, self)
 
         self.record_note = ""
         self.forgotten = True                                                                                     #So closing the window does not write it back
@@ -4748,15 +4781,13 @@ class TreeFrame(wx.Frame):
                               wx.OK | wx.ICON_WARNING, self)
                 return
 
-        if self.process is not None:                                                                              #The record kept in the document itself
-            parameter, index = document_parameter(self.process)
-            if parameter is not None:
-                try:
-                    self.process.parameters.remove(index + 1)
-                    removed.append(f"the {DOCUMENT_PARAMETER} parameter")
-                except Exception as error:
-                    wx.MessageBox(f"The {DOCUMENT_PARAMETER} parameter could not be removed:\n\n{error}",
-                                  "Clear saved settings", wx.OK | wx.ICON_WARNING, self)
+        if self.process is not None and document_parameter(self.process) is not None:                              #The record kept in the document itself
+            if remove_document_parameter(self.process):
+                removed.append(f"the {DOCUMENT_PARAMETER} parameter")
+            else:
+                wx.MessageBox(f"The {DOCUMENT_PARAMETER} parameter could not be removed. It is "
+                              f"refused while a parameter dialog or the specification tree has it "
+                              f"open in CATIA.", "Clear saved settings", wx.OK | wx.ICON_WARNING, self)
 
         for key, value in DEFAULT_TEMPLATES.items():
             TEMPLATES[key] = json.loads(json.dumps(value))
