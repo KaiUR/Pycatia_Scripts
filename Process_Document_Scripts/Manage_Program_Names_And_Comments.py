@@ -1,7 +1,7 @@
 '''
     -----------------------------------------------------------------------------------------------------------------------
     Script name:    Manage_Program_Names_And_Comments.py
-    Version:        1.6
+    Version:        1.7
     Code:           Python3.10.4, Pycatia 0.10.0
     Release:        V5R32
     Purpose:        Review and set the names and comments of manufacturing programs and operations.
@@ -77,6 +77,29 @@
                                   bottom row reads like a menu bar: Edit and PP instruction drop
                                   menus, the rest are plain buttons, and the window opens wide
                                   enough to show them all.
+                    30.09.26 1.7: The nominal a program is cut to is read from the divider heading
+                                  above it - *** ROUGHING TO +2.0MM *** gives +2.0 - rather than
+                                  from the stage table, so the depo roughing is no longer read as
+                                  the +0.7 ball nose roughing that shares the word ROUGHING. The
+                                  stepover checks go by what the operation is: the depo roughing on
+                                  its pass overlap, a contour remachining a swept face on 0.5mm, and
+                                  everything else on its stage. Choices made in [Metal thicknesses]
+                                  - the code, master, thickness and spotting - survive a refresh and
+                                  are kept per document, in the process itself where it will take a
+                                  parameter and beside the saved settings where it will not, so
+                                  reopening a job finds them as they were left. A library of
+                                  abbreviations gives the die part code, so LOWER POST POS_004 BGI
+                                  is LP rather than the LB its first and last word would give. The
+                                  table can be printed as it is shown, colours and all, or saved as
+                                  HTML or CSV. What is remembered for one job can be forgotten again
+                                  on its own, without touching the shared settings. A PP instruction
+                                  added first in a program now goes first instead of to the end -
+                                  MoveOperation moves an activity in FRONT of its reference, not
+                                  after it as its documentation says, and it refuses Start as the
+                                  reference altogether. Propagate and Auto name leave a PP
+                                  instruction's own name alone rather than calling it after the
+                                  stage, and a program's description is read from the first activity
+                                  under it that actually cuts.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -91,14 +114,18 @@ from pycatia.mec_mod_interfaces.part_document import PartDocument
 from pycatia.ppr_interfaces.ppr_document import PPRDocument
 import wx
 import wx.grid
+import wx.html
 import wx.lib.dialogs as dialogs
 import ctypes
+import csv
 import json
 import os
 import re
 import traceback
+from datetime import datetime
 
 SCRIPT_NAME = "Manage_Program_Names_And_Comments"
+SCRIPT_VERSION = "1.7"                                                                                            #Written into every record, so an old one can be told apart
 
 # Default template lists, taken from program_templates.txt. User additions are saved to
 # %APPDATA%\pycatia_scripts\<script name>\ so a fresh install works with no setup.
@@ -141,7 +168,15 @@ TEMPLATES = json.loads(r'''
     "END MILL","SCRIBE TOOL","80 DEPO R8","63 DEPO R8","50 DEPO R8","32 DEPO R8","32BN","20BN","16BN",
     "12BN","10BN","8BN","6BN","4BN","20-R2 BULL"
   ],
-  "die_numbers": ["D10","D15","D20","D25","D30","D35","D40","D45","D50","D55","D60"]
+  "die_numbers": ["D10","D15","D20","D25","D30","D35","D40","D45","D50","D55","D60"],
+  "abbreviations": [
+    "LOWER POST = LP","LOWER BLANKHOLDER = LB","LOWER PAD = LP","LOWER STEELS = LS",
+    "LOWER FILLER CAM = LC","LOWER PUNCH = LP","LOWER ASSY = LA","LOWER CAM = LC",
+    "LOWER SCRAP CUTTER = LC","UPPER DIE = UD","UPPER CAP = UC","UPPER PAD = UP",
+    "UPPER TRIM STEELS = US","UPPER FLANGE STEELS = US","UPPER RESTRIKE STEELS = US",
+    "UPPER ASSY = UA","UPPER SCRAP CUTTER = UC","UPPER TRIM CAM = UC","RESTRIKE CAM = RC",
+    "FLANGE CAM = FC","CAM PAD = CP","ROLLER CAM = RC"
+  ]
 }
 ''')
 
@@ -195,7 +230,10 @@ TEMPLATE_LISTS = (
     ("instructions", "PP instructions"),
     ("tools", "Tools"),
     ("die_numbers", "Die numbers"),
+    ("abbreviations", "Die part abbreviations"),
 )
+
+ABBREVIATION_SEPARATORS = ("=", ":", "->")                                                                        #PHRASE = CODE, however the shop writes it
 
 
 '''
@@ -284,16 +322,30 @@ OVERLAP_LENGTH = "Pass overlap (length)"
 PARAMETER_INDEX_CACHE = {}
 
 # The values the settings are checked against, editable under [Edit limits]. Stepover limits are
-# per machining stage, the stage read from the operation's comment or name, or its program's.
-# The CATIA Roughing operation is checked on its own two rules instead - its pass overlap and
-# its depth of cut - whatever stage its program belongs to. A value off its list is shown on red.
+# per machining stage, the stage read from the divider heading above the operation, or its own
+# comment or name. Two kinds of operation are held to their own rule instead of their stage's:
+# the CATIA Roughing operation - the depo roughing - on its pass overlap and its depth of cut,
+# and a contour remachining a swept face on the remachining stepover. A value off its list is
+# shown on red. An empty list is not checked, which is how a stage with no agreed stepover - a
+# block of Z checks, say - is left alone rather than being flagged against a figure nobody set.
 DEFAULT_LIMITS = {
-    "stepover": {"ROUGHING": [3.0, 2.0, 1.0], "SEMI-FINISH": [1.5, 1.0], "FINISH": [1.0, 0.5]},
+    "stepover": {"Z-LEVEL ROUGHING": [], "ROUGHING": [1.5, 2.0], "SEMI-FINISH": [1.5, 1.0],
+                 "FINISH": [1.0, 0.5], "Z CHECK": []},
+    "remachining_stepover": [0.5],
     "roughing_overlap": [50.0],
     "roughing_depth_of_cut": [1.0, 1.5, 2.0],
 }
 
 LIMITS = json.loads(json.dumps(DEFAULT_LIMITS))                                                                  #Replaced by whatever limits.json holds
+
+# The stepover figures changed meaning when the stage stopped being read from the word ROUGHING
+# alone: the depo roughing is now held to its pass overlap and the +0.7 ball nose roughing to
+# 1.5 or 2mm, so a list widened to keep both quiet - 3, 2, 1, 1.5, 0.5 - would now let everything
+# through. A file saved before the version below has its stepover lists put back to the shipped
+# ones for that reason; every other limit it holds is kept.
+LIMITS_VERSION = 2
+
+LIMITS_STATE = {"stepover_reset": False}                                                                          #So the window can say the lists were put back
 
 
 '''
@@ -313,9 +365,19 @@ def load_limits(settings_dir):
     except Exception:
         return                                                                                                   #No file yet, or an unreadable one - the defaults stand
 
+    stale = int(saved.get("_version", 1)) < LIMITS_VERSION                                                        #Saved before the stepover rules changed
+
     for key, value in saved.items():
-        if key in LIMITS and isinstance(value, type(LIMITS[key])):
-            LIMITS[key] = value
+        if key not in LIMITS or not isinstance(value, type(LIMITS[key])):
+            continue
+        if key == "stepover":
+            if stale:
+                LIMITS_STATE["stepover_reset"] = True
+                continue                                                                                         #The shipped lists stand - see LIMITS_VERSION
+            for stage, values in value.items():                                                                  #Merged, so a stage added since is not lost
+                LIMITS[key][stage] = values
+            continue
+        LIMITS[key] = value
 
 
 '''
@@ -329,8 +391,11 @@ def load_limits(settings_dir):
 '''
 def save_limits(settings_dir):
     try:
+        content = dict(LIMITS)
+        content["_version"] = LIMITS_VERSION
         with open(os.path.join(settings_dir, "limits.json"), "w", encoding="utf-8") as handle:
-            json.dump(LIMITS, handle, indent=2)
+            json.dump(content, handle, indent=2)
+        LIMITS_STATE["stepover_reset"] = False                                                                    #Whatever is in the file now is current
         return True
     except Exception:
         return False
@@ -880,6 +945,330 @@ def save_settings(settings_dir, settings):
         pass                                                                                                     #Settings are a convenience, never worth failing the run for
 
 
+# What is remembered for one document. The job values belong to the document rather than to the
+# programmer, so unlike settings.json they are kept: a die number read back from this job's own
+# record cannot be the last job's, which is what kept them out of the shared file.
+DOCUMENT_PARAMETER = "MPNC_SETTINGS"                                                                              #The string parameter the record lives in
+DOCUMENT_FILE = "documents.json"                                                                                  #The fallback, keyed on the document's path
+DOCUMENT_JOB_KEYS = ("initial", "project", "die", "revision", "machine")
+PART_OP_CHOICES = ("code", "master", "metal", "spotting", "spotting_mode")                                        #Set in [Metal thicknesses], never read from the document
+
+
+'''
+    This function finds the parameter the document's record is kept in.
+
+    Inputs:
+        process         The process activity
+
+    output:
+        Tuple of (the StrParam, its index in the collection), or (None, None)
+'''
+def document_parameter(process):
+    try:
+        parameters = process.parameters
+        count = parameters.count
+    except Exception:
+        return None, None
+
+    for index in range(count):
+        try:
+            parameter = parameters.item(index + 1)
+            if DOCUMENT_PARAMETER in parameter.name:
+                return StrParam(parameter.com_object), index
+        except Exception:
+            continue
+    return None, None
+
+
+'''
+    This function reads the record held in the document itself.
+
+    Inputs:
+        process         The process activity
+
+    output:
+        Dict of whatever was kept, empty where there is nothing or it cannot be read
+'''
+def read_document_record(process):
+    parameter, _ = document_parameter(process)
+    if parameter is None:
+        return {}
+    try:
+        return json.loads(parameter.value or "") or {}
+    except Exception:
+        return {}                                                                                                #Something else wrote it, or it is half written
+
+
+'''
+    This function writes the record into the document.
+
+    The value is read back afterwards, because CATIA refuses the write without saying so while a
+    parameter dialog or the specification tree has the parameter open - the write is simply
+    ignored. Where it did not take, the parameter is removed and made again, which does.
+
+    Inputs:
+        process         The process activity
+        content         The record to keep
+
+    output:
+        True where the document now holds the record
+'''
+def write_document_record(process, content):
+    blob = json.dumps(content)
+
+    parameter, index = document_parameter(process)
+    if parameter is not None:
+        try:
+            parameter.value = blob
+            written, _ = document_parameter(process)
+            if written is not None and written.value == blob:
+                return True
+        except Exception:
+            pass
+        try:
+            process.parameters.remove(index + 1)                                                                  #Refused the write - put a fresh one in its place
+        except Exception:
+            return False
+
+    try:
+        process.parameters.create_string(DOCUMENT_PARAMETER, blob)
+        written, _ = document_parameter(process)
+        return written is not None and written.value == blob
+    except Exception:
+        return False
+
+
+'''
+    This function reads the records kept beside the saved settings, keyed on each document's path.
+
+    This is the fallback for a document that will not take a parameter - a read only model - and
+    the record that survives closing CATIA without saving, since a parameter only reaches the file
+    when the file is saved.
+
+    Inputs:
+        settings_dir    The folder settings live in
+
+    output:
+        Dict of document path to record
+'''
+def read_document_file(settings_dir):
+    try:
+        with open(os.path.join(settings_dir, DOCUMENT_FILE), "r", encoding="utf-8") as handle:
+            return json.load(handle) or {}
+    except Exception:
+        return {}
+
+
+'''
+    This function writes one document's record beside the saved settings.
+
+    Inputs:
+        settings_dir    The folder settings live in
+        path            The document's full path
+        content         The record to keep
+
+    output:
+        True where it was written
+'''
+def write_document_file(settings_dir, path, content):
+    if not path:
+        return False
+    records = read_document_file(settings_dir)
+    records[path.lower()] = content
+    try:
+        with open(os.path.join(settings_dir, DOCUMENT_FILE), "w", encoding="utf-8") as handle:
+            json.dump(records, handle, indent=2)
+        return True
+    except Exception:
+        return False
+
+
+'''
+    This function drops one document's record from the file beside the saved settings.
+
+    Inputs:
+        settings_dir    The folder settings live in
+        path            The document's full path
+
+    output:
+        True where there was a record and it is now gone
+'''
+def forget_document_file(settings_dir, path):
+    records = read_document_file(settings_dir)
+    if (path or "").lower() not in records:
+        return False
+    del records[path.lower()]
+    try:
+        with open(os.path.join(settings_dir, DOCUMENT_FILE), "w", encoding="utf-8") as handle:
+            json.dump(records, handle, indent=2)
+        return True
+    except Exception:
+        return False
+
+
+'''
+    This function reads the record for a document, from wherever the newer one is.
+
+    Both stores are written every time, so either can be the newer: the document holds the record
+    that travels with the job, and the file holds the one that survives a run that was never saved.
+    Whichever was written last is the one the user last saw.
+
+    Inputs:
+        process         The process activity
+        settings_dir    The folder settings live in
+        path            The document's full path
+
+    output:
+        Tuple of (the record, where it came from)
+'''
+def read_record(process, settings_dir, path):
+    in_document = read_document_record(process)
+    in_file = read_document_file(settings_dir).get((path or "").lower(), {})
+
+    if in_document and in_file:
+        if str(in_file.get("saved", "")) > str(in_document.get("saved", "")):
+            return in_file, "the saved settings"
+        return in_document, "the process document"
+    if in_document:
+        return in_document, "the process document"
+    if in_file:
+        return in_file, "the saved settings"
+    return {}, ""
+
+
+'''
+    This function keeps a document's record in both stores.
+
+    The script version is written in beside it, so a record made by an older version can be
+    recognised and read on its own terms rather than being assumed to hold what this one writes.
+
+    Inputs:
+        process         The process activity
+        settings_dir    The folder settings live in
+        path            The document's full path
+        content         The record to keep
+
+    output:
+        A phrase naming where it went, for the status line
+'''
+def write_record(process, settings_dir, path, content):
+    content = dict(content)
+    content["version"] = SCRIPT_VERSION                                                                           #Which version of the script wrote this
+    content["script"] = SCRIPT_NAME
+    content["saved"] = datetime.now().isoformat(timespec="seconds")                                               #Which store is the newer one
+    content["document"] = path or ""
+
+    in_document = write_document_record(process, content) if process is not None else False
+    in_file = write_document_file(settings_dir, path, content)
+
+    if in_document and in_file:
+        return "the process document and the saved settings"
+    if in_document:
+        return "the process document"
+    if in_file:
+        return "the saved settings - the process would not take a parameter"
+    return ""
+
+
+'''
+    This function gathers the choices that are the user's rather than the document's.
+
+    The code, master, thickness and spotting are set in [Metal thicknesses] and nothing in the
+    document states them, so reading the tree again would lose them. The thickness rows added by
+    hand go the same way - the ones read from a design part are found again on their own.
+
+    Inputs:
+        rows            The rows read from the document
+        metal_rows      The thickness rows the window holds
+
+    output:
+        Dict of the choices, one entry per part operation
+'''
+def collect_choices(rows, metal_rows):
+    part_ops = [row for row in rows if row["kind"] == "Part Operation"]
+    entries = []
+    for index, row in enumerate(part_ops):
+        entry = {"part_name": row.get("part_name") or "", "name": row.get("name") or "", "index": index}
+        entry.update({key: row.get(key) or "" for key in PART_OP_CHOICES})
+        if entry["code"] and entry["code"] == die_part_code(row.get("name") or ""):
+            entry["code"] = ""                                                                                   #Only a code chosen by hand - see apply_choices
+        entries.append(entry)
+    return {"part_ops": entries,
+            "metal_rows": [dict(entry) for entry in (metal_rows or []) if entry.get("custom")]}
+
+
+'''
+    This function puts remembered choices back onto the part operations.
+
+    The CATPart behind a setup is matched first, because renaming part operations is what this
+    window is for and the name is the one thing that cannot be relied on. The name is tried next,
+    then the position, so a setup with no design part linked is still recognised.
+
+    Inputs:
+        rows            The rows read from the document, altered in place
+        record          A record from collect_choices
+
+    output:
+        The number of part operations that got their choices back
+'''
+def apply_choices(rows, record):
+    entries = [dict(entry) for entry in (record or {}).get("part_ops") or []]
+    part_ops = [row for row in rows if row["kind"] == "Part Operation"]
+    taken = set()
+    restored = 0
+
+    def match(row, index, key):
+        for position, entry in enumerate(entries):
+            if position in taken:
+                continue
+            if key == "part_name" and entry.get("part_name") and entry["part_name"] == (row.get("part_name") or ""):
+                return position
+            if key == "name" and entry.get("name") and entry["name"] == (row.get("name") or ""):
+                return position
+            if key == "index" and entry.get("index") == index:
+                return position
+        return None
+
+    for key in ("part_name", "name", "index"):                                                                    #Surest first
+        for index, row in enumerate(part_ops):
+            if row.get("_choices_restored"):
+                continue
+            position = match(row, index, key)
+            if position is None:
+                continue
+            taken.add(position)
+            row["_choices_restored"] = True
+            entry = entries[position]
+            notes = []
+            for field in PART_OP_CHOICES:
+                if not entry.get(field):
+                    continue
+
+                # The design part is the authority for the thickness and the master where it states
+                # one of each. A remembered figure that disagrees with a part that has since been
+                # changed would have the job cut to a thickness the part no longer carries, so the
+                # part wins and the disagreement is reported. Where the part states several, or
+                # none, there was nothing to disagree with and the remembered choice is the answer.
+                if field in ("metal", "master"):
+                    stated = row.get("metals" if field == "metal" else "masters") or {}
+                    if len(stated) == 1 and entry[field] not in stated:
+                        notes.append(f"the part states {next(iter(stated))}"
+                                     f"{'mm' if field == 'metal' else ''}, so the remembered "
+                                     f"{entry[field]}{'mm' if field == 'metal' else ''} was dropped")
+                        continue
+                row[field] = entry[field]
+                if field == "metal":
+                    notes.append(f"{entry['metal']}mm remembered for this part operation")
+
+            if notes:
+                row["metal_note"] = "; ".join(notes)
+            restored += 1
+
+    for row in part_ops:
+        row.pop("_choices_restored", None)                                                                        #Only used to match once
+    return restored
+
+
 '''
     This function draws the window icon, so no image file has to ship alongside the script.
 
@@ -947,6 +1336,45 @@ def stage_for_description(description):
         if stage in text:
             return stage, STAGE_NOMINALS[stage]
     return None, None
+
+
+'''
+    This function reads the offset a piece of text states it cuts to.
+
+    A divider heading says what its programs leave - *** ROUGHING TO +2.0MM *** - and that figure
+    is the one that counts, because the two roughing stages share the word ROUGHING and the table
+    can only hold one nominal for it. Only the TO figure is read; the machined figure a composed
+    comment carries in brackets - (M/C: -0.7MM) - is not the stage.
+
+    Inputs:
+        text            A heading, comment or name
+
+    output:
+        The offset in mm, or None where none is stated
+'''
+def stated_offset(text):
+    match = re.search(r"\bTO\s*([+-]?\d+(?:\.\d+)?)\s*MM\b", (text or "").upper())
+    return float(match.group(1)) if match else None
+
+
+'''
+    This function works out the stage a piece of text describes and the offset it leaves.
+
+    The stage comes from the words, the offset from the TO figure where the text states one and
+    from the stage table where it does not.
+
+    Inputs:
+        text            A heading, comment or name
+
+    output:
+        Tuple of (stage name, nominal in mm, True where the nominal was stated in the text)
+'''
+def stage_and_nominal(text):
+    stage, nominal = stage_for_description(text)
+    stated = stated_offset(text)
+    if stated is not None:
+        return stage, stated, True
+    return stage, nominal, False
 
 
 '''
@@ -1113,6 +1541,23 @@ def find_part_name(part_op):
 
 
 '''
+    This function makes a piece of text safe to put in an HTML table.
+
+    Program names and comments are plain text, but a comment is free typing and an ampersand or a
+    bracket in one would otherwise be read as markup and lose part of the line.
+
+    Inputs:
+        text            Any text
+
+    output:
+        The text with the markup characters written as entities
+'''
+def escape_html(text):
+    return ((text or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            .replace("\n", "<br>"))
+
+
+'''
     This function compares two pieces of text ignoring how their lines end.
 
     A comment read back from CATIA carries carriage returns that the dialog does not, so a
@@ -1258,11 +1703,42 @@ def program_name_token(initial, project, die, revision, code, number):
 
 
 '''
+    This function reads the abbreviation library into phrases and the codes they stand for.
+
+    Each entry is written PHRASE = CODE, so the list stays a list of strings like every other
+    template and edits, imports and exports the same way. The phrases come back longest first, so
+    LOWER SCRAP CUTTER is matched before LOWER CAM rather than being swallowed by it.
+
+    output:
+        List of (phrase, code), longest phrase first
+'''
+def abbreviations():
+    pairs = []
+    for entry in TEMPLATES.get("abbreviations", []):
+        text = str(entry)
+        for separator in ABBREVIATION_SEPARATORS:
+            if separator in text:
+                phrase, _, code = text.partition(separator)
+                phrase = re.sub(r"[_\-]+", " ", phrase.upper())
+                phrase = re.sub(r"\s+", " ", phrase).strip()
+                code = code.strip().upper()
+                if phrase and code:
+                    pairs.append((phrase, code))
+                break                                                                                            #One separator per entry - the first one found
+    return sorted(pairs, key=lambda pair: len(pair[0]), reverse=True)
+
+
+'''
     This function suggests the die part code from a die part name.
 
-    The first letter of the first and last word gives the codes in use - LOWER POST is LP and
-    UPPER DIRECT RESTRIKE STEELS is US. It is only a suggestion and stays editable, because a
-    code is a shop convention rather than something that can be derived with certainty.
+    The abbreviation library is read first: an entry LOWER POST = LP gives LP wherever the phrase
+    appears in the name, so LOWER_POST_POS_004_BGI is LP and the position, the machine and whatever
+    else the name carries are ignored. Where no phrase fits, the first letter of the first and last
+    word is used as it always was - LOWER POST is LP and UPPER DIRECT RESTRIKE STEELS is US - which
+    reads the wrong letters on a name with something trailing it, and is why the library exists.
+
+    It is only a suggestion and stays editable, because a code is a shop convention rather than
+    something that can be derived with certainty.
 
     Inputs:
         die_part        The die part name
@@ -1273,6 +1749,12 @@ def program_name_token(initial, project, die, revision, code, number):
 def die_part_code(die_part):
     text = re.sub(r"[_\-]+", " ", (die_part or "").upper())
     text = re.sub(r"\(.*?\)", " ", text)                                                                          #Drop the machine in brackets
+    text = re.sub(r"\s+", " ", text).strip()
+
+    for phrase, code in abbreviations():                                                                          #The library wins - it is what the shop actually calls it
+        if re.search(r"(?<![A-Z0-9])" + re.escape(phrase) + r"(?![A-Z0-9])", text):
+            return code
+
     words = [word for word in text.split() if word.isalpha() and word != "POS"]                                   #POS_## is a position, not part of the name
     if not words:
         return ""
@@ -1498,15 +1980,78 @@ def program_offset(rows, program_row):
 
 
 '''
-    This function works out the stage an operation belongs to.
+    This function gives every program and operation the divider heading that governs it, and marks
+    the contour operations that remachine a face a sweep has already cut.
 
-    Its own comment or name is read first, then its program's, so an operation named after its
-    tool still checks against the stage the program says it is cutting. A name CATIA gave the
-    operation itself - Roughing.1, Sweeping.3 - is its type with a counter, not a statement of
-    the stage, so it is not read as one.
+    A divider opens a block: the programs below it, down to the next divider, are cutting the stage
+    its heading names and leaving the offset its heading states. The heading is not a parent - it is
+    a sibling program - so it is walked here and written onto the rows, and everything downstream
+    reads it from them.
+
+    A contour is held to the remachining stepover once a sweep has cut in the same block, because a
+    contour after a sweep is remachining what the sweep left rather than cutting the stage. The
+    first contour of a block, with no sweep before it - a block of Z checks, say - is an ordinary
+    contour at its stage. REMACHIN anywhere in a contour's name or comment says so outright and is
+    taken whatever its position.
 
     Inputs:
-        row             An operation row
+        rows            The rows read from the document, altered in place
+
+    output:
+        None
+'''
+def assign_blocks(rows):
+    heading = ""
+    block = 0
+    swept = False                                                                                                #Whether a sweep has cut in this block yet
+
+    for row in rows:
+        kind = row["kind"]
+        if kind == "Spacer":
+            continue
+
+        if kind == "Part Operation":
+            heading, swept = "", False                                                                            #Each part operation starts its own blocks
+            block += 1
+            row["block_heading"], row["block"] = "", block
+            continue
+
+        if kind == "Program":
+            name = effective_name(row)
+            if is_divider(name):
+                heading, swept = name, False                                                                      #A heading opens a block
+                block += 1
+            row["block_heading"], row["block"] = heading, block
+            continue
+
+        row["block_heading"], row["block"] = heading, block
+        row["remachining"] = False
+        if row["activity_type"] in INSTRUCTION_TYPES:
+            continue                                                                                             #A post processor instruction cuts nothing
+
+        geometry = operation_geometry(row["activity_type"])
+        if geometry == "CONTOUR":
+            said = (effective_name(row) + " " + effective_comment(row)).upper()
+            row["remachining"] = swept or "REMACHIN" in said
+        elif geometry == "SWEEP":
+            swept = True                                                                                          #Anything that sweeps the face, the depo roughing included
+
+
+'''
+    This function works out the stage a row belongs to and the offset it is cut to.
+
+    The divider heading above it is read first, because that is where the stage is declared and the
+    only place the two roughing stages can be told apart - both carry the word ROUGHING, and only
+    *** ROUGHING TO +2.0MM *** says which one it is. Its own comment or name comes next, then its
+    program's, so an operation named after its tool still reads the stage its program is cutting. A
+    name CATIA gave the operation itself - Roughing.1, Sweeping.3 - is its type with a counter, not
+    a statement of the stage, so it is not read as one.
+
+    Where nothing states an offset, the CATIA Roughing operation is read as the depo roughing it is
+    and left at +2.0 rather than the +0.7 the word ROUGHING would otherwise give it.
+
+    Inputs:
+        row             A program or operation row
 
     output:
         Tuple of (stage name, nominal stock in mm), or (None, None) where no stage is stated
@@ -1515,22 +2060,38 @@ def stage_of_row(row):
     name = effective_name(row)
     if re.fullmatch(re.escape(operation_label(row["activity_type"])) + r"\.\d+", name.strip()):
         name = ""                                                                                                #CATIA's own default name says the type, not the stage
-    stage, nominal = stage_for_description(effective_comment(row) or name)
-    if stage is None and row.get("parent") is not None:
-        parent = row["parent"]
-        stage, nominal = stage_for_description(effective_comment(parent) or effective_name(parent))
-    return stage, nominal
+
+    texts = [row.get("block_heading") or "", effective_comment(row) or name]
+    parent = row.get("parent")
+    if parent is not None and parent["kind"] == "Program":
+        texts.append(effective_comment(parent) or effective_name(parent))
+
+    for text in texts:
+        stage, nominal, stated = stage_and_nominal(text)
+        if stage is None and nominal is None:
+            continue
+        if not stated and stage == "ROUGHING" and row["activity_type"] == ROUGHING_TYPE:
+            return "Z-LEVEL ROUGHING", STAGE_NOMINALS["Z-LEVEL ROUGHING"]                                        #The depo roughing, with nothing to say otherwise
+        return stage, nominal
+    return None, None
 
 
 '''
     This function checks an operation's settings against the limits.
 
-    Three things are looked at. The stepover has to sit on the allowed list for the operation's
-    stage. The CATIA Roughing operation is instead held to its own two rules - a pass overlap on
-    the allowed percentages and a depth of cut on the allowed depths. And the Offset on part has
-    to match what the stage rule works out from the part operation's master, metal and spotting.
-    Anything that cannot be worked out - no stage, no master, no metal - is not checked, so a
-    row is only marked where the value is genuinely off.
+    The stepover is checked against whichever of three rules the operation answers to:
+
+        the depo roughing    M3xHardMaterial states its stepover as a pass overlap, so it is held
+                             to the allowed percentages and to its own depth of cut, whatever
+                             stage its block belongs to
+        a remachining        a contour cutting a face a sweep has already been over is remachining
+                             it, and is held to the remachining stepover whatever its stage
+        everything else      the allowed list for the stage its divider heading names
+
+    The Offset on part is then checked against what the stage rule works out from the part
+    operation's master, metal and spotting. Anything that cannot be worked out - no stage, no
+    master, no metal, an empty limits list - is not checked, so a row is only marked where the
+    value is genuinely off.
 
     Inputs:
         row             An operation row
@@ -1560,6 +2121,11 @@ def check_operation(row, part_op):
         if depth is not None and not value_allowed(depth, LIMITS["roughing_depth_of_cut"]):
             bad["Depth of Cut"] = "should be " + ", ".join(
                     f"{choice:g}" for choice in LIMITS["roughing_depth_of_cut"])
+    elif row.get("remachining"):
+        choices = LIMITS["remachining_stepover"]
+        if choices and stepover is not None and not value_allowed(stepover, choices):
+            bad["Stepover"] = ("remachining a swept face - should be "
+                               + ", ".join(f"{choice:g}" for choice in choices))
     else:
         key = (stage or "").replace("SEMI FINISH", "SEMI-FINISH")                                                #The older templates' spelling of the same stage
         choices = LIMITS["stepover"].get(key)
@@ -1589,6 +2155,36 @@ def check_operation(row, part_op):
         if expected is not None and abs(expected - measured) > 0.001:
             bad["Offset on Part"] = f"the stage rule gives {format_offset(expected)}"
     return bad
+
+
+'''
+    This function checks a program's comment against the block it sits in.
+
+    A composed comment states what the program cuts to - 32 DEPO R8 ROUGHING SWEEP TO +0.7MM - and
+    that figure has to be the one its divider heading names. The two disagree where a comment was
+    written from the stage table before the heading was read, which is how a depo roughing program
+    cutting to +2.0 ends up claiming +0.7: both stages carry the word ROUGHING. The comment is
+    wrong in that case, not the heading, so it is flagged rather than believed.
+
+    Inputs:
+        row             A program row
+
+    output:
+        Dict of column label to a short reason, empty where the comment agrees or says nothing
+'''
+def check_program(row):
+    if row["kind"] != "Program" or is_divider(effective_name(row)):
+        return {}
+
+    said = stated_offset(effective_comment(row))
+    if said is None:
+        return {}                                                                                                #Nothing claimed, nothing to disagree with
+
+    _, nominal = stage_of_row(row)
+    if nominal is None or abs(said - nominal) <= 0.001:
+        return {}
+    return {"Comment": f"the comment says {format_offset(said)} where this block cuts to "
+                       f"{format_offset(nominal)} - recompose it"}
 
 
 '''
@@ -1749,6 +2345,7 @@ def read_tree(ppr_doc, report=None):
                     report(done, f"{program.name}")
 
     calibrate_missing(rows)
+    assign_blocks(rows)                                                                                          #Which divider governs each row, and what remachines
     return rows
 
 
@@ -1847,8 +2444,10 @@ class MetalDialog(wx.Dialog):
     NAME, CODE, METAL, MASTER, SPOTTING, BUILT_IN, USE = range(7)                                                #Columns of the lower grid
     SPOTTING_MODES = ("", "built in", "at the machine")
 
+    MINIMUM = (900, 620)                                                                                          #Grown to fit its content, never smaller than this
+
     def __init__(self, parent, part_ops, metal_rows):
-        super().__init__(parent, title="Metal thicknesses", size=(900, 620),
+        super().__init__(parent, title="Metal thicknesses",
                          style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
         self.part_ops = part_ops
         self.metal_rows = [dict(entry) for entry in metal_rows]                                                   #Only copied back on OK
@@ -1930,6 +2529,12 @@ class MetalDialog(wx.Dialog):
                     break
         self._default_single_row()
         self.setup_grid.AutoSizeColumns()
+
+        self.GetSizer().Fit(self)                                                                                 #Sized to its content, so the button row is never clipped
+        screen = wx.Display(0).GetClientArea()
+        size = self.GetSize()
+        self.SetSize((min(max(size.width, self.MINIMUM[0]), screen.width),
+                      min(max(size.height, self.MINIMUM[1]), screen.height)))
         self.Center()
 
     def _values(self):
@@ -2410,6 +3015,29 @@ class EditDialog(wx.Dialog):
                 or self.new_name or self.current_name)
 
     '''
+        This function gives the offset a stage leaves on the row being edited.
+
+        The divider heading above the row is read first: *** ROUGHING TO +2.0MM *** states what its
+        programs leave, and the stage table cannot, because both roughing stages carry the word
+        ROUGHING and the table holds one nominal for it. The table is the answer for any stage the
+        heading does not name.
+
+        Inputs:
+            stage           A machining stage, e.g. "FINISH"
+
+        output:
+            The nominal in mm, or None where the stage is not one that is known
+    '''
+    def _stage_nominal(self, stage):
+        def tidy(text):
+            return (text or "").strip().upper().replace("SEMI FINISH", "SEMI-FINISH")
+
+        heading_stage, heading_nominal, stated = stage_and_nominal(self.row.get("block_heading") or "")
+        if stated and tidy(heading_stage) == tidy(stage):
+            return heading_nominal                                                                                #What this block says it leaves
+        return STAGE_NOMINALS.get(tidy(stage))
+
+    '''
         This function builds the tool / description / offset composer for a program comment.
     '''
     def _composer(self, panel):
@@ -2430,7 +3058,7 @@ class EditDialog(wx.Dialog):
         inner.Add(wx.StaticText(panel, label="Description"), 0, wx.ALIGN_CENTER_VERTICAL)
         inner.Add(self.description_choice, 1, wx.EXPAND)
 
-        detected_stage, detected_nominal = stage_for_description(self._staged_text())
+        detected_stage, detected_nominal = stage_of_row(self.row)                                                  #The divider heading above it decides
         self.stage_choice = wx.ComboBox(panel, choices=[""] + list(STAGE_ORDER), style=wx.CB_DROPDOWN)
         if detected_stage:
             self.stage_choice.SetValue(detected_stage)                                                           #What the program already reads as
@@ -2522,7 +3150,8 @@ class EditDialog(wx.Dialog):
 
         master = (part_op.get("master") if part_op else None)                                                    #Set per part operation in [Metal thicknesses]
 
-        stage, nominal = stage_for_description(description)
+        stage, _ = stage_for_description(description)
+        nominal = self._stage_nominal(stage) if stage else None                                                   #What this block states it leaves, then the table
         if nominal is None:
             return part, None, "no stage in the description"
 
@@ -2572,14 +3201,15 @@ class EditDialog(wx.Dialog):
             return 0.0
 
     def _on_stage(self, event):
-        nominal = STAGE_NOMINALS.get(self.stage_choice.GetValue().strip().upper())
+        nominal = self._stage_nominal(self.stage_choice.GetValue())                                               #What the block states, then the table
         if nominal is not None:
             self.stage_text.SetValue(f"{nominal + self._spotting_allowance(part_operation_of(self.row)):.1f}")
         self._update_preview()
         event.Skip()
 
     def _on_description(self, event):
-        stage, nominal = stage_for_description(self.description_choice.GetValue())
+        stage, _ = stage_for_description(self.description_choice.GetValue())
+        nominal = self._stage_nominal(stage) if stage else None
         if stage:
             self.stage_choice.SetValue(stage)                                                                    #The description says which stage it is
         if nominal is not None:
@@ -2757,7 +3387,8 @@ class EditDialog(wx.Dialog):
             return
 
         operations = [row for row in self.rows
-                      if row.get("parent") is self.row and row["kind"] == "Operation"]
+                      if row.get("parent") is self.row and row["kind"] == "Operation"
+                      and row["activity_type"] not in INSTRUCTION_TYPES]                                          #A PP instruction is not a cut and keeps its own name
         if not operations:
             wx.MessageBox("This program has no operations to name.", "Propagate to operations",
                           wx.OK | wx.ICON_INFORMATION, self)
@@ -3151,11 +3782,14 @@ class LimitsDialog(wx.Dialog):
     """Edits the allowed values the settings are checked against."""
 
     FIELDS = (                                                                                                   #(limits key, stage key or None, label)
+        ("stepover", "Z-LEVEL ROUGHING", "Z-level roughing stepover mm"),
         ("stepover", "ROUGHING", "Roughing stepover mm"),
         ("stepover", "SEMI-FINISH", "Semi-finish stepover mm"),
         ("stepover", "FINISH", "Finish stepover mm"),
-        ("roughing_overlap", None, "Roughing operation pass overlap %"),
-        ("roughing_depth_of_cut", None, "Roughing operation depth of cut mm"),
+        ("stepover", "Z CHECK", "Z check stepover mm"),
+        ("remachining_stepover", None, "Contour remachining stepover mm"),
+        ("roughing_overlap", None, "Depo roughing pass overlap %"),
+        ("roughing_depth_of_cut", None, "Depo roughing depth of cut mm"),
     )
 
     def __init__(self, parent, settings_dir):
@@ -3167,9 +3801,13 @@ class LimitsDialog(wx.Dialog):
 
         vbox.Add(wx.StaticText(panel, label="The allowed values, as comma separated lists. A stepover, "
                                             "depth of cut or offset off its list is shown on red in "
-                                            "the grid.\nThe stage limits go by the operation's stage; "
-                                            "the Roughing rows are the CATIA Roughing operation, "
-                                            "whatever its stage."), 0, wx.ALL, 8)
+                                            "the grid.\nThe stage rows go by the stage the divider "
+                                            "heading above the operation names. Two kinds of operation "
+                                            "answer to their own row instead,\nwhatever their stage: "
+                                            "the depo roughing - CATIA's Roughing operation - and a "
+                                            "contour remachining a face a sweep has been over.\n"
+                                            "Leave a row empty to check nothing against it."),
+                 0, wx.ALL, 8)
 
         grid_sizer = wx.FlexGridSizer(0, 2, 6, 8)
         grid_sizer.AddGrowableCol(1, 1)
@@ -3220,11 +3858,7 @@ class LimitsDialog(wx.Dialog):
                 wx.MessageBox(f"'{text}' is not a list of numbers - see {label}.", "Edit limits",
                               wx.OK | wx.ICON_WARNING, self)
                 return
-            if not values:
-                wx.MessageBox(f"{label} cannot be empty - every check needs at least one value.",
-                              "Edit limits", wx.OK | wx.ICON_WARNING, self)
-                return
-            parsed[(key, stage)] = values
+            parsed[(key, stage)] = values                                                                        #An empty list checks nothing, which is a fair answer
 
         for (key, stage), values in parsed.items():
             if stage:
@@ -3580,8 +4214,9 @@ class TreeFrame(wx.Frame):
     AUTO_COLOUR = wx.Colour(197, 175, 220)                                                                       #Names and comments a whole part operation at once
     STRUCTURE_COLOUR = wx.Colour(248, 203, 173)                                                                 #Adds or removes programs - written straight away, not staged
     STAGING_COLOUR_BUTTON = wx.Colour(198, 224, 180)                                                            #The staged edits
+    REPORT_COLOUR = wx.Colour(217, 217, 217)                                                                    #Takes the table off the screen and onto paper
 
-    def __init__(self, rows, job_info, settings, settings_dir, ppr_document=None):
+    def __init__(self, rows, job_info, settings, settings_dir, ppr_document=None, document=None):
         super().__init__(None, title="Manage Program Names And Comments", size=(1400, 760))
         self.SetIcon(_make_icon())
         rows = insert_spacers(rows)                                                                              #A blank band before each part operation after the first
@@ -3589,7 +4224,13 @@ class TreeFrame(wx.Frame):
         self.settings = settings
         self.settings_dir = settings_dir
         self.ppr_document = ppr_document                                                                         #Kept so the tree can be read again
+        self.document = document
+        self.process = self._process_activity()                                                                  #Where this document's own record is kept
+        self.document_path = self._document_path()
         self.metal_rows = collect_metal_rows(rows)
+        self.record_note = self._load_record()                                                                    #What was remembered for this document
+        self.forgotten = False                                                                                     #Set where the record was deliberately cleared
+        self.printing = None                                                                                      #Made when the table is first printed
 
         panel = wx.Panel(self)
         vbox = wx.BoxSizer(wx.VERTICAL)
@@ -3625,17 +4266,25 @@ class TreeFrame(wx.Frame):
                      None,
                      ("Edit templates", self._on_templates),
                      ("Edit limits", self._on_limits),
+                     None,
+                     ("Forget this document's settings", self._on_forget_document),
                      ("Clear saved settings", self._on_clear_settings))
         pp_menu = (("Add blank", self._on_add_pp_instruction),
                    ("Add defined...", self._on_add_pp_instruction_defined),
                    None,
                    ("Remove", self._on_remove_pp_instruction))
+        report_menu = (("Print preview...", self._on_print_preview),
+                       ("Print...", self._on_print),
+                       None,
+                       ("Save as HTML...", self._on_save_html),
+                       ("Save as CSV...", self._on_save_csv))
 
         bar = (("menu", "Edit", self.EDIT_COLOUR, edit_menu),
                ("button", "Auto name & comment", self.AUTO_COLOUR, self._on_auto_name),
                ("menu", "PP instruction", self.STRUCTURE_COLOUR, pp_menu),
                ("button", "Clear staged edits", self.STAGING_COLOUR_BUTTON, self._on_clear),
                ("button", "Apply staged edits", self.STAGING_COLOUR_BUTTON, self._on_apply),
+               ("menu", "Report", self.REPORT_COLOUR, report_menu),
                ("button", "Refresh from CATIA", None, self._on_refresh),
                ("button", "Help", None, self._on_help),
                ("button", "Close", None, self._on_close))
@@ -3647,14 +4296,103 @@ class TreeFrame(wx.Frame):
             self.button_bar.Add(button, 0, wx.RIGHT, 6)
         vbox.Add(self.button_bar, 0, wx.ALL, 8)
 
-        self.status = wx.StaticText(panel, label="Double click a row to set its name and comment, or "
-                                                 "select several with Ctrl or Shift and press [Edit "
-                                                 "selected rows]. Nothing is written until Apply is pressed.")
+        opening = ("Double click a row to set its name and comment, or select several with Ctrl or "
+                   "Shift and press [Edit selected rows]. Nothing is written until Apply is pressed.")
+        if self.record_note:
+            opening = self.record_note + " " + opening
+        if LIMITS_STATE["stepover_reset"]:                                                                        #Saved before the stepover rules changed
+            opening = ("Your saved stepover limits were put back to the shipped ones - the roughing "
+                       "figures changed meaning. See [Edit limits]. ") + opening
+        self.status = wx.StaticText(panel, label=opening)
         vbox.Add(self.status, 0, wx.ALL, 8)
 
         panel.SetSizer(vbox)
         self._size_to_grid()
         self.Center()
+
+    '''
+        This function finds the process activity the document's record is kept on.
+
+        output:
+            The activity, or None where there is no document to read
+    '''
+    def _process_activity(self):
+        try:
+            return self.ppr_document.processes.item(1) if self.ppr_document is not None else None
+        except Exception:
+            return None
+
+    '''
+        This function gives the path of the document being worked on.
+
+        The PPRDocument inside a process does not always carry the file name, so the process
+        document is asked first and the PPR one only where it has to be.
+
+        output:
+            The full path, or an empty string
+    '''
+    def _document_path(self):
+        for candidate in (self.document, self.ppr_document):
+            try:
+                if candidate is not None and candidate.full_name:
+                    return candidate.full_name
+            except Exception:
+                continue
+        return ""
+
+    '''
+        This function takes on whatever was remembered for this document.
+
+        The job values, the per part operation choices and the thickness rows added by hand all
+        come back, so reopening a job finds it as it was left rather than asking for everything
+        again. Nothing here overwrites what the document itself states - the thicknesses read from
+        the design parts are collected first and the remembered ones are added to them.
+
+        output:
+            A phrase for the status line, empty where nothing was remembered
+    '''
+    def _load_record(self):
+        record, where = read_record(self.process, self.settings_dir, self.document_path)
+        if not record:
+            return ""
+
+        for key in DOCUMENT_JOB_KEYS:
+            if record.get("job", {}).get(key):
+                self.settings[key] = record["job"][key]
+
+        restored = apply_choices(self.rows, record)
+
+        values = {entry["value"] for entry in self.metal_rows}
+        for entry in record.get("metal_rows") or []:                                                              #Thicknesses that came from nowhere but the user
+            if entry.get("value") and entry["value"] not in values:
+                self.metal_rows.append({"value": entry["value"], "master": entry.get("master") or "",
+                                        "source": entry.get("source") or "added by hand", "custom": True})
+                values.add(entry["value"])
+
+        if not (restored or record.get("job")):
+            return ""
+        version = str(record.get("version") or "")
+        note = f" It was written by version {version}." if version and version != SCRIPT_VERSION else ""
+        return (f"Settings for this document came back from {where} - "
+                f"{restored} part operation(s).{note}")
+
+    '''
+        This function keeps everything the user has set for this document.
+
+        Written to the process itself, so it travels with the job, and beside the saved settings, so
+        a run that was never saved is not lost either. Whichever was written last is the one read
+        back - see read_record.
+
+        output:
+            A phrase naming where it went, for the status line
+    '''
+    def _save_record(self, deliberate=False):
+        if self.forgotten and not deliberate:
+            return ""                                                                                            #Cleared on purpose - closing must not put it back
+        self.forgotten = False
+        content = collect_choices(self.rows, self.metal_rows)
+        content["job"] = {key: self.settings.get(key, "") for key in DOCUMENT_JOB_KEYS}
+        return write_record(self.process, self.settings_dir, self.document_path, content)
 
     '''
         This function makes a plain button that runs one action.
@@ -3760,6 +4498,7 @@ class TreeFrame(wx.Frame):
             self.settings[key] = field.GetValue().strip()
 
     def _fill_grid(self):
+        assign_blocks(self.rows)                                                                                 #A staged divider heading changes what governs the rows below it
         for row_index, row in enumerate(self.rows):
             if row["kind"] == "Spacer":                                                                          #The blank band between part operations
                 for column in range(len(self.COLUMNS)):
@@ -3773,7 +4512,8 @@ class TreeFrame(wx.Frame):
             self.grid.SetRowLabelValue(row_index, str(row_index + 1))
             indent = "    " * row["level"]
             name, comment = effective_name(row), effective_comment(row)                                          #What the row is heading for, not what it leaves
-            stage, nominal = stage_for_description(comment or name)
+            stage, nominal = (stage_of_row(row) if row["kind"] in ("Program", "Operation")                        #The divider heading above it has the say
+                              else (None, None))
             is_operation = row["kind"] == "Operation"                                                            #Only operations carry these settings
             parameters = row.get("parameters") or {}
             missing = (row.get("missing") or []) if is_operation else []
@@ -3782,7 +4522,8 @@ class TreeFrame(wx.Frame):
                        one_line, effective_instruction(row), row["tool"] or "")
                       + tuple(parameters.get(label, "") or ("missing" if label in missing else "")
                               for label in PARAMETER_LABELS)
-                      + (stage or "", "" if nominal is None else f"{nominal:+.1f}",
+                      + ((stage or "") + ("  REMACH" if row.get("remachining") else ""),                          #Why a contour is held to the remachining stepover
+                         "" if nominal is None else f"{nominal:+.1f}",
                          format_offset(self._rule_mc(row, nominal))))                                             #The machine offset the master/metal rule gives
             for column, value in enumerate(values):
                 self.grid.SetCellValue(row_index, column, value)
@@ -3806,12 +4547,16 @@ class TreeFrame(wx.Frame):
                 self.grid.SetCellTextColour(row_index, column,
                                             wx.Colour(0, 97, 0) if staged else wx.BLACK)
 
-            bad = check_operation(row, part_operation_of(row)) if is_operation else {}                           #Values off the limits go on red
+            bad = check_operation(row, part_operation_of(row)) if is_operation else check_program(row)            #Values off the limits go on red
             for offset_index, label in enumerate(PARAMETER_LABELS):
                 if label in bad:
                     column = len(self.COLUMNS) - self.TRAILING_COLUMNS - len(PARAMETER_LABELS) + offset_index
                     self.grid.SetCellBackgroundColour(row_index, column, self.BAD_COLOUR)
                     self.grid.SetCellTextColour(row_index, column, self.BAD_TEXT_COLOUR)
+
+            if "Comment" in bad and not row["new_comment"]:                                                      #A staged comment is already on its way to being right
+                self.grid.SetCellBackgroundColour(row_index, self.COMMENT_COLUMN, self.BAD_COLOUR)
+                self.grid.SetCellTextColour(row_index, self.COMMENT_COLUMN, self.BAD_TEXT_COLOUR)
 
             if is_staged(row):                                                                                   #Mark the whole row so staged edits are easy to find
                 self.grid.SetCellBackgroundColour(row_index, 0, self.STAGED_MARK_COLOUR)
@@ -3899,7 +4644,10 @@ class TreeFrame(wx.Frame):
             self._fill_grid()                                                                                    #The offset checks go by the metal and master
             self.Layout()
             chosen = sum(1 for row in part_ops if row["metal"])
-            self.status.SetLabel(f"{chosen} of {len(part_ops)} part operation(s) have a metal thickness.")
+            where = self._save_record(deliberate=True)                                                            #Kept for this document, so the choice is made once
+            self.status.SetLabel(f"{chosen} of {len(part_ops)} part operation(s) have a metal thickness."
+                                 + (f" Remembered in {where}." if where else
+                                    " They could not be remembered for this document."))
         dialog.Destroy()
 
     '''
@@ -3925,18 +4673,71 @@ class TreeFrame(wx.Frame):
         dialog.Destroy()
 
     '''
+        This function forgets what was remembered for this document, and nothing else.
+
+        Both stores are cleared - the entry beside the saved settings and the parameter in the
+        process - because either one left behind would put everything straight back on the next
+        run. The templates, the limits and the shared settings are untouched, and so is everything
+        already written into the document: only what the window remembered about this job goes.
+    '''
+    def _on_forget_document(self, event):
+        if not (self.document_path or self.process is not None):
+            self.status.SetLabel("There is no document to forget anything for.")
+            return
+
+        if wx.MessageBox("Forget the code, master, thickness, spotting and job values remembered "
+                         "for this document?\n\n"
+                         f"{self.document_path or 'this process'}\n\n"
+                         f"Both places are cleared - the entry in {DOCUMENT_FILE} and the "
+                         f"{DOCUMENT_PARAMETER} parameter in the process - because either one left "
+                         f"behind would put it all back on the next run. Templates, limits and the "
+                         f"shared settings are untouched, and so is every name and comment already "
+                         f"written.\n\n"
+                         f"Closing the window will not write it back. Setting a thickness or "
+                         f"applying an edit afterwards starts a fresh record.",
+                         "Forget this document", wx.YES_NO | wx.ICON_QUESTION, self) != wx.YES:
+            return
+
+        cleared = []
+        if forget_document_file(self.settings_dir, self.document_path):
+            cleared.append(DOCUMENT_FILE)
+
+        if self.process is not None:
+            parameter, index = document_parameter(self.process)
+            if parameter is not None:
+                try:
+                    self.process.parameters.remove(index + 1)
+                    cleared.append(f"the {DOCUMENT_PARAMETER} parameter")
+                except Exception as error:
+                    wx.MessageBox(f"The {DOCUMENT_PARAMETER} parameter could not be removed:\n\n"
+                                  f"{error}\n\nIt is refused while a parameter dialog or the "
+                                  f"specification tree has it open. Close those and try again, or "
+                                  f"delete it in the parameter tree.",
+                                  "Forget this document", wx.OK | wx.ICON_WARNING, self)
+
+        self.record_note = ""
+        self.forgotten = True                                                                                     #So closing the window does not write it back
+        self.status.SetLabel(f"Forgot this document's settings - cleared {', '.join(cleared)}. "
+                             f"Closing will not write it back."
+                             if cleared else
+                             "There was nothing remembered for this document.")
+
+    '''
         This function deletes the saved settings and puts the templates back to the defaults.
     '''
     def _on_clear_settings(self, event):
         if wx.MessageBox("Delete the saved settings and put every template list and limit back "
                          "to what the script ships with?\n\n"
                          f"{self.settings_dir}\n\n"
-                         "The document is not touched.", "Clear saved settings",
-                         wx.YES_NO | wx.ICON_QUESTION, self) != wx.YES:
+                         "What was remembered for each document goes too, this one included - the "
+                         "record kept in the process itself is removed with it, since leaving it "
+                         "would put everything straight back. Nothing else in the document is "
+                         "touched, and the names and comments already written stay as they are.",
+                         "Clear saved settings", wx.YES_NO | wx.ICON_QUESTION, self) != wx.YES:
             return
 
         removed = []
-        for name in ("settings.json", "templates.json", "limits.json"):
+        for name in ("settings.json", "templates.json", "limits.json", DOCUMENT_FILE):
             path = os.path.join(self.settings_dir, name)
             try:
                 if os.path.exists(path):
@@ -3946,6 +4747,16 @@ class TreeFrame(wx.Frame):
                 wx.MessageBox(f"{name} could not be deleted:\n\n{error}", "Clear saved settings",
                               wx.OK | wx.ICON_WARNING, self)
                 return
+
+        if self.process is not None:                                                                              #The record kept in the document itself
+            parameter, index = document_parameter(self.process)
+            if parameter is not None:
+                try:
+                    self.process.parameters.remove(index + 1)
+                    removed.append(f"the {DOCUMENT_PARAMETER} parameter")
+                except Exception as error:
+                    wx.MessageBox(f"The {DOCUMENT_PARAMETER} parameter could not be removed:\n\n{error}",
+                                  "Clear saved settings", wx.OK | wx.ICON_WARNING, self)
 
         for key, value in DEFAULT_TEMPLATES.items():
             TEMPLATES[key] = json.loads(json.dumps(value))
@@ -3959,6 +4770,142 @@ class TreeFrame(wx.Frame):
         self._fill_grid()                                                                                        #The red cells go by the limits
         self.status.SetLabel(f"Cleared {', '.join(removed) if removed else 'nothing - there was nothing saved'}. "
                              f"Templates and limits are back to the defaults.")
+
+    '''
+        This function writes the grid out as an HTML table, exactly as it is shown.
+
+        The values and the colours are read off the grid rather than worked out again, so what
+        comes out of the printer is what was on the screen - the same staged greens and the same
+        red cells, which is the point of printing it for a review.
+
+        output:
+            The page as HTML
+    '''
+    def _report_html(self):
+        def colour(cell):
+            return "#%02X%02X%02X" % (cell.Red(), cell.Green(), cell.Blue())
+
+        columns = range(self.grid.GetNumberCols())
+        head = "".join(f'<td bgcolor="#404040"><font color="#FFFFFF" size="1"><b>'
+                       f'{escape_html(self.grid.GetColLabelValue(column))}</b></font></td>'
+                       for column in columns)
+
+        body = []
+        for row_index, row in enumerate(self.rows):
+            if row["kind"] == "Spacer":
+                body.append(f'<tr><td colspan="{len(columns)}"><font size="1">&nbsp;</font></td></tr>')
+                continue
+            cells = []
+            for column in columns:
+                text = escape_html(self.grid.GetCellValue(row_index, column))
+                body_text = text.lstrip(" ")
+                text = "&nbsp;" * (len(text) - len(body_text)) + body_text                                        #HTML eats the indent the tree is drawn with
+                cells.append(f'<td bgcolor="{colour(self.grid.GetCellBackgroundColour(row_index, column))}">'
+                             f'<font size="1" color="'
+                             f'{colour(self.grid.GetCellTextColour(row_index, column))}">'
+                             f'{text or "&nbsp;"}</font></td>')
+            body.append("<tr>" + "".join(cells) + "</tr>")
+
+        summary = escape_html(self._job_summary()).replace("\n", "<br>")
+        return ("<html><body>"
+                f"<font size='2'><b>Manage Program Names And Comments</b></font><br>"
+                f"<font size='1'>{escape_html(self.document_path or 'document not named')}<br>"
+                f"Printed {datetime.now().strftime('%d.%m.%y %H:%M')}</font>"
+                f"<hr><font size='1'>{summary}</font><hr>"
+                f'<table border="1" cellspacing="0" cellpadding="2" width="100%">'
+                f"<tr>{head}</tr>{''.join(body)}</table>"
+                "</body></html>")
+
+    '''
+        This function gives the printer, set up landscape because the table is wide.
+
+        output:
+            The wx.html.HtmlEasyPrinting, made once and kept
+    '''
+    def _printer(self):
+        if getattr(self, "printing", None) is None:
+            self.printing = wx.html.HtmlEasyPrinting("Manage Program Names And Comments", self)
+            self.printing.GetPrintData().SetOrientation(wx.LANDSCAPE)                                             #Fourteen columns do not fit portrait
+            self.printing.GetPageSetupData().SetMarginTopLeft(wx.Point(10, 10))
+            self.printing.GetPageSetupData().SetMarginBottomRight(wx.Point(10, 10))
+            self.printing.SetStandardFonts(7)
+            self.printing.SetHeader("<font size='1'>Manage Program Names And Comments</font>")
+            self.printing.SetFooter("<font size='1'>Page @PAGENUM@ of @PAGESCNT@</font>")
+        return self.printing
+
+    def _on_print_preview(self, event):
+        self._printer().PreviewText(self._report_html())
+
+    def _on_print(self, event):
+        self._printer().PrintText(self._report_html())
+        self.status.SetLabel("Sent the table to the printer.")
+
+    '''
+        This function saves the table as an HTML file, which opens in a browser or in Excel.
+    '''
+    def _on_save_html(self, event):
+        path = self._ask_where("Save the table as HTML", "HTML files (*.html)|*.html",
+                              self._report_name() + ".html")
+        if not path:
+            return
+        try:
+            with open(path, "w", encoding="utf-8") as handle:
+                handle.write(self._report_html())
+        except Exception as error:
+            wx.MessageBox(f"It could not be written:\n\n{error}", "Save", wx.OK | wx.ICON_ERROR, self)
+            return
+        self.status.SetLabel(f"Written to {path}")
+
+    '''
+        This function saves the table as a CSV file, for a spreadsheet to work on.
+
+        The colours cannot come with it, so the reason a cell was red is written into a column of
+        its own - a printout says it in colour, a spreadsheet says it in words.
+    '''
+    def _on_save_csv(self, event):
+        path = self._ask_where("Save the table as CSV", "CSV files (*.csv)|*.csv",
+                              self._report_name() + ".csv")
+        if not path:
+            return
+
+        try:
+            with open(path, "w", encoding="utf-8-sig", newline="") as handle:
+                writer = csv.writer(handle)
+                writer.writerow(list(self.COLUMNS) + ["Staged", "Off the limits"])
+                for row_index, row in enumerate(self.rows):
+                    if row["kind"] == "Spacer":
+                        continue
+                    bad = (check_operation(row, part_operation_of(row))
+                           if row["kind"] == "Operation" else check_program(row))
+                    writer.writerow(
+                        [self.grid.GetCellValue(row_index, column)
+                         for column in range(self.grid.GetNumberCols())]
+                        + ["yes" if is_staged(row) else "",
+                           "; ".join(f"{label}: {reason}" for label, reason in sorted(bad.items()))])
+        except Exception as error:
+            wx.MessageBox(f"It could not be written:\n\n{error}", "Save", wx.OK | wx.ICON_ERROR, self)
+            return
+        self.status.SetLabel(f"Written to {path}")
+
+    '''
+        This function names the file a report is offered as, after the document it came from.
+    '''
+    def _report_name(self):
+        stem = os.path.splitext(os.path.basename(self.document_path))[0] if self.document_path else "process"
+        return f"{stem} programs {datetime.now().strftime('%Y-%m-%d')}"
+
+    '''
+        This function asks where to put a file.
+
+        output:
+            The path, or an empty string where the user backed out
+    '''
+    def _ask_where(self, title, wildcard, default):
+        dialog = wx.FileDialog(self, title, wildcard=wildcard, defaultFile=default,
+                               style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT)
+        path = dialog.GetPath() if dialog.ShowModal() == wx.ID_OK else ""
+        dialog.Destroy()
+        return path
 
     '''
         This function shows the help window.
@@ -3993,11 +4940,24 @@ class TreeFrame(wx.Frame):
             "                          and says which applies to each part operation.\n"
             "   [Renumber programs]    Numbers the programs in sequence, or by hand.\n"
             "   [Edit templates]       Adds, edits, reorders and removes the entries in\n"
-            "                          the dropdown lists.\n"
+            "                          the dropdown lists, the die part abbreviations\n"
+            "                          included.\n"
             "   [Edit limits]          Sets the allowed stepover, pass overlap and depth\n"
             "                          of cut values the checks go by.\n"
+            "   [Forget this document's settings]\n"
+            "                          Clears what was remembered for this job and\n"
+            "                          nothing else - both the entry in documents.json\n"
+            "                          and the MPNC_SETTINGS parameter, since either one\n"
+            "                          left behind would put it all back on the next run.\n"
+            "                          Closing the window afterwards does not write it\n"
+            "                          back; setting a thickness or applying an edit\n"
+            "                          starts a fresh record. Templates, limits, the\n"
+            "                          shared settings and every name and comment\n"
+            "                          already written are untouched.\n"
             "   [Clear saved settings] Deletes the saved settings and puts every\n"
             "                          template list and limit back to the shipped ones.\n"
+            "                          What was remembered for every document goes too,\n"
+            "                          this one included.\n"
             " [Auto name & comment]  Names and comments whole part operations at once -\n"
             "                        see AUTO NAME AND COMMENT below. Everything it works\n"
             "                        out is staged, so it is reviewed before Apply.\n"
@@ -4019,7 +4979,19 @@ class TreeFrame(wx.Frame):
             "                        shows what the document holds again.\n"
             " [Apply staged edits]   Writes every staged value to the document, without\n"
             "                        asking again.\n"
-            " [Refresh from CATIA]   Reads the whole tree again. Staged edits are lost.\n"
+            " Report  (menu)\n"
+            "   [Print preview...]   Shows the table as it will print - landscape, with\n"
+            "                        the colours it has on the screen, so a red cell is\n"
+            "                        still red on paper.\n"
+            "   [Print...]           Prints it.\n"
+            "   [Save as HTML...]    The same page as a file, for a browser or Excel.\n"
+            "   [Save as CSV...]     The table for a spreadsheet. Colour cannot come with\n"
+            "                        it, so the reason a cell was red is written into a\n"
+            "                        column of its own, with a column saying what is\n"
+            "                        staged.\n"
+            " [Refresh from CATIA]   Reads the whole tree again. Staged edits are lost,\n"
+            "                        but the code, master, thickness and spotting set in\n"
+            "                        [Metal thicknesses] are kept.\n"
             " [Help]                 Opens this window.\n"
             " [Close]                Closes the window.\n\n"
 
@@ -4048,21 +5020,36 @@ class TreeFrame(wx.Frame):
 
             "CHECKS\n"
             "--------------------------------------------------------------------------\n"
-            " Three settings are checked, and a value that is off goes on red:\n\n"
-            "   Stepover        Has to sit on the allowed list for the operation's\n"
-            "                   stage - roughing 3, 2 or 1, semi-finish 1.5 or 1,\n"
-            "                   finish 1 or 0.5. The stage is read from the operation's\n"
-            "                   comment or name, or failing that its program's.\n"
-            "   Roughing op     The CATIA Roughing operation is checked on its own two\n"
-            "                   rules instead, whatever its stage: a pass overlap of\n"
-            "                   50% and a depth of cut of 1, 1.5 or 2. Its stepover\n"
-            "                   column shows the pass overlap, a ratio as a percentage\n"
-            "                   of the tool diameter.\n"
+            " A value that is off goes on red. The stepover is checked against\n"
+            " whichever of three rules the operation answers to:\n\n"
+            "   The depo roughing  CATIA's Roughing operation states its stepover as a\n"
+            "                      pass overlap, so it is held to 50% and to its own\n"
+            "                      depth of cut of 1, 1.5 or 2, whatever stage its block\n"
+            "                      belongs to. Its stepover column shows the overlap, a\n"
+            "                      ratio as a percentage of the tool diameter.\n"
+            "   A remachining      A contour cutting a face a sweep has already been\n"
+            "                      over is remachining what the sweep left, so it is\n"
+            "                      held to 0.5 whatever its stage. The Stage column says\n"
+            "                      REMACH where this is what is being checked. A contour\n"
+            "                      with no sweep before it in its block - a block of Z\n"
+            "                      checks - is an ordinary contour at its stage.\n"
+            "   Everything else    The allowed list for the stage its divider heading\n"
+            "                      names: roughing 1.5 or 2, semi-finish 1.5 or 1,\n"
+            "                      finish 1 or 0.5.\n\n"
+            " Then two more:\n\n"
             "   Offset on part  Has to match what the stage rule works out from the\n"
-            "                   part operation's master, metal and spotting.\n\n"
-            " Anything that cannot be worked out - no stage, no master, no metal - is\n"
-            " not checked, so a red cell is always a value that is genuinely off. All\n"
-            " the allowed values are editable under [Edit limits].\n\n"
+            "                   part operation's master, metal and spotting.\n"
+            "   Comment         A program whose comment states an offset its block does\n"
+            "                   not is flagged on the Comment cell. A depo roughing\n"
+            "                   program claiming TO +0.7MM under a *** ROUGHING TO\n"
+            "                   +2.0MM *** heading is the case this catches: the comment\n"
+            "                   is the wrong one, not the heading. Recompose it.\n\n"
+            " Anything that cannot be worked out - no stage, no master, no metal, an\n"
+            " empty list of allowed values - is not checked, so a red cell is always a\n"
+            " value that is genuinely off. All the allowed values are editable under\n"
+            " [Edit limits], where an empty row means check nothing against it. The Z\n"
+            " check and Z-level stage rows ship empty for that reason - no one figure\n"
+            " is right for them.\n\n"
 
             "THE JOB BAR\n"
             "--------------------------------------------------------------------------\n"
@@ -4070,8 +5057,9 @@ class TreeFrame(wx.Frame):
             " Project   Read from the CATPart name, e.g. TJ104 gives 104.\n"
             " Die       Read from the CATPart name, e.g. D45.\n"
             " Rev       Read from straight after the die number, D45_03 gives 03.\n"
-            " Code      Die part code. Suggested from the die part name - LOWER POST\n"
-            "           gives LP - and editable.\n"
+            " Code      Die part code. Suggested from the die part name through the\n"
+            "           abbreviation list - LOWER POST gives LP - and editable. See\n"
+            "           DIE PART ABBREVIATIONS.\n"
             " Master    Which side is cut to nominal, where the part does not say.\n\n"
             " Metal thickness is not here - it belongs to the part, not the job. Use\n"
             " [Metal thicknesses].\n\n"
@@ -4106,7 +5094,12 @@ class TreeFrame(wx.Frame):
             " Description   Picked from the list.\n"
             " TO ...MM      The stage. Rough +2.0 or +0.7, semi-finish +0.3, finish\n"
             "               0.0, Z check 0.0. This does not move when metal comes off.\n"
-            "               It is the Nominal column in the grid.\n"
+            "               It is the Nominal column in the grid. The figure comes from\n"
+            "               the divider heading above the program where it states one -\n"
+            "               *** ROUGHING TO +2.0MM *** gives +2.0 - because both\n"
+            "               roughing stages carry the word ROUGHING and no table can\n"
+            "               tell them apart. The heading is the authority, not the\n"
+            "               program's own comment, which is the thing being written.\n"
             " (M/C: ...MM)  The machine offset the master and metal rule gives - the\n"
             "               stage nominal moved to this part's side. Shown only when it\n"
             "               differs from the stage. It is the M/C column in the grid,\n"
@@ -4124,6 +5117,10 @@ class TreeFrame(wx.Frame):
             " Renaming it does not change what gets posted. The instruction is held in\n"
             " the activity's PP words syntax parameter, and is set in the edit window\n"
             " on its own row, staged and applied like a name or a comment.\n\n"
+            " It cuts nothing, so [Propagate to operations] and [Auto name & comment]\n"
+            " leave its name alone - it is not called after the stage the way a cut is -\n"
+            " and a program's description is read from the first activity under it that\n"
+            " does cut.\n\n"
             " Both have their own template list, and both ship empty - the entries\n"
             " belong to the shop and its machines rather than to the script. Add your\n"
             " own under [Edit templates], PP instruction names and PP instructions,\n"
@@ -4167,8 +5164,9 @@ class TreeFrame(wx.Frame):
             " Amber       Divider - a program carrying a *** heading ***.\n"
             " Green       A staged Name or Comment, shown in place and waiting for\n"
             "             Apply. The darker mark on the Level column finds the row.\n"
-            " Red cell    A stepover or depth of cut off the allowed values, or an\n"
-            "             Offset on part that does not match the stage rule. See\n"
+            " Red cell    A stepover or depth of cut off the allowed values, an Offset\n"
+            "             on part that does not match the stage rule, or a program\n"
+            "             comment claiming an offset its block does not cut to. See\n"
             "             CHECKS and [Edit limits].\n"
             " Red text    A setting this operation type should have but does not. A\n"
             "             setting counts as missing only where another operation of\n"
@@ -4185,23 +5183,61 @@ class TreeFrame(wx.Frame):
             "--------------------------------------------------------------------------\n"
             " Every dropdown is fed by a list that [Edit templates] can change - die\n"
             " parts, machines, job descriptions, part operation comments, masters,\n"
-            " dividers, operation descriptions, tools and die numbers.\n\n"
+            " dividers, operation descriptions, tools, die numbers and the die part\n"
+            " abbreviations.\n\n"
             " Entries can be added, edited, reordered, sorted and removed. Saving\n"
             " writes them to templates.json; the lists built into the script are the\n"
             " fallback, so a list can always be put back with [Reset this list].\n\n"
 
+            "DIE PART ABBREVIATIONS\n"
+            "--------------------------------------------------------------------------\n"
+            " The two letter code in a program name comes from this list, written one\n"
+            " entry per line as the phrase and the code it stands for:\n\n"
+            "     LOWER POST = LP\n"
+            "     UPPER FLANGE STEELS = US\n\n"
+            " The phrase is matched wherever it appears in the part operation's name, so\n"
+            " LOWER_POST_POS_004_BGI is LP and the position, the machine and whatever\n"
+            " else the name carries are ignored. Longer phrases are tried first, so\n"
+            " LOWER SCRAP CUTTER is not swallowed by LOWER CAM.\n\n"
+            " A name no phrase fits falls back to the first letter of its first and last\n"
+            " word - which is what every code used to be, and what reads the wrong\n"
+            " letters once anything trails the name. Add the phrase to the list and it\n"
+            " is right from then on. The code stays editable per part operation in\n"
+            " [Metal thicknesses] either way; the list only decides what is suggested.\n\n"
+            " Codes are allowed to collide - LOWER POST and LOWER PAD are both LP - and\n"
+            " that is a shop convention, not something the script tries to resolve.\n\n"
+
             "SETTINGS PERSISTENCE\n"
             "--------------------------------------------------------------------------\n"
-            " Three files, in:\n"
+            " What every job shares, in:\n"
             "   %APPDATA%\\pycatia_scripts\\Manage_Program_Names_And_Comments\\\n\n"
             "   settings.json    The programmer initial and the machine. Nothing else.\n"
             "   templates.json   The template lists, once they have been edited.\n"
-            "   limits.json      The allowed values the checks go by, once edited.\n\n"
-            " Project, die, revision, metal and master belong to the document and are\n"
-            " read from it every run, so a part name that fails to parse can never\n"
-            " inherit the last job's die number.\n\n"
-            " [Clear saved settings] deletes all three files and puts the templates\n"
-            " and limits back.\n\n"
+            "   limits.json      The allowed values the checks go by, once edited.\n"
+            "   documents.json   What was set for each document, keyed on its path.\n\n"
+            " What belongs to one job is kept for that job, not shared: the Initial,\n"
+            " Project, Die and Rev in the Job bar, and the code, master, thickness and\n"
+            " spotting set per part operation in [Metal thicknesses]. Nothing in the\n"
+            " document states those last four, so without this they would be asked for\n"
+            " again on every run and lost on every refresh.\n\n"
+            " They are kept in two places at once, and whichever was written last is\n"
+            " the one read back:\n\n"
+            "   In the process   A string parameter named MPNC_SETTINGS on the process,\n"
+            "                    so the record travels with the job - copy or rename the\n"
+            "                    CATProcess and it comes too. It only reaches the file\n"
+            "                    when the file is saved in CATIA.\n"
+            "   In documents.json  So a run that was never saved is not lost either,\n"
+            "                    and so a read only model still remembers. This one is\n"
+            "                    per machine and is keyed on the path, so it does not\n"
+            "                    follow the job if the job moves.\n\n"
+            " They are written when [Apply staged edits] is pressed, when [Metal\n"
+            " thicknesses] is closed with OK, and when the window is closed. Both are\n"
+            " cleared for this job alone by [Forget this document's settings].\n\n"
+            " A die number is only ever read back from this job's own record, never\n"
+            " from a shared file, so a part name that fails to parse still cannot\n"
+            " inherit another job's die number.\n\n"
+            " [Clear saved settings] deletes all four files and the MPNC_SETTINGS\n"
+            " parameter, and puts the templates and limits back.\n\n"
 
             "NOTES\n"
             "--------------------------------------------------------------------------\n"
@@ -4210,8 +5246,14 @@ class TreeFrame(wx.Frame):
             " A thin blank band sits before each part operation after the first, so\n"
             " each one reads as its own group. It is not a row - it cannot be edited\n"
             " and counts for nothing.\n\n"
+            " A limits file saved before this version has its stepover lists put back\n"
+            " to the shipped ones, because the roughing figures changed meaning when\n"
+            " the depo roughing stopped being read as the ball nose roughing. The\n"
+            " window says so when it happens.\n\n"
             " Applying writes to the document but does not save it. Save in CATIA to\n"
-            " keep the changes."
+            " keep the changes - the MPNC_SETTINGS parameter holding what was set for\n"
+            " this job reaches the file then too, though documents.json has it either\n"
+            " way."
         )
         dialog = dialogs.ScrolledMessageDialog(self, help_text, "Help")
         dialog.text.SetFont(wx.Font(10, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL))
@@ -4243,14 +5285,16 @@ class TreeFrame(wx.Frame):
 
         count = self._reload_tree()
         if count >= 0:
-            self.status.SetLabel(f"Read again from the document - {count} row(s). "
-                                 f"Staged edits were cleared.")
+            self.status.SetLabel(f"Read again from the document - {count} row(s). Staged edits were "
+                                 f"cleared; the code, master, thickness and spotting were kept.")
 
     '''
         This function reads the whole tree again and rebuilds the grid from it.
 
-        A metal thickness that was chosen by hand is carried across, so the choice does not have to
-        be made again. Staged edits are dropped, so the caller warns first where there are any.
+        Everything the user set - the code, the master, the thickness and the spotting, and any
+        thickness row added by hand - is carried across, because none of it is stated anywhere in
+        the document and reading again would otherwise ask for all of it a second time. Staged
+        edits are dropped, so the caller warns first where there are any.
 
         output:
             The number of real rows read, or -1 where the document could not be read
@@ -4259,8 +5303,7 @@ class TreeFrame(wx.Frame):
         if self.ppr_document is None:
             return -1
 
-        chosen = {row["name"]: row["metal"] for row in self.rows                                                  #Keep the metal that was picked by hand
-                  if row["kind"] == "Part Operation" and len(row.get("metals") or {}) > 1}
+        kept = collect_choices(self.rows, self.metal_rows)                                                        #Nothing in the document states any of it
 
         try:
             rows = read_tree_with_progress(self.ppr_document, self)
@@ -4268,13 +5311,17 @@ class TreeFrame(wx.Frame):
             wx.MessageBox(f"The document could not be read:\n\n{error}", "Refresh", wx.OK | wx.ICON_ERROR, self)
             return -1
 
-        for row in rows:
-            if row["kind"] == "Part Operation" and row["name"] in chosen and chosen[row["name"]]:
-                row["metal"] = chosen[row["name"]]
-
         rows = insert_spacers(rows)                                                                              #A blank band before each part operation after the first
         self.rows = rows
         self.metal_rows = collect_metal_rows(rows)                                                               #The parts may have changed too
+
+        apply_choices(rows, kept)
+        values = {entry["value"] for entry in self.metal_rows}
+        for entry in kept.get("metal_rows") or []:                                                                #A thickness the part never stated
+            if entry.get("value") and entry["value"] not in values:
+                self.metal_rows.append(dict(entry))
+                values.add(entry["value"])
+
         difference = len(rows) - self.grid.GetNumberRows()
         if difference > 0:
             self.grid.AppendRows(difference)
@@ -4308,9 +5355,24 @@ class TreeFrame(wx.Frame):
 
     '''
         This function reads the operations that sit directly under a program.
+
+        A PP instruction is one of these - it is an activity under the program like any other - so
+        a program holding nothing but one is a real program rather than an empty divider slot.
     '''
     def _operations_under(self, program_row):
         return [row for row in self.rows if row.get("parent") is program_row and row["kind"] == "Operation"]
+
+    '''
+        This function reads only the operations under a program that actually cut.
+
+        A PP instruction carries a post processor word and cuts nothing, so it takes no machining
+        name and says nothing about what the program is doing. Naming it from the stage would call
+        it FINISH SWEEP and lose what it is for, and reading the program's description off it would
+        describe the program by an activity that does no work.
+    '''
+    def _cutting_operations_under(self, program_row):
+        return [row for row in self._operations_under(program_row)
+                if row["activity_type"] not in INSTRUCTION_TYPES]
 
     '''
         This function works out the M/C offset a row should show - the machine offset the rule gives.
@@ -4333,10 +5395,7 @@ class TreeFrame(wx.Frame):
         if part_op is None or row["kind"] not in ("Program", "Operation"):
             return None
         if nominal is None:
-            if row["kind"] == "Operation":
-                _, nominal = stage_of_row(row)                                                                    #Its own stage, or its program's
-            else:
-                _, nominal = stage_for_description(effective_comment(row) or effective_name(row))
+            _, nominal = stage_of_row(row)                                                                        #Its divider heading, then its own text, then its program's
         if nominal is None:
             return None
         part = upper_or_lower(effective_name(part_op))
@@ -4420,6 +5479,7 @@ class TreeFrame(wx.Frame):
                               f"machined offset falls back to what the operations state.")
 
             stage = None
+            nominal = None
             number = 1
             for program_row in [row for row in self.rows
                                 if row["kind"] == "Program" and part_operation_of(row) is part_op]:
@@ -4428,9 +5488,9 @@ class TreeFrame(wx.Frame):
                     heading = headings.get(id(program_row))
                     if heading:
                         program_row["new_name"] = "" if heading == program_row["name"] else heading
-                        stage, _ = stage_for_description(heading)
+                        stage, nominal, _ = stage_and_nominal(heading)                                            #*** ROUGHING TO +2.0MM *** states its own
                     else:
-                        stage = None                                                                             #Skipped - the programs below it need naming by hand
+                        stage, nominal = None, None                                                               #Skipped - the programs below it need naming by hand
                     continue
 
                 if stage is None:
@@ -4438,8 +5498,13 @@ class TreeFrame(wx.Frame):
                                   f"so it was left alone. Give the divider above it a heading.")
                     continue
 
-                nominal = STAGE_NOMINALS.get(stage)
-                for operation in operations:
+                cutting = self._cutting_operations_under(program_row)                                              #A PP instruction keeps its own name
+                if not cutting:
+                    issues.append(f"{effective_name(program_row)}: nothing under it cuts, so it was "
+                                  f"left alone.")
+                    continue
+
+                for operation in cutting:
                     name = best_operation_description(stage, operation["activity_type"])
                     operation["new_name"] = "" if name == operation["name"] else name
 
@@ -4452,7 +5517,7 @@ class TreeFrame(wx.Frame):
                 if not tool:
                     issues.append(f"{effective_name(program_row)}: no tool detected - its comment is "
                                   f"written without one.")
-                description = best_operation_description(stage, operations[0]["activity_type"])
+                description = best_operation_description(stage, cutting[0]["activity_type"])                        #What the program does, from the first thing that cuts
                 machine_offset = self._rule_mc(program_row, nominal)
                 note = spotting_note(part_op.get("spotting"), part_op.get("spotting_mode") == "built in") \
                     if part_op.get("spotting_mode") else ""
@@ -4505,7 +5570,7 @@ class TreeFrame(wx.Frame):
         if row["kind"] == "Program":
             program_row, after, where = row, None, f"first in {effective_name(row)}"
         else:
-            program_row, after, where = row.get("parent"), row["activity"], f"after {effective_name(row)}"
+            program_row, after, where = row.get("parent"), row, f"after {effective_name(row)}"                     #The row, so its place in the program can be found
         if program_row is None or program_row["kind"] != "Program":
             return None, None, "That row is not inside a program."
         if is_divider(effective_name(program_row)):
@@ -4539,6 +5604,58 @@ class TreeFrame(wx.Frame):
         self._insert_pp_instruction(program_row, after, where, *chosen)
 
     '''
+        This function finds the activity a new PP instruction has to be moved in front of.
+
+        MoveOperation moves its second argument to sit immediately BEFORE its first, whatever the
+        CAA documentation says - it reads "moves iManufacturingOperation after iReferenceOperation"
+        and that is the wrong way round. Settled by moving one on a live process in V5-6R2024 SP3:
+        with the tool change as the reference the instruction landed in front of the tool change,
+        and with an operation as the reference it landed in front of that operation. Do not take
+        the documentation's word for it again.
+
+        Start and Stop are refused as the reference with a type mismatch, so a placement can only
+        ever be expressed as the real activity the instruction goes in front of:
+
+            first in the program    in front of the first real activity, which is the tool change
+            after an operation      in front of whatever follows that operation
+
+        A new instruction is created at the end, in front of Stop, so one that belongs after the
+        last operation is already where it should be and needs no move at all.
+
+        Inputs:
+            program_row     The program the instruction was added to
+            after           The operation row it should follow, or None for first in the program
+
+        output:
+            The activity to move it in front of, or None where it needs no moving
+    '''
+    def _placement_reference(self, program_row, after):
+        children = program_row["activity"].children_activities
+        items = [children.item(index + 1) for index in range(children.count)]
+
+        ordered = [(index, item) for index, item in enumerate(items)
+                   if item.type not in ACTIVITY_SKIP]                                                            #Start and Stop take no part in the order
+        shown = [entry for entry in ordered if entry[1].type != "ToolChange"]                                    #The activities the grid has a row for
+        if not ordered or not shown:
+            return None
+
+        created_index = shown[-1][0]                                                                             #The instruction just added, appended at the end
+
+        if after is None:
+            return next((item for index, item in ordered if index != created_index), None)                       #In front of everything
+
+        operation_rows = [row for row in self.rows
+                          if row.get("parent") is program_row and row["kind"] == "Operation"]
+        if after not in operation_rows:
+            return None
+        rank = operation_rows.index(after)                                                                        #Its place among the rows the grid showed
+        if rank >= len(shown) - 1:
+            return None                                                                                          #Nothing of its own follows it
+        target_index = shown[rank][0]
+        return next((item for index, item in ordered
+                     if index > target_index and index != created_index), None)
+
+    '''
         This function creates a PP instruction, sets whatever was given, and places it.
 
         The instruction text is set as the activity is created; the name and comment are set straight
@@ -4547,7 +5664,7 @@ class TreeFrame(wx.Frame):
 
         Inputs:
             program_row     The program to add it to
-            after           The activity to place it after, or None to place it first
+            after           The operation row to place it after, or None to place it first
             where           The phrase for the status line, e.g. "first in ..."
             name            The activity name, or "" to leave the default
             comment         The comment, or "" to leave none
@@ -4571,9 +5688,8 @@ class TreeFrame(wx.Frame):
 
         placed = True
         try:
-            children = program_row["activity"].children_activities
-            reference = after if after is not None else (children.item(1) if children.count > 1 else None)
-            if reference is not None:                                                                             #First goes after Start, so before any operation
+            reference = self._placement_reference(program_row, after)
+            if reference is not None:                                                                            #None means it was created where it belongs
                 program.move_operation(reference, created)
         except Exception:
             placed = False                                                                                       #Added, but it could not be moved into place
@@ -4647,6 +5763,7 @@ class TreeFrame(wx.Frame):
     def _on_apply(self, event):
         self._read_job_bar()
         save_settings(self.settings_dir, self.settings)
+        self._save_record(deliberate=True)                                                                        #The job values belong to this document
 
         staged = [row for row in self.rows if is_staged(row)]
         if not staged:
@@ -4687,6 +5804,7 @@ class TreeFrame(wx.Frame):
     def _on_close(self, event):
         self._read_job_bar()
         save_settings(self.settings_dir, self.settings)
+        self._save_record()                                                                                       #So the next run on this job finds it as it was left
         self.Close()
 
     '''
@@ -4839,7 +5957,7 @@ if __name__ == "__main__":
             if not row.get("code"):
                 row["code"] = die_part_code(row["name"])                                                         #Suggested, editable in [Metal thicknesses]
 
-        frame = TreeFrame(rows, job_info, settings, settings_dir, ppr_document)
+        frame = TreeFrame(rows, job_info, settings, settings_dir, ppr_document, check_document)
         frame.Show()
         wx.CallAfter(_bring_to_front, frame)
         app.MainLoop()
